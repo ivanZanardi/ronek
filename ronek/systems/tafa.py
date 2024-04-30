@@ -42,21 +42,21 @@ class TAFASystem(TASystem):
 
   # FOM
   # -----------------------------------
-  def _compose_fom_ops(self, rates):
+  def _update_fom_ops(self, rates):
     return {
       # > Molecule-Atom collisons
-      "m-a": super(TAFASystem, self)._compose_fom_ops(rates),
+      "m-a": super(TAFASystem, self)._update_fom_ops(rates),
       # > Molecule-Molecule collisons
       "m-m": {
-        "ed": self._compose_fom_ops_e(rates["m-m"]["e"]) \
-          + self._compose_fom_ops_ed(rates["m-m"]["ed"]["fwd"]) \
-          + self._compose_fom_ops_d(rates["m-m"]["d"]["fwd"]),
-        "er": self._compose_fom_ops_er(rates["m-m"]["ed"]["bwd"]),
-        "r": self._compose_fom_ops_r(rates["m-m"]["d"]["bwd"])
+        "ed": self._update_fom_ops_e(rates["m-m"]["e"]) \
+          + self._update_fom_ops_ed(rates["m-m"]["ed"]["fwd"]) \
+          + self._update_fom_ops_d(rates["m-m"]["d"]["fwd"]),
+        "er": self._update_fom_ops_er(rates["m-m"]["ed"]["bwd"]),
+        "r": self._update_fom_ops_r(rates["m-m"]["d"]["bwd"])
       }
     }
 
-  def _compose_fom_ops_e(self, rates):
+  def _update_fom_ops_e(self, rates):
     rates = rates["fwd"] + rates["bwd"]
     # Diagonal
     k_diag = np.sum(rates, axis=(2,3))
@@ -69,43 +69,43 @@ class TAFASystem(TASystem):
     k = np.sum(k, axis=0)
     return k - k_diag
 
-  def _compose_fom_ops_ed(self, rates):
+  def _update_fom_ops_ed(self, rates):
     k = rates + np.transpose(rates, axes=(1,0,2))
     k = np.sum(k, axis=-1)
     k = torch.diag_embed(torch.from_numpy(k))
     k = np.transpose(k.numpy(force=True), axes=(1,2,0))
     return np.transpose(rates, axes=(2,0,1)) - k
 
-  def _compose_fom_ops_er(self, rates):
+  def _update_fom_ops_er(self, rates):
     k = rates + np.transpose(rates, axes=(0,2,1))
     k = np.transpose(np.sum(k, axis=-1))
     k -= np.diag(np.sum(rates, axis=(1,2)))
     return k
 
-  def _compose_fom_ops_d(self, rates):
+  def _update_fom_ops_d(self, rates):
     k = rates + np.transpose(rates)
     k = torch.diag_embed(torch.from_numpy(k))
     return - np.transpose(k.numpy(force=True), axes=(1,2,0))
 
-  def _compose_fom_ops_r(self, rates):
+  def _update_fom_ops_r(self, rates):
     k = rates + np.transpose(rates)
     return np.sum(k, axis=-1)
 
   # Linearized FOM
   # -----------------------------------
-  def _compose_lin_fom_ops(self, p, T, Tint, max_mom=10):
+  def _compute_lin_fom_ops(self, p, T, Tint, max_mom=10):
     n_a_eq, n_m_eq = self._compute_eq_comp(p, T)
     alpha = n_m_eq / n_a_eq**2
     return {
-      "A": self._compose_lin_fom_ops_a(alpha, n_a_eq),
-      "B": self._compose_lin_fom_ops_b(
+      "A": self._compute_lin_fom_ops_a(alpha, n_a_eq),
+      "B": self._compute_lin_fom_ops_b(
         b=self._get_lin_fom_ops_b(alpha, n_a_eq),
         Tint=Tint
       ),
-      "C": self._compose_lin_fom_ops_c(max_mom)
+      "C": self._compute_lin_fom_ops_c(max_mom)
     }
 
-  def _compose_lin_fom_ops_a(self, alpha, n_a_eq):
+  def _compute_lin_fom_ops_a(self, alpha, n_a_eq):
     A1 = self.fom_ops["m-m"]["ed"] \
       + np.transpose(self.fom_ops["m-m"]["ed"], axes=(0,2,1))
     A1 = A1 @ alpha

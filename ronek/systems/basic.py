@@ -116,6 +116,7 @@ class Basic(object):
       raise ValueError("Update FOM operators.")
     if (self.phi is None):
       raise ValueError("Set trial and test bases.")
+    # Compose operators
     self.rom_ops = self._update_rom_ops()
     self.rom_ops["m_ratio"] = self.mass_ratio @ self.phif
 
@@ -132,20 +133,20 @@ class Basic(object):
     # Update kinetics
     self.kinetics.update(T)
     # Compose operators
-    self.fom_ops = self.compose_fom_ops(self.kinetics.rates)
+    if self.use_einsum:
+      self.fom_ops = self.kinetics.rates
+    else:
+      self.fom_ops = self._update_fom_ops(self.kinetics.rates)
     self.fom_ops["m_ratio"] = self.mass_ratio
 
-  def compose_fom_ops(self, rates):
-    return rates if self.use_einsum else self._compose_fom_ops(rates)
-
   @abc.abstractmethod
-  def _compose_fom_ops(self, rates):
+  def _update_fom_ops(self, rates):
     pass
 
   # Linearized FOM
   # -----------------------------------
   @abc.abstractmethod
-  def compose_lin_fom_ops(self, *args, **kwargs):
+  def compute_lin_fom_ops(self, *args, **kwargs):
     if self.use_einsum:
       raise NotImplementedError(
         "The implementation for constructing the linearized operators " \
@@ -153,13 +154,14 @@ class Basic(object):
       )
     if (self.fom_ops is None):
       raise ValueError("Update FOM operators.")
-    return self._compose_lin_fom_ops(*args, **kwargs)
+    return self._compute_lin_fom_ops(*args, **kwargs)
 
   @abc.abstractmethod
-  def _compose_lin_fom_ops(self, *args, **kwargs):
+  def _compute_lin_fom_ops(self, *args, **kwargs):
     pass
 
   # Equilibrium composition
+  # -----------------------------------
   def _compute_eq_comp(self, p, T):
     # Solve: n_a + sum(ni) = p/(kT)
     alpha = self._compute_eq_ratio(T)

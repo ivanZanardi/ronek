@@ -36,7 +36,7 @@ class TASystem(Basic):
 
   # FOM
   # -----------------------------------
-  def _compose_fom_ops(self, rates):
+  def _update_fom_ops(self, rates):
     k = rates["m-a"]["e"]["fwd"] + rates["m-a"]["e"]["bwd"]
     k -= np.diag(np.sum(k, axis=-1) + rates["m-a"]["d"]["fwd"])
     return {
@@ -46,18 +46,18 @@ class TASystem(Basic):
 
   # Linearized FOM
   # -----------------------------------
-  def _compose_lin_fom_ops(self, T, Tint, max_mom=10):
+  def _compute_lin_fom_ops(self, T, Tint, max_mom=-1):
     alpha = self._compute_eq_ratio(T)
     return {
       "A": self.fom_ops["ed"] * const.UNA,
-      "B": self._compose_lin_fom_ops_b(
+      "B": self._compute_lin_fom_ops_b(
         b=self._get_lin_fom_ops_b(alpha),
         Tint=Tint
       ),
-      "C": self._compose_lin_fom_ops_c(max_mom)
+      "C": self._compute_lin_fom_ops_c(max_mom)
     }
 
-  def _compose_lin_fom_ops_b(self, b, Tint):
+  def _compute_lin_fom_ops_b(self, b, Tint):
     B = np.vstack([b] + self._compute_boltz(Tint))
     # Normalize
     B *= (np.linalg.norm(b) / np.linalg.norm(B, axis=-1, keepdims=True))
@@ -66,11 +66,11 @@ class TASystem(Basic):
   def _get_lin_fom_ops_b(self, alpha):
     return (self.fom_ops["ed"] @ alpha + 3*self.fom_ops["r"]) * const.UNA**3
 
-  def _compose_lin_fom_ops_c(self, max_mom=10):
-      if (max_mom > 0):
-        return self.species["molecule"].compute_mom_basis(max_mom)
-      else:
-        return np.eye(self.nb_eqs-1)
+  def _compute_lin_fom_ops_c(self, max_mom):
+    if (max_mom > 0):
+      return self.species["molecule"].compute_mom_basis(max_mom)
+    else:
+      return np.eye(self.nb_eqs-1)
 
   # Solving
   # ===================================
