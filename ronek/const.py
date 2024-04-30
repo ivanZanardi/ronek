@@ -6,7 +6,7 @@ from scipy.constants import physical_constants as pc
 # -------------------------------------
 UH        = pc["Planck constant"][0]               # [J/Hz]
 UHT       = pc["reduced Planck constant"][0]       # [J*s]
-UEPS0     = pc["vacuum electric permittivity"][0]  # [F/m] 
+UEPS0     = pc["vacuum electric permittivity"][0]  # [F/m]
 UMU0      = pc["vacuum mag. permeability"][0]      # [N/A^2]
 UC0       = pc["speed of light in vacuum"][0]      # [m/s]
 

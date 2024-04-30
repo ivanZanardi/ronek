@@ -165,9 +165,9 @@ class Basic(object):
   def _compute_eq_comp(self, p, T):
     # Solve: n_a + sum(ni) = p/(kT)
     alpha = self._compute_eq_ratio(T)
-    a, n = np.sum(alpha), p / (const.UKB * T)
-    n_a = (-1+np.sqrt(1+4*a*n)) / (2*a)
-    n_m = alpha * n_a**2
+    a, n = np.sum(alpha), p/(const.UKB*T)
+    n_a = (-1+np.sqrt(1+4*a*n))/(2*a)
+    n_m = alpha*(n_a**2)
     return n_a, n_m
 
   def _compute_eq_ratio(self, T):
@@ -176,7 +176,7 @@ class Basic(object):
 
   def _compute_boltz(self, Tint):
     q = [self.species["molecule"].q_int(Ti) for Ti in Tint]
-    return [qi / np.sum(qi) for qi in q]
+    return [qi/np.sum(qi) for qi in q]
 
   # Solving
   # ===================================

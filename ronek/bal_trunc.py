@@ -25,9 +25,6 @@ class BalancedTruncation(object):
     self.verbose = verbose
     # Initialize operators (A, B, and C)
     # -------------
-    for (k, op) in operators.items():
-      if (len(op.shape) == 1):
-        operators[k] = op.reshape(-1,1)
     self.ops = operators
     # Nb. of equations
     self.nb_eqs = self.ops["A"].shape[0]
@@ -54,7 +51,11 @@ class BalancedTruncation(object):
 
   @ops.setter
   def ops(self, value):
-    self._ops = {k: bkd.to_backend(x) for (k, x) in value.items()}
+    self._ops = {}
+    for (k, op) in value.items():
+      if (len(op.shape) == 1):
+        op = op.reshape(-1,1)
+      self._ops[k] = bkd.to_backend(op)
 
   # Eigendecomposition of operator A
   @property
@@ -103,10 +104,11 @@ class BalancedTruncation(object):
       wi = a * self.lg["w"]
       ti = a * self.lg["x"] + b
       _t.append(ti), _w.append(wi)
-    t, w = [np.concatenate(z).squeeze() for z in (_t, _w)]
     # Set quadrature
-    self.time_dim = len(t)
-    self.t, self.w = [bkd.to_backend(z) for z in (t, w)]
+    self.t, self.w = [
+      bkd.to_backend(np.concatenate(z).squeeze()) for z in (_t, _w)
+    ]
+    self.time_dim = len(self.t)
 
   # Eigendecomposition
   def compute_eiga(self, real_only=True):
