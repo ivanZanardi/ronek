@@ -1,13 +1,12 @@
-import gc
 import torch
 import numpy as np
 
 
 # Global
 # -------------------------------------
-_VALID_BKD = {"numpy", "torch"}
+_VALID_BKD = {"torch"}
 _VALID_DEVICE = {"cpu", "cuda"}
-_VALID_DTYPE = {"float16", "float32", "float64"}
+_VALID_DTYPE = {"float32", "float64"}
 
 # Setting
 # -------------------------------------
@@ -77,11 +76,6 @@ def set_device(value=None, index=0, nb_threads=4):
   torch.set_num_interop_threads(nb_threads)
   torch.set_num_threads(nb_threads)
 
-def empty_cache():
-  if _DEVICE.startswith("cuda"):
-    torch.cuda.empty_cache()
-  gc.collect()
-
 # Epsilon
 # -------------------------------------
 def machine_eps():
@@ -127,10 +121,4 @@ def set_floatx(value):
     raise ValueError(
       f"Unknown dtype: '{value}'. Valid options are: {_VALID_DTYPE}"
     )
-  torch.set_default_dtype(
-    {
-      "float16": torch.float16,
-      "float32": torch.float32,
-      "float64": torch.float64
-    }[_FLOATX]
-  )
+  torch.set_default_dtype(floatx())

@@ -1,19 +1,15 @@
 import os
-import abc
 import torch
 import numpy as np
 import scipy as sp
-import tensorflow as tf
 
-from .. import ops
-from .. import backend as bkd
+from . import backend as bkd
 from silx.io.dictdump import dicttoh5, h5todict
 
 
-class Basic(object):
+class BalancedTruncation(object):
   """
-  Model reduction using balanced proper orthogonal decomposition for
-  a stable input-output system.
+  Model reduction using balanced truncation for a stable input-output system.
   """
 
   # Initialization
@@ -22,17 +18,19 @@ class Basic(object):
     self,
     operators,
     lg_deg=5,
-    path_to_save="./",
-    saving=True
+    path_to_saving="./",
+    saving=True,
+    verbose=True
   ):
+    self.verbose = verbose
     # Initialize operators (A, B, and C)
     # -------------
-    self.ops = operators
     for (k, op) in operators.items():
       if (len(op.shape) == 1):
-        self.ops[k] = op.reshape(-1,1)
+        operators[k] = op.reshape(-1,1)
+    self.ops = operators
     # Nb. of equations
-    self.fom_dim = self.ops["A"].shape[0]
+    self.nb_eqs = self.ops["A"].shape[0]
     # Gauss-Legendre quadrature points and weights
     # -------------
     self.lg_deg = lg_deg
@@ -40,17 +38,24 @@ class Basic(object):
     self.lg = dict(zip(("x", "w"), self.lg))
     # Saving
     # -------------
-    self.path_to_save = path_to_save
-    os.makedirs(self.path_to_save, exist_ok=True)
     self.saving = saving
-    # Set properties
+    self.path_to_saving = path_to_saving
+    os.makedirs(self.path_to_saving, exist_ok=True)
+    # Properties
     # -------------
     self.eiga = None
-    self.X = None
-    self.Y = None
 
   # Properties
   # ===================================
+  # Operators
+  @property
+  def ops(self):
+    return self._ops
+
+  @ops.setter
+  def ops(self, value):
+    self._ops = {k: bkd.to_backend(x) for (k, x) in value.items()}
+
   # Eigendecomposition of operator A
   @property
   def eiga(self):
@@ -58,46 +63,36 @@ class Basic(object):
 
   @eiga.setter
   def eiga(self, value):
-    self._eiga = value
-
-  # Empirical controllability Gramian
-  @property
-  def X(self):
-    return self._X
-
-  @X.setter
-  def X(self, value):
-    self._X = value
-
-  # Empirical observability Gramian
-  @property
-  def Y(self):
-    return self._Y
-
-  @Y.setter
-  def Y(self, value):
-    self._Y = value
+    self._eiga = {k: bkd.to_backend(x) for (k, x) in value.items()}
 
   # Calling
   # ===================================
-  @abc.abstractmethod
-  def __call__(self, *args, **kwargs):
-    pass
+  def __call__(
+    self,
+    t,
+    X=None,
+    Y=None,
+    real_only=True,
+    compute_modes=True
+  ):
+    if ((X is None) or (Y is None)):
+      self.set_quad(t)
+      if self.verbose:
+        print("Performing eigendecomposition of A ...")
+      self.compute_eiga(real_only)
+      if self.verbose:
+        print("Computing Gramians ...")
+      self.X = self.compute_gramian(op=self.ops["B"])
+      self.Y = self.compute_gramian(op=self.ops["C"].t(), transpose=True)
+    if compute_modes:
+      if self.verbose:
+        print("Computing balancing modes ...")
+      self.compute_balancing_modes(X, Y)
 
-  def prepare(self, t, real_only):
-    # Get time grid and integration weights
-    t, w = self.get_quad(t)
-    self.time_dim = len(t)
-    # Eigendecomposition of operator A
-    self.compute_eiga(real_only)
-    # Convert to backend
-    self.eiga, self.ops, self.t, self.w = tf.nest.map_structure(
-      bkd.to_backend, (self.eiga, self.ops, t, w)
-    )
-
-  # Gauss-Legendre quadrature
+  # Setting up
   # -----------------------------------
-  def get_quad(self, t):
+  # Gauss-Legendre quadrature
+  def set_quad(self, t):
     _t, _w = [], []
     for i in range(len(t)-1):
       # Scaling and shifting
@@ -106,15 +101,15 @@ class Basic(object):
       wi = a * self.lg["w"]
       ti = a * self.lg["x"] + b
       _t.append(ti), _w.append(wi)
-    # Concatenating
     t, w = [np.concatenate(z).squeeze() for z in (_t, _w)]
-    return t, w
+    # Set quadrature
+    self.time_dim = len(t)
+    self.t, self.w = [bkd.to_backend(z) for z in (t, w)]
 
   # Eigendecomposition
-  # -----------------------------------
   def compute_eiga(self, real_only=True):
     if (self.eiga is None):
-      filename = self.path_to_save + "/eiga.hdf5"
+      filename = self.path_to_saving + "/eiga.hdf5"
       if os.path.exists(filename):
         # Read eigendecomposition
         eiga = h5todict(filename)
@@ -138,14 +133,6 @@ class Basic(object):
 
   # Gramians computation
   # -----------------------------------
-  def compute_gc(self):
-    if (self.X is None):
-      self.X = ops.read(path=self.path_to_save, name="gc", to_cpu=True)
-      if (self.X is None):
-        self.X = self.compute_gramian(op=self.ops["B"])
-        if self.saving:
-          ops.save(self.X, filename=self.path_to_save+"/gc")
-
   def compute_gramian(self, op, transpose=False):
     # Allocate memory
     shape = [self.time_dim] + list(op.shape)
@@ -159,30 +146,33 @@ class Basic(object):
       g[i] = (sqrt_w[i] * gi).cpu()
     # Manipulate tensor
     g = torch.permute(g, dims=(1,2,0))
-    g = torch.reshape(g, (self.fom_dim,-1))
+    g = torch.reshape(g, (self.nb_eqs,-1))
     return g
 
   # Balancing modes
   # -----------------------------------
   def compute_balancing_modes(self, X, Y):
-    # Compute full Gramians
+    X, Y = bkd.to_numpy(X), bkd.to_numpy(Y)
     n, r = X.shape
     if (r > n):
-      Wc, Wo = X @ X.t(), Y @ Y.t()
-      s, T = torch.linalg.eig(Wc @ Wo)
-      Tinv = torch.linalg.inv(V)
-      self.s, indices = torch.sort(s, dim=-1, descending=True)
-      self.phi = torch.take_along_dim(T, indices, dim=-1)
-      self.psi = torch.take_along_dim(Tinv, indices, dim=-1)
+      # Compute full Gramians
+      WcWo = (X @ X.T) @ (Y @ Y.T)
+      s, T = sp.linalg.eig(WcWo)
+      # Sorting
+      indices = np.argsort(s, axis=-1)
+      s, phi = [np.take_along_axis(x, indices, axis=-1) for x in (s, T)]
+      psi = sp.linalg.inv(phi)
     else:
       # Perform SVD
-      U, self.s, Vh = torch.linalg.svd(Y.t() @ X, full_matrices=False)
+      U, s, Vh = sp.linalg.svd(Y.T @ X, full_matrices=False)
       V = Vh.T
       # Compute balancing transformation
-      sqrt_s = torch.diag(torch.sqrt(1/self.s))
-      self.phi = X @ V @ sqrt_s
-      self.psi = Y @ U @ sqrt_s
+      sqrt_s = np.diag(np.sqrt(1/s))
+      phi = X @ V @ sqrt_s
+      psi = Y @ U @ sqrt_s
     # Save balancing modes
-    if self.saving:
-      for (x, name) in ((self.s, "s"), (self.phi, "phi"), (self.psi, "psi")):
-        ops.save(x, filename=self.path_to_save+"/"+name)
+    dicttoh5(
+      treedict={"s": s, "phi": phi, "psi": psi},
+      h5file=self.path_to_saving+"/rom.hdf5",
+      overwrite_data=True
+    )
