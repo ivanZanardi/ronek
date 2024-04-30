@@ -1,2 +1,5 @@
-# ronek
-Reduced Order modeling for Non-Equilibrium Kinetics
+# RONEK
+
+**Reduced Order modeling for Non-Equilibrium Kinetics**
+
+---
