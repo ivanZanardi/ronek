@@ -4,7 +4,9 @@
 
 ---
 
-RONEK is a Python librayr designed for efficient [polyharmonic spline interpolation](https://en.wikipedia.org/wiki/Polyharmonic_spline). Leveraging GPU acceleration, this implementation excels in performance, making it well-suited for large-scale interpolation tasks.
+RONEK is a Python library designed for reduced order modeling for non-equilibrium kinetics, based on balanced truncation techniques. It currently supports mixtures consisting of two species: one atom and one molecule, with a single chemical component. For instance, it can manage mixtures like $\mathcal{S}=\left[\text{N},\text{N}_2\right]$ or $\mathcal{S}=\left[\text{O},\text{O}_2\right]$.
+
+It leverages PyTorch for GPU acceleration. This implementation excels in performance, making it well-suited for high-dimensional problems.
 
 ## Installation
 
@@ -14,7 +16,15 @@ Install RONEK using the following command:
 pip install ronek
 ```
 
-RONEK has minimal dependencies, requiring only PyTorch and NumPy.
+RONEK has the following dependencies:
+
+- absl_py
+- ipython
+- matplotlib
+- numpy
+- scipy
+- silx
+- torch
 
 ## Explore
 
@@ -22,4 +32,4 @@ Check out the [examples](https://github.com/ivanZanardi/ronek/tree/main/examples
 
 ## License
 
-RONEK is distributed under the [MIT license](https://github.com/ivanZanardi/ronek/blob/main/LICENSE). Feel free to use, modify, and contribute to this project within the terms of the license.
+RONEK is distributed under the [Apache-2.0 license](https://github.com/ivanZanardi/ronek/blob/main/LICENSE). You are welcome to utilize, modify, and contribute to this project in accordance with the terms outlined in the license.
