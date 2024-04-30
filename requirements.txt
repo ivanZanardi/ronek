@@ -1,0 +1,7 @@
+absl_py
+ipython
+matplotlib
+numpy
+scipy
+silx
+torch
