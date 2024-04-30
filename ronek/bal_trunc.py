@@ -82,12 +82,14 @@ class BalancedTruncation(object):
       self.compute_eiga(real_only)
       if self.verbose:
         print("Computing Gramians ...")
-      self.X = self.compute_gramian(op=self.ops["B"])
-      self.Y = self.compute_gramian(op=self.ops["C"].t(), transpose=True)
+      X = self.compute_gramian(op=self.ops["B"])
+      Y = self.compute_gramian(op=self.ops["C"].t(), transpose=True)
     if compute_modes:
       if self.verbose:
         print("Computing balancing modes ...")
       self.compute_balancing_modes(X, Y)
+    else:
+      return X, Y
 
   # Setting up
   # -----------------------------------
@@ -147,21 +149,22 @@ class BalancedTruncation(object):
     # Manipulate tensor
     g = torch.permute(g, dims=(1,2,0))
     g = torch.reshape(g, (self.nb_eqs,-1))
-    return g
+    return bkd.to_numpy(g)
 
   # Balancing modes
   # -----------------------------------
   def compute_balancing_modes(self, X, Y):
-    X, Y = bkd.to_numpy(X), bkd.to_numpy(Y)
     n, r = X.shape
     if (r > n):
       # Compute full Gramians
       WcWo = (X @ X.T) @ (Y @ Y.T)
       s, T = sp.linalg.eig(WcWo)
+      Tinv = sp.linalg.inv(T)
       # Sorting
       indices = np.argsort(s, axis=-1)
-      s, phi = [np.take_along_axis(x, indices, axis=-1) for x in (s, T)]
-      psi = sp.linalg.inv(phi)
+      s, phi, psi = [
+        np.take_along_axis(x, indices, axis=-1) for x in (s, T, Tinv)
+      ]
     else:
       # Perform SVD
       U, s, Vh = sp.linalg.svd(Y.T @ X, full_matrices=False)
@@ -173,6 +176,6 @@ class BalancedTruncation(object):
     # Save balancing modes
     dicttoh5(
       treedict={"s": s, "phi": phi, "psi": psi},
-      h5file=self.path_to_saving+"/rom.hdf5",
+      h5file=self.path_to_saving+"/bases.hdf5",
       overwrite_data=True
     )
