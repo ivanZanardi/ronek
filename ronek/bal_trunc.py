@@ -51,11 +51,13 @@ class BalancedTruncation(object):
 
   @ops.setter
   def ops(self, value):
-    self._ops = {}
-    for (k, op) in value.items():
-      if (len(op.shape) == 1):
-        op = op.reshape(-1,1)
-      self._ops[k] = bkd.to_backend(op)
+    self._ops = None
+    if (value is not None):
+      self._ops = {}
+      for (k, op) in value.items():
+        if (len(op.shape) == 1):
+          op = op.reshape(-1,1)
+        self._ops[k] = bkd.to_backend(op)
 
   # Eigendecomposition of operator A
   @property
@@ -64,7 +66,9 @@ class BalancedTruncation(object):
 
   @eiga.setter
   def eiga(self, value):
-    self._eiga = {k: bkd.to_backend(x) for (k, x) in value.items()}
+    self._eiga = None
+    if (value is not None):
+      self._eiga = {k: bkd.to_backend(x) for (k, x) in value.items()}
 
   # Calling
   # ===================================
@@ -78,8 +82,6 @@ class BalancedTruncation(object):
   ):
     if ((X is None) or (Y is None)):
       self.set_quad(t)
-      if self.verbose:
-        print("Performing eigendecomposition of A ...")
       self.compute_eiga(real_only)
       if self.verbose:
         print("Computing Gramians ...")
@@ -115,10 +117,10 @@ class BalancedTruncation(object):
     if (self.eiga is None):
       filename = self.path_to_saving + "/eiga.hdf5"
       if os.path.exists(filename):
-        # Read eigendecomposition
         eiga = h5todict(filename)
       else:
-        # Perform eigendecomposition
+        if self.verbose:
+          print("Performing eigendecomposition of A ...")
         a = bkd.to_numpy(self.ops["A"])
         l, v = sp.linalg.eig(a)
         vinv = sp.linalg.inv(v)
@@ -163,10 +165,8 @@ class BalancedTruncation(object):
       s, T = sp.linalg.eig(WcWo)
       Tinv = sp.linalg.inv(T)
       # Sorting
-      indices = np.argsort(s, axis=-1)
-      s, phi, psi = [
-        np.take_along_axis(x, indices, axis=-1) for x in (s, T, Tinv)
-      ]
+      indices = np.argsort(s, axis=-1).reshape(-1)
+      s, phi, psi = [np.take(x, indices, axis=-1) for x in (s, T, Tinv)]
     else:
       # Perform SVD
       U, s, Vh = sp.linalg.svd(Y.T @ X, full_matrices=False)
