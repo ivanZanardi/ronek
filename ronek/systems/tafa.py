@@ -32,8 +32,8 @@ class TAFASystem(TASystem):
       # > Molecule-Molecule collisons
       "m-m": {
         "ed": np.einsum(
-          "pjr,jq->pqr",
-          self.psi.T @ self.fom_ops["m-m"]["ed"] @ self.phif, self.phif
+          "ip,ijk,jq,kr->pqr",
+          self.psi, self.fom_ops["m-m"]["ed"], self.phif, self.phif
         ),
         "er": self.psi.T @ self.fom_ops["m-m"]["er"] @ self.phif,
         "r": self.psi.T @ self.fom_ops["m-m"]["r"]

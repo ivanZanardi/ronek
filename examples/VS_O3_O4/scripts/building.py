@@ -34,12 +34,12 @@ if (__name__ == '__main__'):
   # > Initial internal temperature (molecule)
   Tint_grid = {
     "lim": [2e2, 1e4],
-    "pts": 10
+    "pts": 50
   }
   # > Equilibrium pressure (atom)
   p_grid = {
     "lim": [1e3, 1e5],
-    "pts": 10
+    "pts": 50
   }
   # Paths
   paths = {

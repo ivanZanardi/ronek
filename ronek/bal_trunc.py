@@ -162,11 +162,11 @@ class BalancedTruncation(object):
     if (r > n):
       # Compute full Gramians
       WcWo = (X @ X.T) @ (Y @ Y.T)
-      s, T = sp.linalg.eig(WcWo)
-      Tinv = sp.linalg.inv(T)
+      s, phi = sp.linalg.eig(WcWo)
+      psi = sp.linalg.inv(phi).T
       # Sorting
-      indices = np.argsort(s, axis=-1).reshape(-1)
-      s, phi, psi = [np.take(x, indices, axis=-1) for x in (s, T, Tinv)]
+      indices = np.flip(np.argsort(s.real, axis=-1).reshape(-1))
+      s, phi, psi = [np.take(x, indices, axis=-1) for x in (s, phi, psi)]
     else:
       # Perform SVD
       U, s, Vh = sp.linalg.svd(Y.T @ X, full_matrices=False)
