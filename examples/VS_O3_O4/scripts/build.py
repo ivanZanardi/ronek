@@ -41,10 +41,12 @@ if (__name__ == '__main__'):
     "lim": [1e3, 1e5],
     "pts": 50
   }
+  # > Moments of the distribution (molecule)
+  max_mom = -1
   # Paths
   paths = {
     "dtb": "./../database/",
-    "data": "./data/"
+    "data": "./data_ident/"
   }
 
   # Isothermal master equation model
@@ -71,7 +73,9 @@ if (__name__ == '__main__'):
   for pi in tqdm(p, ncols=80, desc="Pressures"):
     # Model reduction
     btrunc = BalancedTruncation(
-      operators=model.compute_lin_fom_ops(p=pi, T=T, Tint=Tint),
+      operators=model.compute_lin_fom_ops(
+        p=pi, T=T, Tint=Tint, max_mom=max_mom
+      ),
       lg_deg=3,
       path_to_saving=paths["data"],
       saving=False,

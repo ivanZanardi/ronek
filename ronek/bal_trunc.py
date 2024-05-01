@@ -166,7 +166,7 @@ class BalancedTruncation(object):
       psi = sp.linalg.inv(phi).T
       # Sorting
       indices = np.flip(np.argsort(s.real, axis=-1).reshape(-1))
-      s, phi, psi = [np.take(x, indices, axis=-1) for x in (s, phi, psi)]
+      s, phi, psi = [np.take(x.real, indices, axis=-1) for x in (s, phi, psi)]
     else:
       # Perform SVD
       U, s, Vh = sp.linalg.svd(Y.T @ X, full_matrices=False)

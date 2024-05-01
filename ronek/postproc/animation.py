@@ -14,11 +14,9 @@ def _init_lines(
   ax.set_ylabel(r'$n_i\//\/g_i$ [m$^{-3}$]')
   # Initialize lines
   style = dict(
-    lw=1,
-    marker='x',
-    fillstyle='full',
-    markersize=0.3,
-    linestyle=''
+    linestyle="",
+    marker="o",
+    fillstyle='full'
   )
   lines = []
   for c in ("k", "r"):
@@ -39,15 +37,17 @@ def _create_animation(
   # Initialize levels distribution lines objects
   ax, lines = _init_lines(ax)
   # Initialize text in ax
-  txt = ax.text(0.77, 0.92, '', transform=ax.transAxes, fontsize=10)
+  txt = ax.text(0.7, 0.92, '', transform=ax.transAxes, fontsize=25)
+  # Tight layout
+  plt.tight_layout()
 
   def _animate(frame):
-    idx = int(frame/frames*len(t))
+    i = int(frame/frames*len(t))
     # Write time instant
-    txt.set_text(r'$t$ = %.1e s' % t[idx])
+    txt.set_text(r'$t$ = %.1e s' % t[i])
     # Loop over models
-    for (i, k) in enumerate(("FOM", "ROM")):
-      lines[i].set_data(x, y[k])
+    for (j, k) in enumerate(("FOM", "ROM")):
+      lines[j].set_data(x, y[k][i])
     # Rescale axis limits
     ax.relim()
     ax.autoscale_view(tight=True)

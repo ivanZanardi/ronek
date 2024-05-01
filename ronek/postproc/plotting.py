@@ -27,11 +27,11 @@ def dist_2d(
   ax.set_yscale(scales[1])
   # Plotting
   style = dict(
-    markeredgewidth=1,
-    lw=1.0,
     linestyle="",
-    markersize=2.0,
-    marker="x"
+    marker="o",
+    # lw=1,
+    # markersize=2,
+    # markeredgewidth=1
   )
   ax.plot(x, y, c="k", **style)
   if (y_pred is not None):
@@ -65,14 +65,13 @@ def cum_energy(
   # y axis
   ax.set_ylabel("Cumulative energy")
   # Plotting
-  ax.plot(
-    x,
-    y,
-    markeredgewidth=1,
-    lw=1.0,
-    markersize=5.0,
-    marker="o"
+  style = dict(
+    marker="o",
+    # lw=1,
+    # markersize=5,
+    # markeredgewidth=1
   )
+  ax.plot(x, y, **style)
   # Tight layout
   plt.tight_layout()
   if save:
@@ -98,6 +97,7 @@ def evolution(
   # x axis
   ax.set_xlabel(labels[0])
   ax.set_xscale(scales[0])
+  ax.set_xlim([np.amin(x), np.amax(x)])
   # y axis
   ax.set_ylabel(labels[1])
   ax.set_yscale(scales[1])
