@@ -18,13 +18,14 @@ pip install ronek
 
 RONEK has the following dependencies:
 
-- absl_py
+- absl
 - ipython
 - matplotlib
 - numpy
 - scipy
 - silx
 - torch
+- tqdm
 
 ## Explore
 
