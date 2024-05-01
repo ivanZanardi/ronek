@@ -11,7 +11,7 @@ _COLORS = mpl.rcParams['axes.prop_cycle'].by_key()['color']*10
 # Animation
 # =====================================
 # Initialize lines for levels distribution
-def init_lines(ax, varnames):
+def _init_lines(ax, varnames):
   # Set up axes
   ax.set_xlabel(r'$\epsilon_i$ [eV]')
   ax.set_ylabel(r'$n_i\//\/g_i$ [m$^{-3}$]')
@@ -37,15 +37,15 @@ def init_lines(ax, varnames):
   return ax, lines
 
 # Create animation
-def create_animation(t, x, y, frames):
+def _create_animation(t, x, y, frames):
   # Initialize a figure in which the graphs will be plotted
   fig, ax = plt.subplots()
   # Initialize levels distribution lines objects
-  ax, lines = init_lines(ax, varnames=list(y.keys()))
+  ax, lines = _init_lines(ax, varnames=list(y.keys()))
   # Initialize text in ax
   txt = ax.text(0.77, 0.92, '', transform=ax.transAxes, fontsize=10)
 
-  def animate(frame):
+  def _animate(frame):
     idx = int(frame/frames*len(t))
     # Write time instant
     txt.set_text(r'$t$ = %.1e s' % t[idx])
@@ -60,7 +60,7 @@ def create_animation(t, x, y, frames):
   # Get animation
   return FuncAnimation(
     fig,
-    animate,
+    _animate,
     frames=frames,
     blit=True
   )
@@ -77,7 +77,7 @@ def animate(
   show=False
 ):
   # Create animation
-  anim = create_animation(t, x, y, frames)
+  anim = _create_animation(t, x, y, frames)
   # Save animation
   if save:
     anim.save(filename, fps=fps, dpi=dpi)
