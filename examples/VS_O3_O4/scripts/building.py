@@ -4,7 +4,9 @@
 # Environment
 # =====================================
 import sys
-sys.path.append("./../../../")
+import importlib
+if (importlib.util.find_spec("ronek") is None):
+  sys.path.append("./../../../")
 
 from ronek import env
 env.set(
@@ -30,11 +32,15 @@ if (__name__ == '__main__'):
   # System
   T = 1e4
   # > Initial internal temperature (molecule)
-  Tint_lim = [2e2, 1e4]
-  nb_Tint = 10
+  Tint_grid = {
+    "lim": [2e2, 1e4],
+    "pts": 10
+  }
   # > Equilibrium pressure (atom)
-  p_lim = [1e3, 1e5]
-  nb_p = 10
+  p_grid = {
+    "lim": [1e3, 1e5],
+    "pts": 10
+  }
   # Paths
   paths = {
     "dtb": "./../database/",
@@ -58,8 +64,8 @@ if (__name__ == '__main__'):
   t = np.geomspace(1e-13, 1e-1, num=100)
   t = np.insert(t, 0, 0.0)
   # Pressure and internal temperature grids
-  p = np.geomspace(*p_lim, num=nb_p)
-  Tint = np.geomspace(*Tint_lim, num=nb_Tint)
+  p = np.geomspace(*p_grid["lim"], num=p_grid["pts"])
+  Tint = np.geomspace(*Tint_grid["lim"], num=Tint_grid["pts"])
   # Loop over pressures
   X, Y = [], []
   for pi in tqdm(p, ncols=80, desc="Pressures"):

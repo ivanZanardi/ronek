@@ -4,7 +4,9 @@
 # Environment
 # =====================================
 import sys
-sys.path.append("./../../../")
+import importlib
+if (importlib.util.find_spec("ronek") is None):
+  sys.path.append("./../../../")
 
 from ronek import env
 env.set(
@@ -55,12 +57,11 @@ if (__name__ == '__main__'):
   # Time grid
   t = np.geomspace(1e-13, 1e-1, num=100)
   t = np.insert(t, 0, 0.0)
-  # Linear operators
+  # Internal temperature grid
   Tint = np.geomspace(*Tint_lim, num=nb_Tint)
-  lin_ops = model.compute_lin_fom_ops(T=T, Tint=Tint, max_mom=max_mom)
   # Model reduction
   btrunc = BalancedTruncation(
-    operators=lin_ops,
+    operators=model.compute_lin_fom_ops(T=T, Tint=Tint, max_mom=max_mom),
     lg_deg=3,
     path_to_saving=paths["data"]
   )
