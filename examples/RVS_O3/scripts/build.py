@@ -32,13 +32,13 @@ if (__name__ == '__main__'):
   T = 1e4
   # > Initial internal temperature (molecule)
   Tint_lim = [2e2, 1e4]
-  nb_Tint = 10
+  nb_Tint = 50
   # > Moments of the distribution (molecule)
-  max_mom = 10
+  max_mom = 20
   # Paths
   paths = {
     "dtb": "./../database/",
-    "data": "./data/"
+    "data": f"./data/max_mom_{max_mom}"
   }
 
   # Isothermal master equation model
@@ -65,4 +65,4 @@ if (__name__ == '__main__'):
     lg_deg=3,
     path_to_saving=paths["data"]
   )
-  btrunc(t=t, real_only=True)
+  btrunc(t)

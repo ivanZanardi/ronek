@@ -46,7 +46,7 @@ if (__name__ == '__main__'):
   # Paths
   paths = {
     "dtb": "./../database/",
-    "data": "./data_ident/"
+    "data": "./data/ident/"
   }
 
   # Isothermal master equation model
@@ -81,7 +81,7 @@ if (__name__ == '__main__'):
       saving=False,
       verbose=False
     )
-    Xi, Yi = btrunc(t=t, real_only=True, compute_modes=False)
+    Xi, Yi = btrunc(t=t, compute_modes=False)
     X.append(Xi), Y.append(Yi)
   # Compute balancing modes
   X, Y = np.hstack(X), np.hstack(Y)

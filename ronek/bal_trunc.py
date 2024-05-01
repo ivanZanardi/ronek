@@ -163,7 +163,7 @@ class BalancedTruncation(object):
       # Compute full Gramians
       WcWo = (X @ X.T) @ (Y @ Y.T)
       s, phi = sp.linalg.eig(WcWo)
-      psi = sp.linalg.inv(phi).T
+      psi = sp.linalg.inv(phi).conj().T
       # Sorting
       indices = np.flip(np.argsort(s.real, axis=-1).reshape(-1))
       s, phi, psi = [np.take(x.real, indices, axis=-1) for x in (s, phi, psi)]
