@@ -5,7 +5,6 @@ import scipy as sp
 from .. import const
 from .species import Species
 from .kinetics import Kinetics
-from .. import backend as bkd
 
 
 class Basic(object):
@@ -40,7 +39,7 @@ class Basic(object):
     # Bases
     self.phi = None
     self.psi = None
-    self.phif = False
+    self.phif = None
     # Mass conservation operator
     self.mass_ratio = np.full((1,self.nb_eqs-1), 2.0)
     # Solving
@@ -49,63 +48,19 @@ class Basic(object):
     self.fun = None
     self.jac = None
 
-  # Properties
-  # ===================================
-  # Test bases
-  @property
-  def psi(self):
-    return self._psi
-
-  @psi.setter
-  def psi(self, value):
-    self._psi = value
-
-  # Trial bases
-  @property
-  def phi(self):
-    return self._phi
-
-  @phi.setter
-  def phi(self, value):
-    self._phi = value
-
-  # Biorthogonalize phi and psi
-  @property
-  def phif(self):
-    return self._phif
-
-  @phif.setter
-  def phif(self, update=True):
-    if update:
-      self._phif = self.phi @ sp.linalg.inv(self.psi.T @ self.phi)
-    else:
-      self._phif = None
-
-  # FOM operators
-  @property
-  def fom_ops(self):
-    return self._fom_ops
-
-  @fom_ops.setter
-  def fom_ops(self, value):
-    self._fom_ops = value
-
-  # ROM operators
-  @property
-  def rom_ops(self):
-    return self._rom_ops
-
-  @rom_ops.setter
-  def rom_ops(self, value):
-    self._rom_ops = value
-
   # Operators
   # ===================================
   # ROM
   # -----------------------------------
   def set_basis(self, phi, psi):
     self.phi, self.psi = phi, psi
-    self.phif = True
+    # Biorthogonalize
+    self.phif = self.phi @ sp.linalg.inv(self.psi.T @ self.phi)
+    # Check if complex
+    for k in ("phi", "psi", "phif"):
+      bases = getattr(self, k)
+      if np.iscomplexobj(bases):
+        setattr(self, k, bases.real)
 
   def update_rom_ops(self):
     if self.use_einsum:
