@@ -42,11 +42,11 @@ if (__name__ == '__main__'):
     "pts": 50
   }
   # > Moments of the distribution (molecule)
-  max_mom = -1
+  max_mom = 0
   # Paths
   paths = {
     "dtb": "./../database/",
-    "data": "./data/ident/"
+    "data": f"./data/max_mom_{max_mom}/"
   }
 
   # Isothermal master equation model
