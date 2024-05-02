@@ -34,11 +34,11 @@ if (__name__ == '__main__'):
   Tint_lim = [2e2, 1e4]
   nb_Tint = 50
   # > Moments of the distribution (molecule)
-  max_mom = 20
+  max_mom = 0
   # Paths
   paths = {
     "dtb": "./../database/",
-    "data": f"./data/max_mom_{max_mom}"
+    "data": f"./data/max_mom_{max_mom}/"
   }
 
   # Isothermal master equation model
