@@ -34,7 +34,7 @@ if (__name__ == '__main__'):
   Tint_lim = [2e2, 1e4]
   nb_Tint = 50
   # > Moments of the distribution (molecule)
-  max_mom = 2
+  max_mom = 0
   max_rank = 200
   # Paths
   paths = {
