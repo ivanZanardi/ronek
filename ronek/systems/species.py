@@ -1,5 +1,6 @@
 import json
 import numpy as np
+import scipy as sp
 
 from .. import const
 
@@ -27,7 +28,10 @@ class Species(object):
 
   def compute_mom_basis(self, max_mom):
     e = self.lev["e"] / const.eV_to_J
-    return np.vstack([e**i for i in range(max_mom)])
+    m = []
+    for i in range(max_mom):
+      m.append(e**i/float(sp.special.factorial(i, exact=True)))
+    return np.vstack(m)
 
   # Partition functions
   # ===================================
