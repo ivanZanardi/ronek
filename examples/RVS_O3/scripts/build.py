@@ -34,7 +34,7 @@ if (__name__ == '__main__'):
   Tint_lim = [2e2, 1e4]
   nb_Tint = 50
   # > Moments of the distribution (molecule)
-  max_mom = 0
+  max_mom = 20 # 2
   # Paths
   paths = {
     "dtb": "./../database/",
@@ -55,7 +55,7 @@ if (__name__ == '__main__'):
   # Balanced truncation
   # ===================================
   # Time grid
-  t = np.geomspace(1e-13, 1e-1, num=100)
+  t = np.geomspace(1e-13, 1e-1, num=50)
   t = np.insert(t, 0, 0.0)
   # Internal temperature grid
   Tint = np.geomspace(*Tint_lim, num=nb_Tint)

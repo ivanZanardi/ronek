@@ -17,14 +17,17 @@ def _init_lines(
   style = dict(
     linestyle="",
     marker="o",
-    fillstyle='full',
-    markersize=markersize
+    fillstyle='full'
   )
   lines = []
   for c in ("k", "r"):
-    lines.append(ax.semilogy([], [], c=c, **style)[0])
+    lines.append(ax.semilogy([], [], c=c, markersize=markersize, **style)[0])
   # Add legend
-  ax.legend(lines, labels=["FOM", "ROM"], loc='lower left')
+  ax.legend(
+    [ax.semilogy([], [], c=c, **style)[0] for c in ("k", "r")],
+    labels=["FOM", "ROM"],
+    loc='lower left'
+  )
   return ax, lines
 
 # Create animation

@@ -29,12 +29,11 @@ def dist_2d(
   # Plotting
   style = dict(
     linestyle="",
-    marker="o",
-    markersize=markersize
+    marker="o"
   )
-  ax.plot(x, y, c="k", **style)
+  ax.plot(x, y, c="k", markersize=markersize, **style)
   if (y_pred is not None):
-    ax.plot(x, y_pred, c="r", **style)
+    ax.plot(x, y_pred, c="r", markersize=markersize, **style)
     lines = [
       plt.plot([], [], c="k", **style)[0],
       plt.plot([], [], c="r", **style)[0]
