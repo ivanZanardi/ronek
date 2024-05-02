@@ -6,7 +6,7 @@
 import sys
 import importlib
 if (importlib.util.find_spec("ronek") is None):
-  sys.path.append("./../../../")
+  sys.path.append("./../../../ronek/")
 
 from ronek import env
 env.set(
@@ -33,16 +33,16 @@ if (__name__ == '__main__'):
   T = 1e4
   # > Initial internal temperature (molecule)
   Tint_grid = {
-    "lim": [2e2, 1e4],
-    "pts": 50
+    "lim": [3e2, 1e4],
+    "num": 20
   }
   # > Equilibrium pressure (atom)
   p_grid = {
     "lim": [1e3, 1e5],
-    "pts": 50
+    "num": 20
   }
   # > Moments of the distribution (molecule)
-  max_mom = 20 # 2
+  max_mom = 10 # 2 10
   # Paths
   paths = {
     "dtb": "./../database/",
@@ -63,11 +63,11 @@ if (__name__ == '__main__'):
   # Balanced truncation
   # ===================================
   # Time grid
-  t = np.geomspace(1e-13, 1e-1, num=50)
+  t = np.geomspace(1e-12, 1e-2, num=50)
   t = np.insert(t, 0, 0.0)
   # Pressure and internal temperature grids
-  p = np.geomspace(*p_grid["lim"], num=p_grid["pts"])
-  Tint = np.geomspace(*Tint_grid["lim"], num=Tint_grid["pts"])
+  p = np.geomspace(*p_grid["lim"], num=p_grid["num"])
+  Tint = np.geomspace(*Tint_grid["lim"], num=Tint_grid["num"])
   # Loop over pressures
   X, Y = [], []
   for pi in tqdm(p, ncols=80, desc="Pressures"):

@@ -6,7 +6,7 @@
 import sys
 import importlib
 if (importlib.util.find_spec("ronek") is None):
-  sys.path.append("./../../../")
+  sys.path.append("./../../../ronek/")
 
 from ronek import env
 env.set(
@@ -31,10 +31,12 @@ if (__name__ == '__main__'):
   # System
   T = 1e4
   # > Initial internal temperature (molecule)
-  Tint_lim = [2e2, 1e4]
-  nb_Tint = 50
+  Tint_grid = {
+    "lim": [3e2, 1e4],
+    "num": 20
+  }
   # > Moments of the distribution (molecule)
-  max_mom = 20 # 2
+  max_mom = 10 # 2 10
   # Paths
   paths = {
     "dtb": "./../database/",
@@ -55,10 +57,10 @@ if (__name__ == '__main__'):
   # Balanced truncation
   # ===================================
   # Time grid
-  t = np.geomspace(1e-13, 1e-1, num=50)
+  t = np.geomspace(1e-12, 1e-2, num=50)
   t = np.insert(t, 0, 0.0)
   # Internal temperature grid
-  Tint = np.geomspace(*Tint_lim, num=nb_Tint)
+  Tint = np.geomspace(*Tint_grid["lim"], num=Tint_grid["num"])
   # Model reduction
   btrunc = BPOD(
     operators=model.compute_lin_fom_ops(T=T, Tint=Tint, max_mom=max_mom),

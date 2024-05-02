@@ -24,7 +24,7 @@ def _init_lines(
     lines.append(ax.semilogy([], [], c=c, markersize=markersize, **style)[0])
   # Add legend
   ax.legend(
-    [ax.semilogy([], [], c=c, **style)[0] for c in ("k", "r")],
+    [ax.semilogy([], [], c=c, markersize=6, **style)[0] for c in ("k", "r")],
     labels=["FOM", "ROM"],
     loc='lower left'
   )
