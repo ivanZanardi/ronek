@@ -12,6 +12,7 @@ def dist_2d(
   y_pred=None,
   labels=[r"$\epsilon_i$ [eV]", r"$n_i/g_i$ [m$^{-3}$]"],
   scales=["linear", "log"],
+  markersize=6,
   figname=None,
   save=False,
   show=False
@@ -29,9 +30,7 @@ def dist_2d(
   style = dict(
     linestyle="",
     marker="o",
-    # lw=1,
-    # markersize=2,
-    # markeredgewidth=1
+    markersize=markersize
   )
   ax.plot(x, y, c="k", **style)
   if (y_pred is not None):
@@ -65,13 +64,7 @@ def cum_energy(
   # y axis
   ax.set_ylabel("Cumulative energy")
   # Plotting
-  style = dict(
-    marker="o",
-    # lw=1,
-    # markersize=5,
-    # markeredgewidth=1
-  )
-  ax.plot(x, y, **style)
+  ax.plot(x, y, marker="o")
   # Tight layout
   plt.tight_layout()
   if save:

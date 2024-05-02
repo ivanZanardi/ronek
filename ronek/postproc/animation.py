@@ -7,7 +7,8 @@ from matplotlib.animation import FuncAnimation
 # =====================================
 # Initialize lines for levels distribution
 def _init_lines(
-  ax
+  ax,
+  markersize
 ):
   # Set up axes
   ax.set_xlabel(r'$\epsilon_i$ [eV]')
@@ -16,7 +17,8 @@ def _init_lines(
   style = dict(
     linestyle="",
     marker="o",
-    fillstyle='full'
+    fillstyle='full',
+    markersize=markersize
   )
   lines = []
   for c in ("k", "r"):
@@ -30,12 +32,13 @@ def _create_animation(
   t,
   x,
   y,
-  frames
+  frames,
+  markersize
 ):
   # Initialize a figure in which the graphs will be plotted
   fig, ax = plt.subplots()
   # Initialize levels distribution lines objects
-  ax, lines = _init_lines(ax)
+  ax, lines = _init_lines(ax, markersize)
   # Initialize text in ax
   txt = ax.text(0.7, 0.92, '', transform=ax.transAxes, fontsize=25)
   # Tight layout
@@ -65,6 +68,7 @@ def animate(
   t,
   x,
   y,
+  markersize=6,
   frames=10,
   fps=10,
   filename="./lev_dist.gif",
@@ -73,7 +77,7 @@ def animate(
   show=False
 ):
   # Create animation
-  anim = _create_animation(t, x, y, frames)
+  anim = _create_animation(t, x, y, frames, markersize)
   # Save animation
   if save:
     anim.save(filename, fps=fps, dpi=dpi)

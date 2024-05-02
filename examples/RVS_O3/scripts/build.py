@@ -35,7 +35,6 @@ if (__name__ == '__main__'):
   nb_Tint = 50
   # > Moments of the distribution (molecule)
   max_mom = 0
-  max_rank = 200
   # Paths
   paths = {
     "dtb": "./../database/",
@@ -66,7 +65,4 @@ if (__name__ == '__main__'):
     lg_deg=3,
     path_to_saving=paths["data"]
   )
-  btrunc(
-    t=t,
-    max_rank=max_rank if (max_mom == 0) else 0
-  )
+  btrunc(t)

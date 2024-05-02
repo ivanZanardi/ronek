@@ -77,15 +77,7 @@ class Basic(object):
   @phif.setter
   def phif(self, update=True):
     if update:
-      # Check if identity
-      tol = np.sqrt(bkd.epsilon())
-      f, ident = self.psi.T @ self.phi, np.eye(self.phi.shape[1])
-      is_ident = np.isclose(f, ident, rtol=tol, atol=tol).all()
-      # Biorthogonalize
-      if is_ident:
-        self._phif = self.phi
-      else:
-        self._phif = self.phi @ sp.linalg.inv(self.psi.T @ self.phi)
+      self._phif = self.phi @ sp.linalg.inv(self.psi.T @ self.phi)
     else:
       self._phif = None
 

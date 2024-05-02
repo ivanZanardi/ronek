@@ -181,7 +181,7 @@ class BPOD(object):
   # Balancing modes
   # -----------------------------------
   def compute_balancing_modes(self, X, Y):
-    n, q, p = X.shape, Y.shape[1]
+    n, q, p = *X.shape, Y.shape[1]
     if (q*p > n**2):
       # Compute full Gramians
       WcWo = (X @ X.T) @ (Y @ Y.T)

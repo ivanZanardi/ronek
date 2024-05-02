@@ -58,7 +58,7 @@ def plot_moments(path, t, yfom, yrom, e, max_mom=2):
       show=False
     )
 
-def plot_dist(path, teval, t, yfom, yrom, e, g):
+def plot_dist(path, teval, t, yfom, yrom, e, g, markersize=6):
   path = path + "/dist/"
   os.makedirs(path, exist_ok=True)
   yfom = sp.interpolate.interp1d(t, yfom, kind='cubic')(teval)
@@ -70,12 +70,13 @@ def plot_dist(path, teval, t, yfom, yrom, e, g):
       y_pred=yrom[:,i]/g,
       labels=[r"$\epsilon_i$ [eV]", r"$n_i/g_i$ [m$^{-3}$]"],
       scales=["linear", "log"],
+      markersize=markersize,
       figname=path + f"/t{i+1}",
       save=True,
       show=False
     )
 
-def animate_dist(path, t, yfom, yrom, e, g):
+def animate_dist(path, t, yfom, yrom, e, g, markersize=6):
   y = {
     "FOM": yfom.T[1:] / g.reshape(1,-1),
     "ROM": yrom.T[1:] / g.reshape(1,-1)
@@ -84,8 +85,9 @@ def animate_dist(path, t, yfom, yrom, e, g):
     t=t[1:],
     x=e,
     y=y,
-    frames=5,
-    fps=2,
+    markersize=markersize,
+    frames=100,
+    fps=10,
     filename=path + "/dist.gif",
     dpi=600,
     save=True,
