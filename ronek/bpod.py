@@ -7,9 +7,15 @@ from . import backend as bkd
 from silx.io.dictdump import dicttoh5, h5todict
 
 
-class BalancedTruncation(object):
+class BPOD(object):
   """
-  Model reduction using balanced truncation for a stable input-output system.
+  Model reduction using balanced proper orthogonal decomposition for
+  a stable linear input-output system:
+    dx = Ax + Bu
+    y = Cx
+
+  See:
+    https://doi.org/10.1142/S0218127405012429
   """
 
   # Initialization
@@ -77,6 +83,7 @@ class BalancedTruncation(object):
     t,
     X=None,
     Y=None,
+    max_rank=0,
     real_only=True,
     compute_modes=True
   ):
@@ -85,8 +92,7 @@ class BalancedTruncation(object):
       self.compute_eiga(real_only)
       if self.verbose:
         print("Computing Gramians ...")
-      X = self.compute_gramian(op=self.ops["B"])
-      Y = self.compute_gramian(op=self.ops["C"].t(), transpose=True)
+      X, Y = self.compute_gramians(max_rank)
     if compute_modes:
       if self.verbose:
         print("Computing balancing modes ...")
@@ -139,6 +145,23 @@ class BalancedTruncation(object):
 
   # Gramians computation
   # -----------------------------------
+  def compute_gramians(self, max_rank=0):
+    # Compute the empirical controllability Gramian
+    X = self.compute_gramian(op=self.ops["B"])
+    # Compute the empirical observability Gramian
+    if (max_rank > 0):
+      # Perform output projection
+      C = self.ops["C"].to("cpu")
+      U = torch.linalg.svd(C @ X, full_matrices=False)[0]
+      Ct = C.t() @ U[:,:max_rank]
+      Ct = Ct.to(bkd.device())
+    else:
+      # Perform standard balanced truncation
+      Ct = self.ops["C"].t()
+    # Compute Gramian
+    Y = self.compute_gramian(op=Ct, transpose=True)
+    return [bkd.to_numpy(z) for z in (X, Y)]
+
   def compute_gramian(self, op, transpose=False):
     # Allocate memory
     shape = [self.time_dim] + list(op.shape)
@@ -153,7 +176,7 @@ class BalancedTruncation(object):
     # Manipulate tensor
     g = torch.permute(g, dims=(1,2,0))
     g = torch.reshape(g, (self.nb_eqs,-1))
-    return bkd.to_numpy(g)
+    return g
 
   # Balancing modes
   # -----------------------------------

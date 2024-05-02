@@ -99,8 +99,7 @@ class TAFASystem(TASystem):
     return {
       "A": self._compute_lin_fom_ops_a(alpha, n_a_eq),
       "B": self._compute_lin_fom_ops_b(
-        b=self._get_lin_fom_ops_b(alpha, n_a_eq),
-        Tint=Tint
+        b=self._get_lin_fom_ops_b(alpha, n_a_eq), Tint=Tint
       ),
       "C": self._compute_lin_fom_ops_c(max_mom)
     }

@@ -12,7 +12,7 @@ __version__ = "0.0.1"
 
 __all__ = [
   "backend",
-  "bal_trunc",
+  "bpod",
   "const",
   "env",
   "postproc",
@@ -28,7 +28,7 @@ from absl import logging
 logging.set_verbosity(logging.ERROR)
 
 # from ronek import backend
-# from ronek import bal_trunc
+# from ronek import bpod
 # from ronek import const
 # from ronek import env
 # from ronek import postproc

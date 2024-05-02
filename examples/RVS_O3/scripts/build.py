@@ -21,7 +21,7 @@ env.set(
 import numpy as np
 
 from ronek.systems import TASystem
-from ronek.bal_trunc import BalancedTruncation
+from ronek.bpod import BPOD
 
 
 if (__name__ == '__main__'):
@@ -34,7 +34,8 @@ if (__name__ == '__main__'):
   Tint_lim = [2e2, 1e4]
   nb_Tint = 50
   # > Moments of the distribution (molecule)
-  max_mom = 0
+  max_mom = 2
+  max_rank = 200
   # Paths
   paths = {
     "dtb": "./../database/",
@@ -60,9 +61,12 @@ if (__name__ == '__main__'):
   # Internal temperature grid
   Tint = np.geomspace(*Tint_lim, num=nb_Tint)
   # Model reduction
-  btrunc = BalancedTruncation(
+  btrunc = BPOD(
     operators=model.compute_lin_fom_ops(T=T, Tint=Tint, max_mom=max_mom),
     lg_deg=3,
     path_to_saving=paths["data"]
   )
-  btrunc(t)
+  btrunc(
+    t=t,
+    max_rank=max_rank if (max_mom == 0) else 0
+  )

@@ -51,8 +51,7 @@ class TASystem(Basic):
     return {
       "A": self.fom_ops["ed"] * const.UNA,
       "B": self._compute_lin_fom_ops_b(
-        b=self._get_lin_fom_ops_b(alpha),
-        Tint=Tint
+        b=self._get_lin_fom_ops_b(alpha), Tint=Tint
       ),
       "C": self._compute_lin_fom_ops_c(max_mom)
     }
@@ -61,8 +60,9 @@ class TASystem(Basic):
     return (self.fom_ops["ed"] @ alpha + 3*self.fom_ops["r"]) * const.UNA**3
 
   def _compute_lin_fom_ops_b(self, b, Tint):
+    # Compose B
     B = np.vstack([b] + self._compute_boltz(Tint))
-    # Normalize
+    # Normalize B
     B *= (np.linalg.norm(b) / np.linalg.norm(B, axis=-1, keepdims=True))
     return np.transpose(B)
 
