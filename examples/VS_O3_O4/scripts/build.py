@@ -42,7 +42,7 @@ if (__name__ == '__main__'):
     "pts": 50
   }
   # > Moments of the distribution (molecule)
-  max_mom = 0
+  max_mom = 20 # 2
   # Paths
   paths = {
     "dtb": "./../database/",
@@ -63,7 +63,7 @@ if (__name__ == '__main__'):
   # Balanced truncation
   # ===================================
   # Time grid
-  t = np.geomspace(1e-13, 1e-1, num=100)
+  t = np.geomspace(1e-13, 1e-1, num=50)
   t = np.insert(t, 0, 0.0)
   # Pressure and internal temperature grids
   p = np.geomspace(*p_grid["lim"], num=p_grid["pts"])
