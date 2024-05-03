@@ -6,7 +6,7 @@
 import sys
 import importlib
 if (importlib.util.find_spec("ronek") is None):
-  sys.path.append("./../../../ronek/")
+  sys.path.append("./../../../")
 
 from ronek import env
 env.set(
