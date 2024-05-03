@@ -26,16 +26,16 @@ class Species(object):
     # Thermo
     self.q = None
 
-  def compute_mom_basis(self, max_mom):
-    e = self.lev["e"] / const.eV_to_J
-    m = []
-    for i in range(max_mom):
-      m.append(e**i/float(sp.special.factorial(i, exact=True)))
-    return np.vstack(m)
-
   # def compute_mom_basis(self, max_mom):
   #   e = self.lev["e"] / const.eV_to_J
-  #   return np.vstack([e**i for i in range(max_mom)])
+  #   m = []
+  #   for i in range(max_mom):
+  #     m.append(e**i/float(sp.special.factorial(i, exact=True)))
+  #   return np.vstack(m)
+
+  def compute_mom_basis(self, max_mom):
+    e = self.lev["e"] / const.eV_to_J
+    return np.vstack([e**i for i in range(max_mom)])
 
   # Partition functions
   # ===================================
