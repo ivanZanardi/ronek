@@ -124,7 +124,7 @@ class TAFASystem(TASystem):
       + self.fom_ops["m-a"]["ed"] @ alpha \
       + 4 * n_a_eq * self.fom_ops["m-m"]["r"] \
       + 3 * self.fom_ops["m-a"]["r"]
-    ) * n_a_eq**3
+    ) * n_a_eq**3 / const.UNA
 
   # Solving
   # ===================================

@@ -18,19 +18,13 @@ def get_y0(model, T, p, Xa):
   return na, nm
 
 def solve_fom(model, t, y0):
-  y0 = np.concatenate(y0)
   y = model.solve(t, y0, ops=model.fom_ops, rtol=1e-6, atol=0.0)
   return y[:1], y[1:]
 
-def solve_rom(model, t, y0, phi, psi, rom_dim, abs=False):
-  na_0, nm_0 = y0
+def solve_rom(model, t, y0, phi, psi):
   # Update operators
-  model.set_basis(phi=phi[:,:rom_dim], psi=psi[:,:rom_dim])
+  model.set_basis(phi, psi)
   model.update_rom_ops()
   # Solve
-  y0 = np.concatenate([na_0, model.psi.T @ nm_0])
-  y = model.solve(t, y0, ops=model.rom_ops, rtol=1e-6, atol=0.0)
-  if abs:
-    return y[:1], np.abs(model.phi @ y[1:])
-  else:
-    return y[:1], model.phi @ y[1:]
+  y = model.solve_rom(t, y0, rtol=1e-6, atol=0.0)
+  return y[:1], y[1:]

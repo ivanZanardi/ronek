@@ -1,6 +1,5 @@
 import json
 import numpy as np
-import scipy as sp
 
 from .. import const
 
@@ -28,9 +27,9 @@ class Species(object):
 
   # def compute_mom_basis(self, max_mom):
   #   e = self.lev["e"] / const.eV_to_J
-  #   m = []
-  #   for i in range(max_mom):
-  #     m.append(e**i/float(sp.special.factorial(i, exact=True)))
+  #   m = [np.ones_like(e)]
+  #   for i in range(max_mom-1):
+  #     m.append(m[-1]*e/(i+1))
   #   return np.vstack(m)
 
   def compute_mom_basis(self, max_mom):

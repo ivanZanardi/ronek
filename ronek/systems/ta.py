@@ -57,7 +57,7 @@ class TASystem(Basic):
     }
 
   def _get_lin_fom_ops_b(self, alpha):
-    return (self.fom_ops["ed"] @ alpha + 3*self.fom_ops["r"]) * const.UNA**3
+    return (self.fom_ops["ed"] @ alpha + 3*self.fom_ops["r"]) * const.UNA**2
 
   def _compute_lin_fom_ops_b(self, b, Tint):
     # Compose B

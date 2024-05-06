@@ -173,3 +173,24 @@ class Basic(object):
       jac=self.jac
     )
     return sol.y * const.UNA
+
+  # ROM
+  # -----------------------------------
+  def solve_rom(self,
+    t,
+    y0,
+    rtol=1e-5,
+    atol=0.0,
+    first_step=1e-14
+  ):
+    if (self.rom_ops is None):
+      raise ValueError("Update ROM operators.")
+    y0 = np.concatenate([y0[:1], self.encode(y0[1:])])
+    y = self.solve(t, y0, self.rom_ops, rtol, atol, first_step)
+    return np.vstack([y[:1], self.decode(y[1:])])
+
+  def encode(self, x):
+    return self.psi.T @ x
+
+  def decode(self, x):
+    return self.phif @ x
