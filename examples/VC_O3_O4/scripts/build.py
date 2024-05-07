@@ -21,8 +21,8 @@ env.set(
 import numpy as np
 
 from tqdm import tqdm
-from ronek.systems import TAFASystem
 from ronek.bpod import BPOD
+from ronek.systems import TAFASystem
 
 
 if (__name__ == '__main__'):

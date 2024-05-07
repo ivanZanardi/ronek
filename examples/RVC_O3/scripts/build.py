@@ -20,8 +20,8 @@ env.set(
 # =====================================
 import numpy as np
 
-from ronek.systems import TASystem
 from ronek.bpod import BPOD
+from ronek.systems import TASystem
 
 
 if (__name__ == '__main__'):
