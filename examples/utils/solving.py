@@ -15,7 +15,7 @@ def get_y0(model, T, p, Xa):
   na = np.array([n * Xa]).reshape(-1)
   qm = model.species["molecule"].q_int(T)
   nm = n * (1-Xa) * qm / np.sum(qm)
-  return na, nm
+  return np.concatenate([na, nm])
 
 def solve_fom(model, t, y0):
   y = model.solve(t, y0, ops=model.fom_ops, rtol=1e-6, atol=0.0)
