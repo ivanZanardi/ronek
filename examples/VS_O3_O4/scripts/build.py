@@ -34,15 +34,15 @@ if (__name__ == '__main__'):
   # > Initial internal temperature (molecule)
   Tint_grid = {
     "lim": [3e2, 1e4],
-    "num": 20
+    "pts": 50
   }
   # > Equilibrium pressure (atom)
   p_grid = {
     "lim": [1e3, 1e5],
-    "num": 20
+    "pts": 50
   }
   # > Moments of the distribution (molecule)
-  max_mom = 10 # 2 10
+  max_mom = 10
   # Paths
   paths = {
     "dtb": "./../database/",
@@ -66,8 +66,8 @@ if (__name__ == '__main__'):
   t = np.geomspace(1e-12, 1e-2, num=50)
   t = np.insert(t, 0, 0.0)
   # Pressure and internal temperature grids
-  p = np.geomspace(*p_grid["lim"], num=p_grid["num"])
-  Tint = np.geomspace(*Tint_grid["lim"], num=Tint_grid["num"])
+  p = np.geomspace(*p_grid["lim"], num=p_grid["pts"])
+  Tint = np.geomspace(*Tint_grid["lim"], num=Tint_grid["pts"])
   # Loop over pressures
   X, Y = [], []
   for pi in tqdm(p, ncols=80, desc="Pressures"):
