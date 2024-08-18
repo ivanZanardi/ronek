@@ -20,8 +20,8 @@ env.set(
 # =====================================
 import numpy as np
 
-from ronek.bpod import BPOD
 from ronek.systems import TASystem
+from ronek.roms import BalancedTruncation
 
 
 if (__name__ == '__main__'):
@@ -62,7 +62,7 @@ if (__name__ == '__main__'):
   # Internal temperature grid
   Tint = np.geomspace(*Tint_grid["lim"], num=Tint_grid["pts"])
   # Model reduction
-  btrunc = BPOD(
+  btrunc = BalancedTruncation(
     operators=model.compute_lin_fom_ops(T=T, Tint=Tint, max_mom=max_mom),
     lg_deg=3,
     path_to_saving=paths["data"]

@@ -21,8 +21,8 @@ env.set(
 import numpy as np
 
 from tqdm import tqdm
-from ronek.bpod import BPOD
 from ronek.systems import TAFASystem
+from ronek.roms import BalancedTruncation
 
 
 if (__name__ == '__main__'):
@@ -72,7 +72,7 @@ if (__name__ == '__main__'):
   X, Y = [], []
   for pi in tqdm(p, ncols=80, desc="Pressures"):
     # Model reduction
-    btrunc = BPOD(
+    btrunc = BalancedTruncation(
       operators=model.compute_lin_fom_ops(
         p=pi, T=T, Tint=Tint, max_mom=max_mom
       ),

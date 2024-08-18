@@ -7,7 +7,7 @@ from . import backend as bkd
 from silx.io.dictdump import dicttoh5, h5todict
 
 
-class BPOD(object):
+class BalancedTruncation(object):
   """
   Model reduction using balanced proper orthogonal decomposition for
   a stable linear input-output system:

@@ -25,16 +25,15 @@ class Species(object):
     # Thermo
     self.q = None
 
-  # def compute_mom_basis(self, max_mom):
-  #   e = self.lev["e"] / const.eV_to_J
-  #   m = [np.ones_like(e)]
-  #   for i in range(max_mom-1):
-  #     m.append(m[-1]*e/(i+1))
-  #   return np.vstack(m)
-
-  def compute_mom_basis(self, max_mom):
+  def compute_mom_basis(self, max_mom, use_fact=False):
     e = self.lev["e"] / const.eV_to_J
-    return np.vstack([e**i for i in range(max_mom)])
+    m = [np.ones_like(e)]
+    for i in range(max_mom-1):
+      mi = m[-1]*e
+      if use_fact:
+        mi /= (i+1)
+      m.append(mi)
+    return np.vstack(m)
 
   # Partition functions
   # ===================================
