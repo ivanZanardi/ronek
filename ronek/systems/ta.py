@@ -13,9 +13,10 @@ class TASystem(Basic):
     self,
     rates,
     species,
-    use_einsum=False
+    use_einsum=False,
+    use_factorial=False
   ):
-    super(TASystem, self).__init__(rates, species, use_einsum)
+    super(TASystem, self).__init__(rates, species, use_einsum, use_factorial)
     # Solving
     # -------------
     if self.use_einsum:

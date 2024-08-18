@@ -15,7 +15,8 @@ class Basic(object):
     self,
     rates,
     species,
-    use_einsum=False
+    use_einsum=False,
+    use_factorial=False
   ):
     # Thermochemistry database
     # -------------
@@ -28,7 +29,7 @@ class Basic(object):
           "The 'species' input parameter should be a " \
           "dictionary with 'atom' and 'molecule' as keys."
         )
-      self.species[k] = Species(species[k])
+      self.species[k] = Species(species[k], use_factorial)
       self.nb_eqs += self.species[k].nb_comp
     # > Kinetics
     self.kinetics = Kinetics(rates, self.species)
