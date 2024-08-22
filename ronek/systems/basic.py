@@ -140,7 +140,13 @@ class Basic(object):
 
   # Equilibrium composition
   # -----------------------------------
-  def _compute_eq_comp(self, rho):
+  def compute_rho(self, n):
+    n_a, n_m = n[:1], n[1:]
+    rho_a = n_a * self.species["atom"].m
+    rho_m = np.sum(n_m) * self.species["molecule"].m
+    return rho_a + rho_m
+
+  def compute_eq_comp(self, rho):
     # Solve this system of equations:
     # 1) rho_a + sum(rho_m) = rho
     # 2) n_m = gamma * n_a^2
@@ -151,18 +157,24 @@ class Basic(object):
     n_m = self.gamma*n_a**2
     return n_a, n_m
 
-  def _compute_boltz(self, Tint):
+  def compute_eq_dist(self, Tint):
     q = [self.species["molecule"].q_int(Ti) for Ti in Tint]
     return [qi/np.sum(qi) for qi in q]
 
-  def _compute_rho(self, n):
-    n_a, n_m = n[:1], n[1:]
-    rho_a = n_a * self.species["atom"].m
-    rho_m = np.sum(n_m) * self.species["molecule"].m
-    return rho_a + rho_m
-
   # Solving
   # ===================================
+  def get_init_sol(self, T, p, x_a):
+    n = p / (const.UKB * T)
+    n_a = np.array([n * x_a]).reshape(-1)
+    q_m = self.species["molecule"].q_int(T)
+    n_m = n * (1-x_a) * q_m / np.sum(q_m)
+    return np.concatenate([n_a, n_m])
+
+  def get_tgrid(self, t_lim, num):
+    t = np.geomspace(*t_lim, num=num-1)
+    t = np.insert(t, 0, 0.0)
+    return t
+
   def solve(
     self,
     t,
@@ -174,19 +186,6 @@ class Basic(object):
     atol=0.0,
     first_step=1e-14
   ):
-    """
-    Solve the isothermal master equation given the initial distribution
-    and the translational temperature.
-
-    Args:
-      - t: A 1D vector representing the time grid (preferably distributed
-           logarithmically).
-      - y0: A 1D vector representing the initial solution.
-      - ops: A list of operators needed to solve the system.
-
-    Returns:
-      - y: The solution at each time instant.
-    """
     if (ops is None):
       raise ValueError("Provide set of operators as input.")
     sol = sp.integrate.solve_ivp(
@@ -206,15 +205,15 @@ class Basic(object):
   def solve_fom(
     self,
     t,
-    y0,
+    n0,
     rtol=1e-5,
     atol=0.0,
     first_step=1e-14
   ):
     self.check_fom_ops()
-    return self.solve(
+    n = self.solve(
       t=t,
-      y0=y0,
+      y0=n0,
       fun=self.fom_fun,
       jac=self.fom_jac,
       ops=self.fom_ops,
@@ -222,11 +221,12 @@ class Basic(object):
       atol=atol,
       first_step=first_step
     )
+    return n[:1], n[1:]
 
   def solve_rom(
     self,
     t,
-    y0,
+    n0,
     rtol=1e-5,
     atol=0.0,
     first_step=1e-14,
@@ -234,16 +234,16 @@ class Basic(object):
   ):
     self.check_rom_ops()
     # Compute equilibrium value
-    rho = self._compute_rho(n=y0)
-    n_a_eq, n_m_eq = self._compute_eq_comp(rho)
+    rho = self.compute_rho(n=n0)
+    n_a_eq, n_m_eq = self.compute_eq_comp(rho)
     self.rom_ops["n_a_eq"] = n_a_eq
     # Encode initial condition
-    z = self.encode(y0[1:], x_eq=n_m_eq)
-    y0 = np.concatenate([y0[:1], z])
+    z_m = self.encode(n0[1:], x_eq=n_m_eq)
+    z0 = np.concatenate([n0[:1], z_m])
     # Solve
-    y = self.solve(
+    z = self.solve(
       t=t,
-      y0=y0,
+      y0=z0,
       fun=self.rom_fun,
       jac=self.rom_jac,
       ops=self.rom_ops,
@@ -252,11 +252,10 @@ class Basic(object):
       first_step=first_step
     )
     # Decode solution
-    n_m = self.decode(y[1:].T, x_eq=n_m_eq).T
-    n = np.vstack([y[:1], n_m])
+    n_m = self.decode(z[1:].T, x_eq=n_m_eq).T
     if use_abs:
-      n = np.abs(n)
-    return n
+      n_m = np.abs(n_m)
+    return z[:1], n_m
 
   def encode(self, x, x_eq=None):
     if (x_eq is not None):
