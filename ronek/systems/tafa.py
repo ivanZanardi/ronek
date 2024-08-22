@@ -95,20 +95,22 @@ class TAFASystem(TASystem):
   # Linearized FOM
   # -----------------------------------
   def _compute_lin_fom_ops(self, p, T, Tint, max_mom=10):
+    n = p/(const.UKB*T)
     n_a_eq, n_m_eq = self._compute_eq_comp(p, T)
-    alpha = n_m_eq / n_a_eq**2
+    gamma = n_m_eq / n_a_eq**2
     return {
-      "A": self._compute_lin_fom_ops_a(alpha, n_a_eq),
+      "A": self._compute_lin_fom_ops_a(gamma, n_a_eq),
       "B": self._compute_lin_fom_ops_b(
-        b=self._get_lin_fom_ops_b(alpha, n_a_eq), Tint=Tint
+        b=self._get_lin_fom_ops_b(gamma, n_a_eq),
+        Tint=Tint
       ),
       "C": self._compute_lin_fom_ops_c(max_mom)
     }
 
-  def _compute_lin_fom_ops_a(self, alpha, n_a_eq):
+  def _compute_lin_fom_ops_a(self, gamma, n_a_eq):
     A1 = self.fom_ops["m-m"]["ed"] \
       + np.transpose(self.fom_ops["m-m"]["ed"], axes=(0,2,1))
-    A1 = A1 @ alpha
+    A1 = A1 @ gamma
     A2 = self.fom_ops["m-m"]["er"]
     A3 = self.fom_ops["m-a"]["ed"]
     if (n_a_eq == np.inf):
@@ -119,10 +121,10 @@ class TAFASystem(TASystem):
       A = A1 + A2 + A3/n_a_eq
     return A * n_a_eq**2
 
-  def _get_lin_fom_ops_b(self, alpha, n_a_eq):
+  def _get_lin_fom_ops_b(self, gamma, n_a_eq):
     return (
-      2 * n_a_eq * (self.fom_ops["m-m"]["er"] @ alpha) \
-      + self.fom_ops["m-a"]["ed"] @ alpha \
+      2 * n_a_eq * (self.fom_ops["m-m"]["er"] @ gamma) \
+      + self.fom_ops["m-a"]["ed"] @ gamma \
       + 4 * n_a_eq * self.fom_ops["m-m"]["r"] \
       + 3 * self.fom_ops["m-a"]["r"]
     ) * n_a_eq**3 / const.UNA

@@ -43,11 +43,42 @@ class Basic(object):
     self.phif = None
     # Mass conservation operator
     self.mass_ratio = np.full((1,self.nb_eqs-1), 2.0)
+    # Equilibrium ratio
+    self.gamma = None
     # Solving
     # -------------
     self.use_einsum = use_einsum
-    self.fun = None
-    self.jac = None
+    self.fom_fun = None
+    self.fom_jac = None
+    self.rom_fun = None
+    self.rom_jac = None
+
+  def set_eq_ratio(self, T):
+    q_a, q_m = [self.species[k].q_tot(T) for k in ("atom", "molecule")]
+    self.gamma = q_m / q_a**2
+
+  def check_eq_ratio(self):
+    if (self.gamma is None):
+      raise ValueError("Set equilibrium ratio.")
+
+  def check_fom_ops(self):
+    if (self.fom_ops is None):
+      raise ValueError("Update FOM operators.")
+
+  def check_rom_ops(self):
+    if (self.rom_ops is None):
+      raise ValueError("Update ROM operators.")
+
+  def check_basis(self):
+    if (self.phi is None):
+      raise ValueError("Set trial and test bases.")
+
+  def is_einsum_used(self, identifier):
+    if self.use_einsum:
+      raise NotImplementedError(
+        "This functionality is not supported " \
+        f"when using 'einsum': '{identifier}'."
+      )
 
   # Operators
   # ===================================
@@ -64,15 +95,10 @@ class Basic(object):
         setattr(self, k, bases.real)
 
   def update_rom_ops(self):
-    if self.use_einsum:
-      raise NotImplementedError(
-        "The implementation for constructing the ROM operators " \
-        "is not available when using 'einsum' to build the RHS."
-      )
-    if (self.fom_ops is None):
-      raise ValueError("Update FOM operators.")
-    if (self.phi is None):
-      raise ValueError("Set trial and test bases.")
+    self.is_einsum_used("update_rom_ops")
+    self.check_eq_ratio()
+    self.check_fom_ops()
+    self.check_basis()
     # Compose operators
     self.rom_ops = self._update_rom_ops()
     self.rom_ops["m_ratio"] = self.mass_ratio @ self.phif
@@ -102,15 +128,10 @@ class Basic(object):
 
   # Linearized FOM
   # -----------------------------------
-  @abc.abstractmethod
   def compute_lin_fom_ops(self, *args, **kwargs):
-    if self.use_einsum:
-      raise NotImplementedError(
-        "The implementation for constructing the linearized operators " \
-        "is not available when using 'einsum' to build the RHS."
-      )
-    if (self.fom_ops is None):
-      raise ValueError("Update FOM operators.")
+    self.is_einsum_used("compute_lin_fom_ops")
+    self.check_eq_ratio()
+    self.check_fom_ops()
     return self._compute_lin_fom_ops(*args, **kwargs)
 
   @abc.abstractmethod
@@ -119,21 +140,26 @@ class Basic(object):
 
   # Equilibrium composition
   # -----------------------------------
-  def _compute_eq_comp(self, p, T):
-    # Solve: n_a + sum(ni) = p/(kT)
-    alpha = self._compute_eq_ratio(T)
-    a, n = np.sum(alpha), p/(const.UKB*T)
-    n_a = (-1+np.sqrt(1+4*a*n))/(2*a)
-    n_m = alpha*(n_a**2)
+  def _compute_eq_comp(self, rho):
+    # Solve this system of equations:
+    # 1) rho_a + sum(rho_m) = rho
+    # 2) n_m = gamma * n_a^2
+    a = np.sum(self.gamma) * self.species["molecule"].m
+    b = self.species["atom"].m
+    c = -rho
+    n_a = (-b+np.sqrt(b**2-4*a*c))/(2*a)
+    n_m = self.gamma*n_a**2
     return n_a, n_m
-
-  def _compute_eq_ratio(self, T):
-    q_a, q_m = [self.species[k].q_tot(T) for k in ("atom", "molecule")]
-    return q_m / q_a**2
 
   def _compute_boltz(self, Tint):
     q = [self.species["molecule"].q_int(Ti) for Ti in Tint]
     return [qi/np.sum(qi) for qi in q]
+
+  def _compute_rho(self, n):
+    n_a, n_m = n[:1], n[1:]
+    rho_a = n_a * self.species["atom"].m
+    rho_m = np.sum(n_m) * self.species["molecule"].m
+    return rho_a + rho_m
 
   # Solving
   # ===================================
@@ -141,6 +167,8 @@ class Basic(object):
     self,
     t,
     y0,
+    fun,
+    jac=None,
     ops=None,
     rtol=1e-5,
     atol=0.0,
@@ -162,7 +190,7 @@ class Basic(object):
     if (ops is None):
       raise ValueError("Provide set of operators as input.")
     sol = sp.integrate.solve_ivp(
-      fun=self.fun,
+      fun=fun,
       t_span=[t[0],t[-1]],
       y0=y0/const.UNA,
       method="LSODA",
@@ -171,27 +199,72 @@ class Basic(object):
       first_step=first_step,
       rtol=rtol,
       atol=atol,
-      jac=self.jac
+      jac=jac
     )
     return sol.y * const.UNA
 
-  # ROM
-  # -----------------------------------
-  def solve_rom(self,
+  def solve_fom(
+    self,
     t,
     y0,
     rtol=1e-5,
     atol=0.0,
     first_step=1e-14
   ):
-    if (self.rom_ops is None):
-      raise ValueError("Update ROM operators.")
-    y0 = np.concatenate([y0[:1], self.encode(y0[1:])])
-    y = self.solve(t, y0, self.rom_ops, rtol, atol, first_step)
-    return np.vstack([y[:1], self.decode(y[1:])])
+    self.check_fom_ops()
+    return self.solve(
+      t=t,
+      y0=y0,
+      fun=self.fom_fun,
+      jac=self.fom_jac,
+      ops=self.fom_ops,
+      rtol=rtol,
+      atol=atol,
+      first_step=first_step
+    )
 
-  def encode(self, x):
-    return self.psi.T @ x
+  def solve_rom(
+    self,
+    t,
+    y0,
+    rtol=1e-5,
+    atol=0.0,
+    first_step=1e-14,
+    use_abs=False
+  ):
+    self.check_rom_ops()
+    # Compute equilibrium value
+    rho = self._compute_rho(n=y0)
+    n_a_eq, n_m_eq = self._compute_eq_comp(rho)
+    self.rom_ops["n_a_eq"] = n_a_eq
+    # Encode initial condition
+    z = self.encode(y0[1:], x_eq=n_m_eq)
+    y0 = np.concatenate([y0[:1], z])
+    # Solve
+    y = self.solve(
+      t=t,
+      y0=y0,
+      fun=self.rom_fun,
+      jac=self.rom_jac,
+      ops=self.rom_ops,
+      rtol=rtol,
+      atol=atol,
+      first_step=first_step
+    )
+    # Decode solution
+    n_m = self.decode(y[1:].T, x_eq=n_m_eq).T
+    n = np.vstack([y[:1], n_m])
+    if use_abs:
+      n = np.abs(n)
+    return n
 
-  def decode(self, x):
-    return self.phif @ x
+  def encode(self, x, x_eq=None):
+    if (x_eq is not None):
+      x = x - x_eq
+    return x @ self.psi
+
+  def decode(self, z, x_eq=None):
+    x = z @ self.phif.T
+    if (x_eq is not None):
+      x = x + x_eq
+    return x

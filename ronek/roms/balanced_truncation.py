@@ -113,9 +113,8 @@ class BalancedTruncation(object):
       ti = a * self.lg["x"] + b
       _t.append(ti), _w.append(wi)
     # Set quadrature
-    self.t, self.w = [
-      bkd.to_backend(np.concatenate(z).squeeze()) for z in (_t, _w)
-    ]
+    self.t = bkd.to_backend(np.concatenate(_t).squeeze())
+    self.w = bkd.to_backend(np.concatenate(_w).squeeze())
     self.time_dim = len(self.t)
 
   # Eigendecomposition

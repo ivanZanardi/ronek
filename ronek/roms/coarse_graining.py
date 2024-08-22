@@ -51,9 +51,9 @@ class CoarseGraining(object):
     inter_qb = np.linspace(e_d, e_max*(1.0+eps), nb_qb+1)
     intervals = np.concatenate([inter_b, inter_qb[1:]])
     # Define mapping
-    lev_to_bin = (e.reshape(-1,1) >= intervals.reshape(1,-1))
-    lev_to_bin = np.sum(lev_to_bin, axis=1)
-    return lev_to_bin
+    mapping = (e.reshape(-1,1) >= intervals.reshape(1,-1))
+    mapping = np.sum(mapping, axis=1)
+    return mapping
 
   def construct_probmat(self, mapping):
     """Probability matrix"""
