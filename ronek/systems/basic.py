@@ -84,6 +84,16 @@ class Basic(object):
   # ===================================
   # ROM
   # -----------------------------------
+  def update_rom_ops(self, phi, psi):
+    self.is_einsum_used("update_rom_ops")
+    self.check_eq_ratio()
+    self.check_fom_ops()
+    # Set basis
+    self.set_basis(phi, psi)
+    # Compose operators
+    self.rom_ops = self._update_rom_ops()
+    self.rom_ops["m_ratio"] = self.mass_ratio @ self.phif
+
   def set_basis(self, phi, psi):
     self.phi, self.psi = phi, psi
     # Biorthogonalize
@@ -93,15 +103,6 @@ class Basic(object):
       bases = getattr(self, k)
       if np.iscomplexobj(bases):
         setattr(self, k, bases.real)
-
-  def update_rom_ops(self):
-    self.is_einsum_used("update_rom_ops")
-    self.check_eq_ratio()
-    self.check_fom_ops()
-    self.check_basis()
-    # Compose operators
-    self.rom_ops = self._update_rom_ops()
-    self.rom_ops["m_ratio"] = self.mass_ratio @ self.phif
 
   @abc.abstractmethod
   def _update_rom_ops(self):
@@ -210,6 +211,7 @@ class Basic(object):
     atol=0.0,
     first_step=1e-14
   ):
+    """Solve state-to-state FOM."""
     self.check_fom_ops()
     n = self.solve(
       t=t,
@@ -223,7 +225,36 @@ class Basic(object):
     )
     return n[:1], n[1:]
 
-  def solve_rom(
+  def solve_rom_cg(
+    self,
+    t,
+    n0,
+    rtol=1e-5,
+    atol=0.0,
+    first_step=1e-14
+  ):
+    """Solve coarse-graining-based ROM."""
+    self.check_rom_ops()
+    self.is_einsum_used("solve_rom_cg")
+    # Encode initial condition
+    z_m = self.encode(n0[1:])
+    z0 = np.concatenate([n0[:1], z_m])
+    # Solve
+    z = self.solve(
+      t=t,
+      y0=z0,
+      fun=self.fom_fun,
+      jac=self.fom_jac,
+      ops=self.rom_ops,
+      rtol=rtol,
+      atol=atol,
+      first_step=first_step
+    )
+    # Decode solution
+    n_m = self.decode(z[1:].T).T
+    return z[:1], n_m
+
+  def solve_rom_bt(
     self,
     t,
     n0,
@@ -232,7 +263,9 @@ class Basic(object):
     first_step=1e-14,
     use_abs=False
   ):
+    """Solve balanced truncation-based ROM."""
     self.check_rom_ops()
+    self.is_einsum_used("solve_rom_bt")
     # Compute equilibrium value
     rho = self.compute_rho(n=n0)
     n_a_eq, n_m_eq = self.compute_eq_comp(rho)
