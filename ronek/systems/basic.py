@@ -2,7 +2,10 @@ import abc
 import numpy as np
 import scipy as sp
 
+from pyDOE import lhs
+
 from .. import const
+from .. import utils
 from .species import Species
 from .kinetics import Kinetics
 
@@ -284,3 +287,40 @@ class Basic(object):
     if (x_eq is not None):
       x = x + x_eq
     return x
+
+  # Data generation
+  # ===================================
+  def construct_design_mat(
+    self,
+    T_lim,
+    p_lim,
+    x_a_lim,
+    nb_samples
+  ):
+    design_space = [np.sort(T_lim), np.sort(p_lim), np.sort(x_a_lim)]
+    design_space = np.array(design_space).T
+    # Construct
+    ddim = design_space.shape[1]
+    dmat = lhs(ddim, int(nb_samples))
+    # Rescale
+    amin, amax = design_space
+    return dmat * (amax - amin) + amin
+
+  def compute_sol(
+    self,
+    t,
+    mu,
+    path=None,
+    index=None,
+    filename=None
+  ):
+    mui = mu[index] if (index is not None) else mu
+    try:
+      n0 = self.get_init_sol(*mui)
+      n = self.solve_fom(t, n0, rtol=1e-6)
+      data = {"index": index, "mu": mui, "t": t, "n0": n0, "n": n}
+      utils.save_case(path=path, index=index, data=data, filename=filename)
+      converged = 1
+    except:
+      converged = 0
+    return converged

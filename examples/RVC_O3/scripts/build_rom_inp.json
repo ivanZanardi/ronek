@@ -36,6 +36,6 @@
   "max_mom": 10,
   "paths": {
     "dtb": "./../database/",
-    "data": "./data/"
+    "saving": "./run01/"
   }
 }

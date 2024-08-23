@@ -4,7 +4,7 @@ import numpy as np
 
 # Global
 # -------------------------------------
-_VALID_BKD = {"torch"}
+_VALID_BKD = {"numpy", "torch"}
 _VALID_DEVICE = {"cpu", "cuda"}
 _VALID_DTYPE = {"float32", "float64"}
 

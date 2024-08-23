@@ -1,7 +1,8 @@
 """
-Build balanced truncation-based ROM.
+Generate FOM data.
 """
 
+import os
 import sys
 import json
 import argparse
@@ -28,11 +29,10 @@ env.set(**inputs["env"])
 
 # Libraries
 # =====================================
-import numpy as np
+import dill as pickle
 
 from ronek import utils
 from ronek import systems as sys_mod
-from ronek.roms import BalancedTruncation
 
 # Main
 # =====================================
@@ -52,16 +52,46 @@ if (__name__ == '__main__'):
     **inputs["system"]["kwargs"]
   )
 
-  # Balanced truncation
+  # Data generation
   # -----------------------------------
-  # Time and internal temperature grids
+  # Path to saving
+  path_to_save = inputs["paths"]["saving"] + "/data/"
+  os.makedirs(path_to_save, exist_ok=True)
+  # Time grid
   t = system.get_tgrid(**inputs["grids"]["t"])
-  Tint = np.geomspace(**inputs["grids"]["Tint"])
-  # Model reduction
-  max_mom = int(inputs["max_mom"])
-  btrunc = BalancedTruncation(
-    operators=system.compute_lin_fom_ops(Tint=Tint, max_mom=max_mom),
-    path_to_saving=inputs["paths"]["data"] + f"/max_mom_{max_mom}/",
-    **inputs["btrunc"]
+
+  # Sampled cases
+  # ---------------
+  # Construct design matrix
+  mu = system.construct_design_mat(**inputs["param_space"]["sampled"])
+  # Generate data
+  utils.generate_case_parallel(
+    sol_fun=system.compute_sol,
+    sol_kwargs=dict(
+      t=t,
+      mu=mu,
+      path=path_to_save,
+      filename=None
+    ),
+    nb_samples=inputs["param_space"]["sampled"]["nb_samples"],
+    nb_workers=inputs["param_space"]["nb_workers"]
   )
-  btrunc(t)
+  # Save parameters
+  filename = path_to_save + "/mu.p"
+  pickle.dump(mu, open(filename, "wb"))
+
+  # Defined cases
+  # ---------------
+  for (k, mui) in inputs["param_space"]["defined"].items():
+    system.compute_sol(
+      t=t,
+      mu=mui,
+      path=None,
+      index=None,
+      filename=path_to_save + f"/case_{k}.p"
+    )
+
+  # Copy input file
+  filename = path_to_save + "/inputs.json"
+  with open(filename, "w") as file:
+    json.dump(inputs, file, indent=2)

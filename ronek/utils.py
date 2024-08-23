@@ -6,7 +6,7 @@ import joblib as jl
 import dill as pickle
 
 from tqdm import tqdm
-from typing import Any, List, Union
+from typing import Any, Dict, List, Union
 
 
 # Classes
@@ -77,7 +77,8 @@ def check_path(path: str) -> None:
 def save_case(
   path: str,
   index: int,
-  data: Any
+  data: Any,
+  filename: Union[str, None] = None
 ) -> None:
   """
   Save simluated case to a file with specific format.
@@ -95,13 +96,15 @@ def save_case(
   :return: None
   :rtype: None
   """
-  filename = path + f"/case_{str(index+1).zfill(5)}.p"
+  if (filename is None):
+    filename = path + f"/case_{str(index+1).zfill(4)}.p"
   pickle.dump(data, open(filename, "wb"))
 
 def load_case(
   path: str,
   index: int,
-  key: Union[str, None] = None
+  key: Union[str, None] = None,
+  filename: Union[str, None] = None
 ) -> Any:
   """
   Load simluated case from a file and optionally retrieve a specific item.
@@ -120,7 +123,8 @@ def load_case(
   :return: The data from the file, or the specific item if a key is provided.
   :rtype: Any
   """
-  filename = path + f"/case_{str(index+1).zfill(5)}.p"
+  if (filename is None):
+    filename = path + f"/case_{str(index+1).zfill(4)}.p"
   if os.path.exists(filename):
     data = pickle.load(open(filename, "rb"))
     if (key is None):
@@ -132,14 +136,14 @@ def load_case_parallel(
   path: str,
   ranges: List[int],
   key: Union[str, None] = None,
-  n_workers: int = 1
+  nb_workers: int = 1
 ) -> List[Any]:
   """
   Load simluated cases in parallel or sequentially based on the number 
   of workers.
 
   This function uses `joblib` to parallelize the loading of cases if 
-  `n_workers` is greater than 1. Otherwise, it loads the cases sequentially.
+  `nb_workers` is greater than 1. Otherwise, it loads the cases sequentially.
 
   :param path: Path to the data source.
   :type path: str
@@ -147,8 +151,8 @@ def load_case_parallel(
   :type ranges: List[int]
   :param key: Optional key to pass to the `load_case` function.
   :type key: Union[str, None]
-  :param n_workers: Number of parallel workers to use. Default is 1.
-  :type n_workers: int
+  :param nb_workers: Number of parallel workers to use. Default is 1.
+  :type nb_workers: int
 
   :return: A list of loaded cases.
   :rtype: List[Any]
@@ -159,8 +163,8 @@ def load_case_parallel(
     desc="> Cases",
     file=sys.stdout
   )
-  if (n_workers > 1):
-    return jl.Parallel(n_workers)(
+  if (nb_workers > 1):
+    return jl.Parallel(nb_workers)(
       jl.delayed(load_case)(path=path, index=i, key=key) for i in iterable
     )
   else:
@@ -168,12 +172,12 @@ def load_case_parallel(
 
 def generate_case_parallel(
   sol_fun: callable,
-  n_samples: int,
-  n_workers: int = 1,
+  nb_samples: int,
+  sol_kwargs: Dict[str, Any] = {},
+  nb_workers: int = 1,
   desc: str = "> Cases",
   verbose: bool = True
 ) -> None:
-
   """
   Generate cases in parallel and check solver convergence.
 
@@ -183,10 +187,10 @@ def generate_case_parallel(
   :param sol_fun: A callable that performs the solver operation and returns 
                   convergence status as 0 or 1.
   :type sol_fun: callable
-  :param n_samples: Number of samples or cases to generate.
-  :type n_samples: int
-  :param n_workers: Number of parallel workers to use. Defaults to 1.
-  :type n_workers: int
+  :param nb_samples: Number of samples or cases to generate.
+  :type nb_samples: int
+  :param nb_workers: Number of parallel workers to use. Defaults to 1.
+  :type nb_workers: int
   :param desc: Description to display in the progress bar. Defaults to
                "> Cases".
   :type desc: str
@@ -203,16 +207,16 @@ def generate_case_parallel(
   the total number of converged cases.
   """
   iterable = tqdm(
-    iterable=range(n_samples),
+    iterable=range(nb_samples),
     ncols=80,
     desc=desc,
     file=sys.stdout
   )
-  if (n_workers > 1):
-    converged = jl.Parallel(n_workers)(
-      jl.delayed(sol_fun)(i) for i in iterable
+  if (nb_workers > 1):
+    converged = jl.Parallel(nb_workers)(
+      jl.delayed(sol_fun)(index=i, **sol_kwargs) for i in iterable
     )
   else:
-    converged = [sol_fun(i) for i in iterable]
+    converged = [sol_fun(index=i, **sol_kwargs) for i in iterable]
   if verbose:
-    print(f"> Total converged cases: {sum(converged)}/{n_samples}")
+    print(f"> Total converged cases: {sum(converged)}/{nb_samples}")
