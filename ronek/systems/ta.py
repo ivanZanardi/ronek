@@ -11,12 +11,15 @@ class TASystem(Basic):
   # ===================================
   def __init__(
     self,
+    T,
     rates,
     species,
     use_einsum=False,
     use_factorial=False
   ):
-    super(TASystem, self).__init__(rates, species, use_einsum, use_factorial)
+    super(TASystem, self).__init__(
+      T, rates, species, use_einsum, use_factorial
+    )
     # Solving
     # -------------
     if self.use_einsum:
@@ -27,15 +30,6 @@ class TASystem(Basic):
 
   # Operators
   # ===================================
-  # ROM
-  # -----------------------------------
-  def _update_rom_ops(self):
-    return {
-      "ed": self.psi.T @ self.fom_ops["ed"] @ self.phif,
-      "ed_eq": self.psi.T @ self.fom_ops["ed"] @ self.gamma,
-      "r": self.psi.T @ self.fom_ops["r"]
-    }
-
   # FOM
   # -----------------------------------
   def _update_fom_ops(self, rates):
@@ -74,6 +68,15 @@ class TASystem(Basic):
       return self.species["molecule"].compute_mom_basis(max_mom)
     else:
       return np.eye(self.species["molecule"].nb_comp)
+
+  # ROM
+  # -----------------------------------
+  def _update_rom_ops(self):
+    return {
+      "ed": self.psi.T @ self.fom_ops["ed"] @ self.phif,
+      "ed_eq": self.psi.T @ self.fom_ops["ed"] @ self.gamma,
+      "r": self.psi.T @ self.fom_ops["r"]
+    }
 
   # Solving
   # ===================================

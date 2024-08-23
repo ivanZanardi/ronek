@@ -1,6 +1,3 @@
-#!/home/zanardi/.conda/envs/sciml/bin/python
-# -*- coding: utf-8 -*-
-
 # Environment
 # =====================================
 import sys
@@ -11,7 +8,7 @@ if (importlib.util.find_spec("ronek") is None):
 from ronek import env
 env.set(
   device="cuda",
-  device_idx=1,
+  device_idx=0,
   nb_threads=16,
   floatx="float64"
 )
@@ -44,7 +41,7 @@ if (__name__ == '__main__'):
   }
   # > Density
   rho_grid = {
-    "lim": [1e-5, 1e-1],
+    "lim": [1e-5, 1e0],
     "pts": 50
   }
   # > Moments of the distribution (molecule)
@@ -69,16 +66,14 @@ if (__name__ == '__main__'):
 
   # Balanced truncation
   # ===================================
-  # Time grid
-  t = model.get_tgrid(t_grid["lim"], t_grid["pts"])
-  # Density and internal temperature grids
+  # Time, density, and internal temperature grids
+  t = model.get_tgrid(t_grid["lim"], num=t_grid["pts"])
   rho = np.geomspace(*rho_grid["lim"], num=rho_grid["pts"])
-  # Internal temperature grid
   Tint = np.geomspace(*Tint_grid["lim"], num=Tint_grid["pts"])
-  # Loop over pressures
+  # Model reduction
   X, Y = [], []
   for rhoi in tqdm(rho, ncols=80, desc="Densities"):
-    # Model reduction
+    # > Linear operators
     lin_ops = model.compute_lin_fom_ops(rho=rhoi, Tint=Tint, max_mom=max_mom)
     btrunc = BalancedTruncation(
       operators=lin_ops,
@@ -87,8 +82,9 @@ if (__name__ == '__main__'):
       saving=False,
       verbose=False
     )
+    # > Gramians
     Xi, Yi = btrunc(t=t, compute_modes=False)
     X.append(Xi), Y.append(Yi)
-  # Compute balancing modes
+  # > Compute balancing modes
   X, Y = np.hstack(X), np.hstack(Y)
   btrunc.compute_balancing_modes(X, Y)

@@ -1,6 +1,3 @@
-#!/home/zanardi/.conda/envs/sciml/bin/python
-# -*- coding: utf-8 -*-
-
 # Environment
 # =====================================
 import sys
@@ -34,6 +31,7 @@ if (__name__ == '__main__'):
     "pts": 50
   }
   # System
+  # > Translational temperature
   T = 1e4
   # > Initial internal temperature (molecule)
   Tint_grid = {
@@ -55,16 +53,16 @@ if (__name__ == '__main__'):
     species={
       k: paths["dtb"] + f"/species/{k}.json" for k in ("atom", "molecule")
     },
-    use_einsum=False
+    use_einsum=False,
+    use_factorial=False
   )
   model.update_fom_ops(T)
   model.set_eq_ratio(T)
 
   # Balanced truncation
   # ===================================
-  # Time grid
-  t = model.get_tgrid(t_grid["lim"], t_grid["pts"])
-  # Internal temperature grid
+  # Time and internal temperature grids
+  t = model.get_tgrid(t_grid["lim"], num=t_grid["pts"])
   Tint = np.geomspace(*Tint_grid["lim"], num=Tint_grid["pts"])
   # Model reduction
   lin_ops = model.compute_lin_fom_ops(Tint=Tint, max_mom=max_mom)

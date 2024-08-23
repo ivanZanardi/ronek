@@ -13,6 +13,7 @@ class Basic(object):
   # ===================================
   def __init__(
     self,
+    T,
     rates,
     species,
     use_einsum=False,
@@ -20,6 +21,7 @@ class Basic(object):
   ):
     # Thermochemistry database
     # -------------
+    self.T = T
     # > Species
     self.nb_eqs = 0
     self.species = {}
@@ -31,45 +33,35 @@ class Basic(object):
         )
       self.species[k] = Species(species[k], use_factorial)
       self.nb_eqs += self.species[k].nb_comp
+    self.set_eq_ratio()
     # > Kinetics
     self.kinetics = Kinetics(rates, self.species)
-    # Operators
+    # FOM
     # -------------
-    self.fom_ops = None
+    # Operators
+    self.update_fom_ops()
+    # Mass conservation operator
+    ratio = self.species["molecule"].m / self.species["atom"].m
+    self.mass_ratio = np.full((1,self.nb_eqs-1), ratio)
+    # Solving
+    self.use_einsum = use_einsum
+    self.fom_fun = None
+    self.fom_jac = None
+    # ROM
+    # -------------
     self.rom_ops = None
     # Bases
     self.phi = None
     self.psi = None
     self.phif = None
-    # Mass conservation operator
-    self.mass_ratio = np.full((1,self.nb_eqs-1), 2.0)
-    # Equilibrium ratio
-    self.gamma = None
-    # Solving
-    # -------------
-    self.use_einsum = use_einsum
-    self.fom_fun = None
-    self.fom_jac = None
 
-  def set_eq_ratio(self, T):
-    q_a, q_m = [self.species[k].q_tot(T) for k in ("atom", "molecule")]
+  def set_eq_ratio(self):
+    q_a, q_m = [self.species[k].q_tot(self.T) for k in ("atom", "molecule")]
     self.gamma = q_m / q_a**2
-
-  def check_eq_ratio(self):
-    if (self.gamma is None):
-      raise ValueError("Set equilibrium ratio.")
-
-  def check_fom_ops(self):
-    if (self.fom_ops is None):
-      raise ValueError("Update FOM operators.")
 
   def check_rom_ops(self):
     if (self.rom_ops is None):
       raise ValueError("Update ROM operators.")
-
-  def check_basis(self):
-    if (self.phi is None):
-      raise ValueError("Set trial and test bases.")
 
   def is_einsum_used(self, identifier):
     if self.use_einsum:
@@ -80,12 +72,39 @@ class Basic(object):
 
   # Operators
   # ===================================
+  # FOM
+  # -----------------------------------
+  def update_fom_ops(self):
+    # Update species
+    for sp in self.species.values():
+      sp.update(self.T)
+    # Update kinetics
+    self.kinetics.update(self.T)
+    # Compose operators
+    if self.use_einsum:
+      self.fom_ops = self.kinetics.rates
+    else:
+      self.fom_ops = self._update_fom_ops(self.kinetics.rates)
+    self.fom_ops["m_ratio"] = self.mass_ratio
+
+  @abc.abstractmethod
+  def _update_fom_ops(self, rates):
+    pass
+
+  # Linearized FOM
+  # -----------------------------------
+  def compute_lin_fom_ops(self, *args, **kwargs):
+    self.is_einsum_used("compute_lin_fom_ops")
+    return self._compute_lin_fom_ops(*args, **kwargs)
+
+  @abc.abstractmethod
+  def _compute_lin_fom_ops(self, *args, **kwargs):
+    pass
+
   # ROM
   # -----------------------------------
   def update_rom_ops(self, phi, psi):
     self.is_einsum_used("update_rom_ops")
-    self.check_eq_ratio()
-    self.check_fom_ops()
     # Set basis
     self.set_basis(phi, psi)
     # Compose operators
@@ -104,37 +123,6 @@ class Basic(object):
 
   @abc.abstractmethod
   def _update_rom_ops(self):
-    pass
-
-  # FOM
-  # -----------------------------------
-  def update_fom_ops(self, T):
-    # Update species
-    for sp in self.species.values():
-      sp.update(T)
-    # Update kinetics
-    self.kinetics.update(T)
-    # Compose operators
-    if self.use_einsum:
-      self.fom_ops = self.kinetics.rates
-    else:
-      self.fom_ops = self._update_fom_ops(self.kinetics.rates)
-    self.fom_ops["m_ratio"] = self.mass_ratio
-
-  @abc.abstractmethod
-  def _update_fom_ops(self, rates):
-    pass
-
-  # Linearized FOM
-  # -----------------------------------
-  def compute_lin_fom_ops(self, *args, **kwargs):
-    self.is_einsum_used("compute_lin_fom_ops")
-    self.check_eq_ratio()
-    self.check_fom_ops()
-    return self._compute_lin_fom_ops(*args, **kwargs)
-
-  @abc.abstractmethod
-  def _compute_lin_fom_ops(self, *args, **kwargs):
     pass
 
   # Equilibrium composition
@@ -210,7 +198,6 @@ class Basic(object):
     first_step=1e-14
   ):
     """Solve state-to-state FOM."""
-    self.check_fom_ops()
     n = self.solve(
       t=t,
       y0=n0,

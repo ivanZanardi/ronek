@@ -12,40 +12,18 @@ class TAFASystem(TASystem):
   # ===================================
   def __init__(
     self,
+    T,
     rates,
     species,
     use_einsum=False,
     use_factorial=False
   ):
-    super(TAFASystem, self).__init__(rates, species, use_einsum, use_factorial)
+    super(TAFASystem, self).__init__(
+      T, rates, species, use_einsum, use_factorial
+    )
 
   # Operators
   # ===================================
-  # ROM
-  # -----------------------------------
-  def _update_rom_ops(self):
-    ops_ma = self.fom_ops["m-a"]
-    ops_mm = self.fom_ops["m-m"]
-    return {
-      # > Molecule-Atom collisions
-      "m-a": {
-        "ed_eq": self.psi.T @ ops_ma["ed"] @ self.gamma,
-        "ed": self.psi.T @ ops_ma["ed"] @ self.phif,
-        "r": self.psi.T @ ops_ma["r"]
-      },
-      # > Molecule-Molecule collisions
-      "m-m": {
-        "ed": np.einsum(
-          "ip,ijk,jq,kr->pqr", self.psi, ops_mm["ed"], self.phif, self.phif
-        ),
-        "ed_eq_mat": self.psi.T @ self._compute_lin_fom_ops_a1() @ self.phif,
-        "ed_eq_vec": self.psi.T @ (ops_mm["ed"] @ self.gamma @ self.gamma),
-        "er_eq": self.psi.T @ ops_mm["er"] @ self.gamma,
-        "er": self.psi.T @ ops_mm["er"] @ self.phif,
-        "r": self.psi.T @ ops_mm["r"]
-      }
-    }
-
   # FOM
   # -----------------------------------
   def _update_fom_ops(self, rates):
@@ -55,8 +33,8 @@ class TAFASystem(TASystem):
       # > Molecule-Molecule collisions
       "m-m": {
         "ed": self._update_fom_ops_e(rates["m-m"]["e"]) \
-          + self._update_fom_ops_ed(rates["m-m"]["ed"]["fwd"]) \
-          + self._update_fom_ops_d(rates["m-m"]["d"]["fwd"]),
+            + self._update_fom_ops_ed(rates["m-m"]["ed"]["fwd"]) \
+            + self._update_fom_ops_d(rates["m-m"]["d"]["fwd"]),
         "er": self._update_fom_ops_er(rates["m-m"]["ed"]["bwd"]),
         "r": self._update_fom_ops_r(rates["m-m"]["d"]["bwd"])
       }
@@ -133,6 +111,31 @@ class TAFASystem(TASystem):
       + 4 * self.fom_ops["m-m"]["r"] * n_a_eq \
       + 3 * self.fom_ops["m-a"]["r"]
     ) * n_a_eq**3 / const.UNA
+
+  # ROM
+  # -----------------------------------
+  def _update_rom_ops(self):
+    ops_ma = self.fom_ops["m-a"]
+    ops_mm = self.fom_ops["m-m"]
+    return {
+      # > Molecule-Atom collisions
+      "m-a": {
+        "ed_eq": self.psi.T @ ops_ma["ed"] @ self.gamma,
+        "ed": self.psi.T @ ops_ma["ed"] @ self.phif,
+        "r": self.psi.T @ ops_ma["r"]
+      },
+      # > Molecule-Molecule collisions
+      "m-m": {
+        "ed": np.einsum(
+          "ip,ijk,jq,kr->pqr", self.psi, ops_mm["ed"], self.phif, self.phif
+        ),
+        "ed_eq_mat": self.psi.T @ self._compute_lin_fom_ops_a1() @ self.phif,
+        "ed_eq_vec": self.psi.T @ (ops_mm["ed"] @ self.gamma @ self.gamma),
+        "er_eq": self.psi.T @ ops_mm["er"] @ self.gamma,
+        "er": self.psi.T @ ops_mm["er"] @ self.phif,
+        "r": self.psi.T @ ops_mm["r"]
+      }
+    }
 
   # Solving
   # ===================================
