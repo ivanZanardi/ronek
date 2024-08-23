@@ -2,6 +2,7 @@ import os
 import sys
 import types
 import inspect
+import numpy as np
 import joblib as jl
 import dill as pickle
 
@@ -220,3 +221,8 @@ def generate_case_parallel(
     converged = [sol_fun(index=i, **sol_kwargs) for i in iterable]
   if verbose:
     print(f"> Total converged cases: {sum(converged)}/{nb_samples}")
+
+# Statistics
+# =====================================
+def err_ape(y_true, y_pred, eps=1e-8):
+	return 100*np.abs(y_true-y_pred)/(np.abs(y_true)+eps)

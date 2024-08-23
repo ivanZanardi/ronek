@@ -28,6 +28,10 @@ class Species(object):
     # Control variables
     self.use_factorial = use_factorial
 
+  def compute_mom(self, n, m=0):
+    e = self.lev["e"] / const.eV_to_J
+    return np.sum(n * e**m, axis=0)
+
   def compute_mom_basis(self, max_mom):
     e = self.lev["e"] / const.eV_to_J
     m = [np.ones_like(e)]

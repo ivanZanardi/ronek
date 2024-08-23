@@ -61,12 +61,11 @@ if (__name__ == '__main__'):
   t = system.get_tgrid(**inputs["grids"]["t"])
 
   # Sampled cases
-  # ---------------
-  # Construct design matrix
+  # > Construct design matrix
   mu = system.construct_design_mat(**inputs["param_space"]["sampled"])
-  # Generate data
+  # > Generate data
   utils.generate_case_parallel(
-    sol_fun=system.compute_sol,
+    sol_fun=system.compute_fom_sol,
     sol_kwargs=dict(
       t=t,
       mu=mu,
@@ -76,14 +75,13 @@ if (__name__ == '__main__'):
     nb_samples=inputs["param_space"]["sampled"]["nb_samples"],
     nb_workers=inputs["param_space"]["nb_workers"]
   )
-  # Save parameters
+  # > Save parameters
   filename = path_to_save + "/mu.p"
   pickle.dump(mu, open(filename, "wb"))
 
   # Defined cases
-  # ---------------
   for (k, mui) in inputs["param_space"]["defined"].items():
-    system.compute_sol(
+    system.compute_fom_sol(
       t=t,
       mu=mui,
       path=None,

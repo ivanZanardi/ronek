@@ -218,7 +218,8 @@ class Basic(object):
     n0,
     rtol=1e-5,
     atol=0.0,
-    first_step=1e-14
+    first_step=1e-14,
+    use_abs=False
   ):
     """Solve coarse-graining-based ROM."""
     self.check_rom_ops()
@@ -306,7 +307,7 @@ class Basic(object):
     amin, amax = design_space
     return dmat * (amax - amin) + amin
 
-  def compute_sol(
+  def compute_fom_sol(
     self,
     t,
     mu,
@@ -324,3 +325,43 @@ class Basic(object):
     except:
       converged = 0
     return converged
+
+  # Testing
+  # ===================================
+  def compute_rom_sol(
+    self,
+    model="bt",
+    path=None,
+    index=None,
+    filename=None,
+    eval_err_on=None
+  ):
+    # Load test case
+    icase = utils.load_case(path=path, index=index, filename=filename)
+    n_fom, t, n0 = [icase[k] for k in ("n", "t", "n0")]
+    # Solve ROM
+    solve = self.solve_rom_bt if (model == "bt") else self.solve_rom_cg
+    n_rom = solve(t, n0, rtol=1e-6, use_abs=False)
+    # Evaluate error
+    if (eval_err_on == "mom"):
+      # > Moments
+      error = []
+      for m in range(2):
+        mom_rom = self.species["molecule"].compute_mom(n=n_rom[1], m=m)
+        mom_fom = self.species["molecule"].compute_mom(n=n_fom[1], m=m)
+        if (m == 0):
+          mom0_fom = mom_fom
+          mom0_rom = mom_rom
+        else:
+          mom_fom /= mom0_fom
+          mom_rom /= mom0_rom
+        error.append(utils.err_ape(mom_rom, mom_fom))
+      return error
+    elif (eval_err_on == "dist"):
+      # > Distribution
+      y_pred = n_rom[1] / const.UNA
+      y_true = n_fom[1] / const.UNA
+      return utils.err_ape(y_pred, y_true, eps=1e-8)
+    else:
+      # > None: return the solution
+      return n_rom
