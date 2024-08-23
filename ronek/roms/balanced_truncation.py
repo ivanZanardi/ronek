@@ -23,7 +23,7 @@ class BalancedTruncation(object):
   def __init__(
     self,
     operators,
-    lg_deg=5,
+    lg_deg=3,
     path_to_saving="./",
     saving=True,
     verbose=True

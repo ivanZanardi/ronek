@@ -1,74 +1,67 @@
+"""
+Build balanced truncation-based ROM.
+"""
+
+import sys
+import json
+import argparse
+import importlib
+
+# Inputs
+# =====================================
+parser = argparse.ArgumentParser()
+parser.add_argument("--inpfile", type=str, help="path to JSON input file")
+args = parser.parse_args()
+
+with open(args.inpfile) as file:
+  inputs = json.load(file)
+
+# Import 'ronek' package
+# =====================================
+if (importlib.util.find_spec("ronek") is None):
+  sys.path.append(inputs["path_to_lib"])
+
 # Environment
 # =====================================
-import sys
-import importlib
-if (importlib.util.find_spec("ronek") is None):
-  sys.path.append("./../../../")
-
 from ronek import env
-env.set(
-  device="cuda",
-  device_idx=0,
-  nb_threads=16,
-  floatx="float64"
-)
+env.set(**inputs["env"])
 
 # Libraries
 # =====================================
 import numpy as np
 
-from ronek.systems import TASystem
+from ronek import utils
+from ronek import systems as sys_mod
 from ronek.roms import BalancedTruncation
 
-
+# Main
+# =====================================
 if (__name__ == '__main__'):
 
-  # Inputs
-  # ===================================
-  # Time
-  t_grid = {
-    "lim": [1e-12, 1e-2],
-    "pts": 50
-  }
-  # System
-  # > Translational temperature
-  T = 1e4
-  # > Initial internal temperature (molecule)
-  Tint_grid = {
-    "lim": [3e2, 1e4],
-    "pts": 20
-  }
-  # > Moments of the distribution (molecule)
-  max_mom = 10
-  # Paths
-  paths = {
-    "dtb": "./../database/",
-    "data": f"./data/max_mom_{max_mom}/"
-  }
-
   # Isothermal master equation model
-  # ===================================
-  model = TASystem(
-    rates=paths["dtb"] + "/kinetics.hdf5",
+  # -----------------------------------
+  path_to_dtb = inputs["paths"]["dtb"]
+  system = utils.get_class(
+    modules=[sys_mod],
+    name=inputs["system"]["name"]
+  )(
+    rates=path_to_dtb + "/kinetics.hdf5",
     species={
-      k: paths["dtb"] + f"/species/{k}.json" for k in ("atom", "molecule")
+      k: path_to_dtb + f"/species/{k}.json" for k in ("atom", "molecule")
     },
-    use_einsum=False,
-    use_factorial=False
+    **inputs["system"]["kwargs"]
   )
-  model.update_fom_ops(T)
-  model.set_eq_ratio(T)
 
   # Balanced truncation
-  # ===================================
+  # -----------------------------------
   # Time and internal temperature grids
-  t = model.get_tgrid(t_grid["lim"], num=t_grid["pts"])
-  Tint = np.geomspace(*Tint_grid["lim"], num=Tint_grid["pts"])
+  t = system.get_tgrid(**inputs["grids"]["t"])
+  Tint = np.geomspace(**inputs["grids"]["Tint"])
   # Model reduction
-  lin_ops = model.compute_lin_fom_ops(Tint=Tint, max_mom=max_mom)
+  max_mom = int(inputs["max_mom"])
   btrunc = BalancedTruncation(
-    operators=lin_ops,
-    lg_deg=3,
-    path_to_saving=paths["data"]
+    operators=system.compute_lin_fom_ops(Tint=Tint, max_mom=max_mom),
+    path_to_saving=inputs["paths"]["data"] + f"/max_mom_{max_mom}/",
+    **inputs["btrunc"]
   )
   btrunc(t)

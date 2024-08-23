@@ -1,6 +1,8 @@
 import numpy as np
 import scipy as sp
 
+from ronek.systems.species import Species
+
 
 class CoarseGraining(object):
   """
@@ -14,7 +16,7 @@ class CoarseGraining(object):
     self,
     molecule
   ):
-    self.molecule = molecule
+    self.molecule = Species(molecule)
 
   # Calling
   # ===================================

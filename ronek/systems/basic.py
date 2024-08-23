@@ -38,15 +38,14 @@ class Basic(object):
     self.kinetics = Kinetics(rates, self.species)
     # FOM
     # -------------
-    # Operators
-    self.update_fom_ops()
-    # Mass conservation operator
-    ratio = self.species["molecule"].m / self.species["atom"].m
-    self.mass_ratio = np.full((1,self.nb_eqs-1), ratio)
     # Solving
     self.use_einsum = use_einsum
     self.fom_fun = None
     self.fom_jac = None
+    # Operators
+    ratio = self.species["molecule"].m / self.species["atom"].m
+    self.mass_ratio = np.full((1,self.nb_eqs-1), ratio)
+    self.update_fom_ops()
     # ROM
     # -------------
     self.rom_ops = None
@@ -157,8 +156,8 @@ class Basic(object):
     n_m = n * (1-x_a) * q_m / np.sum(q_m)
     return np.concatenate([n_a, n_m])
 
-  def get_tgrid(self, t_lim, num):
-    t = np.geomspace(*t_lim, num=num-1)
+  def get_tgrid(self, start, stop, num):
+    t = np.geomspace(start, stop, num=num-1)
     t = np.insert(t, 0, 0.0)
     return t
 

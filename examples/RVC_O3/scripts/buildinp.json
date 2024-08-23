@@ -1,0 +1,41 @@
+{
+  "path_to_lib": "/home/zanardi/Codes/ML/RONEK/ronek/",
+  "env": {
+    "backend": "torch",
+    "device": "cuda",
+    "device_idx": 0,
+    "nb_threads": 4,
+    "epsilon": 1e-10,
+    "floatx": "float64"
+  },
+  "grids": {
+    "t": {
+      "start": 1e-12,
+      "stop": 1e-2,
+      "num": 50
+    },
+    "Tint": {
+      "start": 3e2,
+      "stop": 1e4,
+      "num": 20
+    }
+  },
+  "system": {
+    "name": "TASystem",
+    "kwargs": {
+      "T": 1e4,
+      "use_einsum": false,
+      "use_factorial": false
+    }
+  },
+  "btrunc": {
+    "lg_deg": 3,
+    "saving": true,
+    "verbose": true
+  },
+  "max_mom": 10,
+  "paths": {
+    "dtb": "./../database/",
+    "data": "./data/"
+  }
+}
