@@ -1,5 +1,5 @@
 """
-Generate FOM data.
+Test accuracy of ROM model.
 """
 
 import os
@@ -30,6 +30,7 @@ env.set(**inputs["env"])
 # Libraries
 # =====================================
 import numpy as np
+import pandas as pd
 import joblib as jl
 
 from tqdm import tqdm
@@ -59,7 +60,7 @@ if (__name__ == '__main__'):
   # Testing
   # -----------------------------------
   # Path to saving
-  path_to_save = inputs["paths"]["save"]
+  path_to_save = inputs["paths"]["saving"]
   os.makedirs(path_to_save, exist_ok=True)
 
   # ROM models
@@ -71,7 +72,7 @@ if (__name__ == '__main__'):
   iterable = tqdm(
     iterable=range(inputs["data"]["nb_samples"]),
     ncols=80,
-    desc="Cases",
+    desc="  Cases",
     file=sys.stdout
   )
   # Arguments for computing ROM solution
@@ -84,6 +85,7 @@ if (__name__ == '__main__'):
   bt_err, cg_err = [], []
   for r in range(*inputs["rom_range"]):
     # Solve BT ROM
+    print(f"\n> Solving BT ROM with {r} dimensions ...")
     system.update_rom_ops(phi=bt_bases[0][:,:r], psi=bt_bases[1][:,:r])
     errors = jl.Parallel(inputs["data"]["nb_workers"])(
       jl.delayed(system.compute_rom_sol)(
@@ -93,6 +95,7 @@ if (__name__ == '__main__'):
     errors = np.vstack(errors)
     bt_err.append((r, np.mean(errors), np.std(errors)))
     # Solve CG ROM
+    print(f"> Solving CG ROM with {r} dimensions ...")
     system.update_rom_ops(*cg_model(nb_bins=r))
     errors = jl.Parallel(inputs["data"]["nb_workers"])(
       jl.delayed(system.compute_rom_sol)(
@@ -101,6 +104,11 @@ if (__name__ == '__main__'):
     )
     errors = np.vstack(errors)
     cg_err.append((r, np.mean(errors), np.std(errors)))
+  # Save error data
+  for (k, err) in (("bt", bt_err), ("cg", cg_err)):
+    filename = path_to_save+f"/error_{k}_rom_"+inputs["eval_err_on"]+".csv"
+    df_err = pd.DataFrame(np.array(err), columns=["dim", "mean", "std"])
+    df_err.to_csv(filename, index=False)
 
   # Copy input file
   filename = path_to_save + "/inputs.json"

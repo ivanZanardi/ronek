@@ -355,13 +355,13 @@ class Basic(object):
         else:
           mom_fom /= mom0_fom
           mom_rom /= mom0_rom
-        error.append(utils.err_ape(mom_rom, mom_fom))
+        error.append(utils.absolute_percentage_error(mom_rom, mom_fom))
       return error
     elif (eval_err_on == "dist"):
       # > Distribution
       y_pred = n_rom[1] / const.UNA
       y_true = n_fom[1] / const.UNA
-      return utils.err_ape(y_pred, y_true, eps=1e-8)
+      return utils.absolute_percentage_error(y_pred, y_true, eps=1e-8)
     else:
       # > None: return the solution
       return n_rom
