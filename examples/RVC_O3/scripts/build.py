@@ -67,8 +67,9 @@ if (__name__ == '__main__'):
   # Internal temperature grid
   Tint = np.geomspace(*Tint_grid["lim"], num=Tint_grid["pts"])
   # Model reduction
+  lin_ops = model.compute_lin_fom_ops(Tint=Tint, max_mom=max_mom)
   btrunc = BalancedTruncation(
-    operators=model.compute_lin_fom_ops(Tint=Tint, max_mom=max_mom),
+    operators=lin_ops,
     lg_deg=3,
     path_to_saving=paths["data"]
   )

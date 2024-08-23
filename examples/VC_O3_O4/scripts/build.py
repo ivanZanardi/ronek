@@ -29,16 +29,22 @@ if (__name__ == '__main__'):
 
   # Inputs
   # ===================================
+  # Time
+  t_grid = {
+    "lim": [1e-12, 1e-2],
+    "pts": 50
+  }
   # System
+  # > Translational temperature
   T = 1e4
   # > Initial internal temperature (molecule)
   Tint_grid = {
     "lim": [3e2, 1e4],
     "pts": 50
   }
-  # > Equilibrium pressure (atom)
-  p_grid = {
-    "lim": [1e3, 1e5],
+  # > Density
+  rho_grid = {
+    "lim": [1e-5, 1e-1],
     "pts": 50
   }
   # > Moments of the distribution (molecule)
@@ -59,23 +65,23 @@ if (__name__ == '__main__'):
     use_einsum=False
   )
   model.update_fom_ops(T)
+  model.set_eq_ratio(T)
 
   # Balanced truncation
   # ===================================
   # Time grid
-  t = np.geomspace(1e-12, 1e-2, num=50)
-  t = np.insert(t, 0, 0.0)
-  # Pressure and internal temperature grids
-  p = np.geomspace(*p_grid["lim"], num=p_grid["pts"])
+  t = model.get_tgrid(t_grid["lim"], t_grid["pts"])
+  # Density and internal temperature grids
+  rho = np.geomspace(*rho_grid["lim"], num=rho_grid["pts"])
+  # Internal temperature grid
   Tint = np.geomspace(*Tint_grid["lim"], num=Tint_grid["pts"])
   # Loop over pressures
   X, Y = [], []
-  for pi in tqdm(p, ncols=80, desc="Pressures"):
+  for rhoi in tqdm(rho, ncols=80, desc="Densities"):
     # Model reduction
+    lin_ops = model.compute_lin_fom_ops(rho=rhoi, Tint=Tint, max_mom=max_mom)
     btrunc = BalancedTruncation(
-      operators=model.compute_lin_fom_ops(
-        p=pi, T=T, Tint=Tint, max_mom=max_mom
-      ),
+      operators=lin_ops,
       lg_deg=3,
       path_to_saving=paths["data"],
       saving=False,

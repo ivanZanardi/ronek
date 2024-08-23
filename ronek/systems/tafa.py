@@ -38,8 +38,8 @@ class TAFASystem(TASystem):
         "ed": np.einsum(
           "ip,ijk,jq,kr->pqr", self.psi, ops_mm["ed"], self.phif, self.phif
         ),
-        "er_eq_mat": self.psi.T @ self._compute_lin_fom_ops_a1() @ self.phif,
-        "er_eq_vec": self.psi.T @ ops_mm["ed"] @ self.gamma @ self.gamma,
+        "ed_eq_mat": self.psi.T @ self._compute_lin_fom_ops_a1() @ self.phif,
+        "ed_eq_vec": self.psi.T @ (ops_mm["ed"] @ self.gamma @ self.gamma),
         "er_eq": self.psi.T @ ops_mm["er"] @ self.gamma,
         "er": self.psi.T @ ops_mm["er"] @ self.phif,
         "r": self.psi.T @ ops_mm["r"]
