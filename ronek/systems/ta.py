@@ -31,8 +31,8 @@ class TASystem(Basic):
   # -----------------------------------
   def _update_rom_ops(self):
     return {
-      "ed_eq": self.psi.T @ self.fom_ops["ed"] @ self.gamma,
       "ed": self.psi.T @ self.fom_ops["ed"] @ self.phif,
+      "ed_eq": self.psi.T @ self.fom_ops["ed"] @ self.gamma,
       "r": self.psi.T @ self.fom_ops["r"]
     }
 
@@ -64,7 +64,7 @@ class TASystem(Basic):
 
   def _compute_lin_fom_ops_b(self, b, Tint):
     # Compose B
-    B = np.vstack([b] + self._compute_boltz(Tint))
+    B = np.vstack([b] + self.compute_eq_dist(Tint))
     # Normalize B
     B *= (np.linalg.norm(b) / np.linalg.norm(B, axis=-1, keepdims=True))
     return np.transpose(B)

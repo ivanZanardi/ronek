@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import scipy as sp
 
-from . import backend as bkd
+from .. import backend as bkd
 from silx.io.dictdump import dicttoh5, h5todict
 
 

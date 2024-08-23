@@ -72,9 +72,12 @@ def set_device(value=None, index=0, nb_threads=4):
   global _DEVICE
   _DEVICE = value
   # Set default device
-  torch.set_default_device(torch.device(_DEVICE))
-  torch.set_num_interop_threads(nb_threads)
-  torch.set_num_threads(nb_threads)
+  try:
+    torch.set_default_device(torch.device(_DEVICE))
+    torch.set_num_interop_threads(nb_threads)
+    torch.set_num_threads(nb_threads)
+  except:
+    pass
 
 # Epsilon
 # -------------------------------------
@@ -121,4 +124,7 @@ def set_floatx(value):
     raise ValueError(
       f"Unknown dtype: '{value}'. Valid options are: {_VALID_DTYPE}"
     )
-  torch.set_default_dtype(floatx())
+  try:
+    torch.set_default_dtype(floatx())
+  except:
+    pass

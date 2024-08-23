@@ -11,7 +11,7 @@ if (importlib.util.find_spec("ronek") is None):
 from ronek import env
 env.set(
   device="cuda",
-  device_idx=1,
+  device_idx=0,
   nb_threads=16,
   floatx="float64"
 )
@@ -28,6 +28,11 @@ if (__name__ == '__main__'):
 
   # Inputs
   # ===================================
+  # Time
+  t_grid = {
+    "lim": [1e-12, 1e-2],
+    "pts": 50
+  }
   # System
   T = 1e4
   # > Initial internal temperature (molecule)
@@ -53,17 +58,17 @@ if (__name__ == '__main__'):
     use_einsum=False
   )
   model.update_fom_ops(T)
+  model.set_eq_ratio(T)
 
   # Balanced truncation
   # ===================================
   # Time grid
-  t = np.geomspace(1e-12, 1e-2, num=50)
-  t = np.insert(t, 0, 0.0)
+  t = model.get_tgrid(t_grid["lim"], t_grid["pts"])
   # Internal temperature grid
   Tint = np.geomspace(*Tint_grid["lim"], num=Tint_grid["pts"])
   # Model reduction
   btrunc = BalancedTruncation(
-    operators=model.compute_lin_fom_ops(T=T, Tint=Tint, max_mom=max_mom),
+    operators=model.compute_lin_fom_ops(Tint=Tint, max_mom=max_mom),
     lg_deg=3,
     path_to_saving=paths["data"]
   )

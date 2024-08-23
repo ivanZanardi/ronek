@@ -50,8 +50,6 @@ class Basic(object):
     self.use_einsum = use_einsum
     self.fom_fun = None
     self.fom_jac = None
-    self.rom_fun = None
-    self.rom_jac = None
 
   def set_eq_ratio(self, T):
     q_a, q_m = [self.species[k].q_tot(T) for k in ("atom", "molecule")]
