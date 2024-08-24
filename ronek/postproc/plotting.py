@@ -1,6 +1,8 @@
 import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
 
-from matplotlib import pyplot as plt
+COLORS = matplotlib.rcParams["axes.prop_cycle"].by_key()["color"]
 
 
 # Plotting
@@ -31,14 +33,17 @@ def dist_2d(
     linestyle="",
     marker="o"
   )
-  ax.plot(x, y, c="k", markersize=markersize, **style)
+  # > FOM
+  labels = [y[0]]
+  lines = [plt.plot([], [], c="k", **style)[0]]
+  ax.plot(x, y[1], c="k", markersize=markersize, **style)
+  # > ROMs
   if (y_pred is not None):
-    ax.plot(x, y_pred, c="r", markersize=markersize, **style)
-    lines = [
-      plt.plot([], [], c="k", **style)[0],
-      plt.plot([], [], c="r", **style)[0]
-    ]
-    ax.legend(lines, ["FOM", "ROM"])
+    for (i, yi) in enumerate(y_pred):
+      labels.append(yi[0])
+      lines.append(plt.plot([], [], c=COLORS[i], **style)[0])
+      ax.plot(x, yi[1], c=COLORS[i], markersize=markersize, **style)
+    ax.legend(lines, labels)
   # Tight layout
   plt.tight_layout()
   if save:
@@ -78,7 +83,7 @@ def evolution(
   y,
   y_pred=None,
   labels=[r"$t$ [s]", r"$n$ [m$^{-3}$]"],
-  scales=['log', 'linear'],
+  scales=["log", "linear"],
   figname=None,
   save=False,
   show=False
@@ -94,14 +99,17 @@ def evolution(
   ax.set_ylabel(labels[1])
   ax.set_yscale(scales[1])
   # Plotting
-  ax.plot(x, y, "-", c="k")
+  # > FOM
+  labels = [y[0]]
+  lines = [plt.plot([], [], "-", c="k")[0]]
+  ax.plot(x, y[1], "-", c="k")
+  # > ROMs
   if (y_pred is not None):
-    ax.plot(x, y_pred, "--", c="r")
-    lines = [
-      plt.plot([], [], "-", c="k")[0],
-      plt.plot([], [], "--", c="r")[0]
-    ]
-    ax.legend(lines, ["FOM", "ROM"])
+    for (i, yi) in enumerate(y_pred):
+      labels.append(yi[0])
+      lines.append(plt.plot([], [], "--", c=COLORS[i])[0])
+      ax.plot(x, y_pred, "--", c=COLORS[i])
+    ax.legend(lines, labels)
   # Tight layout
   plt.tight_layout()
   if save:
