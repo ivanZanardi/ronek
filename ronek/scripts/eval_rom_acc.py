@@ -61,8 +61,8 @@ if (__name__ == '__main__'):
   # Initialization
   # ---------------
   # Path to saving
-  path_to_save = inputs["paths"]["saving"] + "/error/" + inputs["eval_err_on"]
-  os.makedirs(path_to_save, exist_ok=True)
+  path_to_saving = inputs["paths"]["saving"] + "/error/" + inputs["eval_err_on"]
+  os.makedirs(path_to_saving, exist_ok=True)
   # Time grid
   t = utils.load_case(path=inputs["data"]["path"], index=0, key="t")
 
@@ -103,7 +103,7 @@ if (__name__ == '__main__'):
   def save_err_stats(model, stats):
     dicttoh5(
       treedict=stats,
-      h5file=path_to_save + f"/{model}_rom.hdf5",
+      h5file=path_to_saving + f"/{model}_rom.hdf5",
       overwrite_data=True
     )
 
@@ -127,6 +127,6 @@ if (__name__ == '__main__'):
 
   # Copy input file
   # ---------------
-  filename = path_to_save + "/inputs.json"
+  filename = path_to_saving + "/inputs.json"
   with open(filename, "w") as file:
     json.dump(inputs, file, indent=2)

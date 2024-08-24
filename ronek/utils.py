@@ -2,6 +2,7 @@ import os
 import sys
 import types
 import inspect
+import collections
 import numpy as np
 import joblib as jl
 import dill as pickle
@@ -226,3 +227,31 @@ def generate_case_parallel(
 # =====================================
 def absolute_percentage_error(y_true, y_pred, eps=1e-8):
 	return 100*np.abs(y_true-y_pred)/(np.abs(y_true)+eps)
+
+# Operations
+# =====================================
+def map_nested_dict(
+  obj: Any,
+  fun: callable
+) -> Any:
+  """
+  Recursively apply a function to all values in a nested dictionary.
+
+  This function traverses a nested dictionary and applies the given 
+  function to each value. It supports dictionaries, lists, and tuples.
+
+  :param obj: The nested dictionary or other container to map.
+  :type obj: dict or list or tuple or Any
+  :param fun: The function to apply to each value.
+  :type fun: Callable[[Any], Any]
+
+  :return: A new nested structure with the function applied to all values.
+  :rtype: Any
+  """
+  if isinstance(obj, collections.Mapping):
+    return {k: map_nested_dict(v, fun) for (k, v) in obj.items()}
+  else:
+    if isinstance(obj, (list, tuple)):
+      return [fun(x) for x in obj]
+    else:
+      return fun(obj)

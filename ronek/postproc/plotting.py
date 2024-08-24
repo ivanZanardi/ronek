@@ -5,6 +5,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 from .. import const
+from .. import utils
 
 COLORS = matplotlib.rcParams["axes.prop_cycle"].by_key()["color"]
 
@@ -12,7 +13,7 @@ COLORS = matplotlib.rcParams["axes.prop_cycle"].by_key()["color"]
 # Plotting
 # =====================================
 # Cumulative energy
-def cum_energy(
+def plot_cum_energy(
   y,
   figname=None,
   save=False,
@@ -37,7 +38,7 @@ def cum_energy(
   plt.close()
 
 # Time evolution
-def evolution(
+def plot_evolution(
   x,
   y,
   labels=[r"$t$ [s]", r"$n$ [m$^{-3}$]"],
@@ -79,44 +80,56 @@ def evolution(
     plt.show()
   plt.close()
 
-def mom_evolution(path, t, yfom, yrom, e, max_mom=2):
+# Moments
+def plot_mom_evolution(
+  path,
+  t,
+  n_m,
+  molecule,
+  max_mom=2
+):
   path = path + "/moments/"
   os.makedirs(path, exist_ok=True)
+  # Compute moments
+  moms = [{k: molecule.compute_mom(nk, m=0) for (k, nk) in n_m.items()}]
+  for m in range(1,max_mom):
+    moms.append(
+      {k: molecule.compute_mom(nk, m=1)/moms[0][k] for (k, nk) in n_m.items()}
+    )
+  # Plot moments
   for m in range(max_mom):
-    mom_fom = np.sum(yfom * e**m, axis=0)
-    mom_rom = np.sum(yrom * e**m, axis=0)
     if (m == 0):
       yscale = "log"
       label_sol = r"$n$ [m$^{-3}$]"
-      label_err = r"$\Delta n$ [\%]"
-      mom0_fom, mom0_rom = mom_fom, mom_rom
     else:
       yscale = "linear"
       if (m == 1):
         label_sol = r"$e_{\text{int}}$ [eV]"
-        label_err = r"$\Delta e_{\text{int}}$ [\%]"
       else:
         label_sol = fr"$\gamma_{m}$ [eV$^{m}$]"
-        label_err = fr"$\Delta\gamma_{m}$ [\%]"
-      mom_fom /= mom0_fom
-      mom_rom /= mom0_rom
-    # Plot moment
-    evolution(
-      x=t[1:],
-      y=mom_fom[1:],
-      y_pred=mom_rom[1:],
+    # > Moment
+    plot_evolution(
+      x=t,
+      y=moms[m],
       labels=[r"$t$ [s]", label_sol],
       scales=["log", yscale],
       figname=path + f"/m{m}",
       save=True,
       show=False
     )
-    # Plot moment error
-    mom_err = 100 * np.abs(mom_rom - mom_fom) / np.abs(mom_fom)
-    evolution(
-      x=t[1:],
-      y=mom_err[1:],
-      labels=[r"$t$ [s]", label_err],
+    # > Moment error
+    for (k, momk) in moms[m].items():
+      if ("FOM" in k.upper()):
+        mom_fom = momk
+        break
+    moms_err = {}
+    for (k, momk) in moms[m].items():
+      if ("FOM" not in k.upper()):
+        moms_err[k] = utils.absolute_percentage_error(momk, mom_fom)
+    plot_evolution(
+      x=t,
+      y=moms_err,
+      labels=[r"$t$ [s]", r"Error [\%]"],
       scales=['log', 'linear'],
       figname=path + f"/m{m}_err",
       save=True,
@@ -124,7 +137,7 @@ def mom_evolution(path, t, yfom, yrom, e, max_mom=2):
     )
 
 # 2D distribution
-def dist_2d(
+def plot_dist_2d(
   x,
   y,
   labels=[r"$\epsilon_i$ [eV]", r"$n_i/g_i$ [m$^{-3}$]"],
@@ -170,7 +183,7 @@ def dist_2d(
     plt.show()
   plt.close()
 
-def multi_dist_2d(
+def plot_multi_dist_2d(
   path,
   teval,
   t,
@@ -188,7 +201,7 @@ def multi_dist_2d(
     nk = sp.interpolate.interp1d(t, nk, kind="cubic", axis=0)(teval)
     n_m_eval[k] = nk / molecule.lev["g"]
   for i in range(len(teval)):
-    dist_2d(
+    plot_dist_2d(
       x=molecule.lev["e"] / const.eV_to_J,
       y={k: n_m_eval[k][i] for k in n_m.keys() if ("FOM" in k)},
       y_pred={k: n_m_eval[k][i] for k in n_m.keys() if ("FOM" not in k)},
