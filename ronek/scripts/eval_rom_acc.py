@@ -1,5 +1,5 @@
 """
-Test accuracy of ROM model.
+Evaluate accuracy of ROM model.
 """
 
 import os

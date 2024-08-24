@@ -127,13 +127,21 @@ class Basic(object):
   def _update_rom_ops(self):
     pass
 
+  @abc.abstractmethod
+  def rom_fun(self, t, x, ops):
+    pass
+
+  @abc.abstractmethod
+  def rom_jac(self, t, x, ops):
+    pass
+
   # Equilibrium composition
   # -----------------------------------
   def compute_rho(self, n):
     n_a, n_m = n[:1], n[1:]
-    rho_a = n_a * self.species["atom"].m
-    rho_m = np.sum(n_m) * self.species["molecule"].m
-    return rho_a + rho_m
+    rho = n_a * self.species["atom"].m \
+        + np.sum(n_m) * self.species["molecule"].m
+    return rho
 
   def compute_eq_comp(self, rho):
     # Solve this system of equations:
@@ -152,11 +160,11 @@ class Basic(object):
 
   # Solving
   # ===================================
-  def get_init_sol(self, T, p, x_a):
+  def get_init_sol(self, T, p, X_a):
     n = p / (const.UKB * T)
-    n_a = np.array([n * x_a]).reshape(-1)
+    n_a = np.array([n * X_a]).reshape(-1)
     q_m = self.species["molecule"].q_int(T)
-    n_m = n * (1-x_a) * q_m / np.sum(q_m)
+    n_m = n * (1-X_a) * q_m / np.sum(q_m)
     return np.concatenate([n_a, n_m])
 
   def get_tgrid(self, start, stop, num):
@@ -171,9 +179,7 @@ class Basic(object):
     fun,
     jac=None,
     ops=None,
-    rtol=1e-5,
-    atol=0.0,
-    first_step=1e-14
+    rtol=1e-6
   ):
     if (ops is None):
       raise ValueError("Provide set of operators as input.")
@@ -184,9 +190,9 @@ class Basic(object):
       method="LSODA",
       t_eval=t,
       args=(ops,),
-      first_step=first_step,
+      first_step=1e-14,
       rtol=rtol,
-      atol=atol,
+      atol=0.0,
       jac=jac
     )
     return sol.y * const.UNA
@@ -195,9 +201,9 @@ class Basic(object):
     self,
     t,
     n0,
-    rtol=1e-5,
-    atol=0.0,
-    first_step=1e-14
+    rtol=1e-6,
+    *args,
+    **kwargs
   ):
     """Solve state-to-state FOM."""
     n = self.solve(
@@ -206,9 +212,7 @@ class Basic(object):
       fun=self.fom_fun,
       jac=self.fom_jac,
       ops=self.fom_ops,
-      rtol=rtol,
-      atol=atol,
-      first_step=first_step
+      rtol=rtol
     )
     return n[:1], n[1:]
 
@@ -216,27 +220,23 @@ class Basic(object):
     self,
     t,
     n0,
-    rtol=1e-5,
-    atol=0.0,
-    first_step=1e-14,
-    use_abs=False
+    rtol=1e-6,
+    *args,
+    **kwargs
   ):
     """Solve coarse-graining-based ROM."""
     self.check_rom_ops()
     self.is_einsum_used("solve_rom_cg")
     # Encode initial condition
     z_m = self.encode(n0[1:])
-    z0 = np.concatenate([n0[:1], z_m])
     # Solve
     z = self.solve(
       t=t,
-      y0=z0,
+      y0=np.concatenate([n0[:1], z_m]),
       fun=self.fom_fun,
       jac=self.fom_jac,
       ops=self.rom_ops,
-      rtol=rtol,
-      atol=atol,
-      first_step=first_step
+      rtol=rtol
     )
     # Decode solution
     n_m = self.decode(z[1:].T).T
@@ -246,10 +246,10 @@ class Basic(object):
     self,
     t,
     n0,
-    rtol=1e-5,
-    atol=0.0,
-    first_step=1e-14,
-    use_abs=False
+    rtol=1e-6,
+    use_abs=False,
+    *args,
+    **kwargs
   ):
     """Solve balanced truncation-based ROM."""
     self.check_rom_ops()
@@ -260,17 +260,14 @@ class Basic(object):
     self.rom_ops["n_a_eq"] = n_a_eq
     # Encode initial condition
     z_m = self.encode(n0[1:], x_eq=n_m_eq)
-    z0 = np.concatenate([n0[:1], z_m])
     # Solve
     z = self.solve(
       t=t,
-      y0=z0,
+      y0=np.concatenate([n0[:1], z_m]),
       fun=self.rom_fun,
       jac=self.rom_jac,
       ops=self.rom_ops,
-      rtol=rtol,
-      atol=atol,
-      first_step=first_step
+      rtol=rtol
     )
     # Decode solution
     n_m = self.decode(z[1:].T, x_eq=n_m_eq).T
@@ -295,10 +292,10 @@ class Basic(object):
     self,
     T_lim,
     p_lim,
-    x_a_lim,
+    X_a_lim,
     nb_samples
   ):
-    design_space = [np.sort(T_lim), np.sort(p_lim), np.sort(x_a_lim)]
+    design_space = [np.sort(T_lim), np.sort(p_lim), np.sort(X_a_lim)]
     design_space = np.array(design_space).T
     # Construct
     ddim = design_space.shape[1]
@@ -318,7 +315,7 @@ class Basic(object):
     mui = mu[index] if (index is not None) else mu
     try:
       n0 = self.get_init_sol(*mui)
-      n = self.solve_fom(t, n0, rtol=1e-6)
+      n = self.solve_fom(t, n0)
       data = {"index": index, "mu": mui, "t": t, "n0": n0, "n": n}
       utils.save_case(path=path, index=index, data=data, filename=filename)
       converged = 1
@@ -341,7 +338,7 @@ class Basic(object):
     n_fom, t, n0 = [icase[k] for k in ("n", "t", "n0")]
     # Solve ROM
     solve = self.solve_rom_bt if (model == "bt") else self.solve_rom_cg
-    n_rom = solve(t, n0, rtol=1e-6, use_abs=False)
+    n_rom = solve(t, n0)
     # Evaluate error
     if (eval_err_on == "mom"):
       # > Moments
@@ -364,4 +361,4 @@ class Basic(object):
       return utils.absolute_percentage_error(y_pred, y_true, eps=1e-8)
     else:
       # > None: return the solution
-      return n_rom
+      return t, n_fom, n_rom

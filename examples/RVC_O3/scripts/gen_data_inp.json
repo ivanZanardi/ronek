@@ -31,7 +31,7 @@
     "sampled": {
       "T_lim": [5e2, 1e4],
       "p_lim": [5e2, 5e4],
-      "x_a_lim": [0.05, 0.95],
+      "X_a_lim": [0.05, 0.95],
       "nb_samples": 100
     },
     "nb_workers": 20
