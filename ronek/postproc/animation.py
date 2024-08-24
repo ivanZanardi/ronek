@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from IPython.display import HTML
 from matplotlib.animation import FuncAnimation
 
+from .. import const
+
 COLORS = matplotlib.rcParams["axes.prop_cycle"].by_key()["color"]
 
 
@@ -11,7 +13,7 @@ COLORS = matplotlib.rcParams["axes.prop_cycle"].by_key()["color"]
 # =====================================
 # Initialize lines for levels distribution
 def _init_lines(
-  y,
+  labels,
   ax,
   markersize
 ):
@@ -24,21 +26,23 @@ def _init_lines(
     marker="o",
     fillstyle="full"
   )
+  # Colors
   i = 0
   colors = []
-  for yi in y:
-    if ("FOM" in yi[0].upper()):
+  for l in labels:
+    if (("FOM" in l.upper()) or ("STS" in l.upper())):
       colors.append("k")
     else:
       colors.append(COLORS[i])
       i += 1
+  # Lines
   lines = []
   for c in colors:
     lines.append(ax.semilogy([], [], c=c, markersize=markersize, **style)[0])
-  # Add legend
+  # Legend
   ax.legend(
     [ax.semilogy([], [], c=c, markersize=6, **style)[0] for c in colors],
-    labels=[yi[0] for yi in y],
+    labels=labels,
     loc="lower left"
   )
   return ax, lines
@@ -54,7 +58,7 @@ def _create_animation(
   # Initialize a figure in which the graphs will be plotted
   fig, ax = plt.subplots()
   # Initialize levels distribution lines objects
-  ax, lines = _init_lines(y, ax, markersize)
+  ax, lines = _init_lines(list(y.keys()), ax, markersize)
   # Initialize text in ax
   txt = ax.text(0.7, 0.92, "", transform=ax.transAxes, fontsize=25)
   # Tight layout
@@ -65,8 +69,8 @@ def _create_animation(
     # Write time instant
     txt.set_text(r"$t$ = %.1e s" % t[i])
     # Loop over models
-    for (j, yj) in enumerate(y):
-      lines[j].set_data(x, yj[1][i])
+    for (j, yj) in enumerate(y.values()):
+      lines[j].set_data(x, yj[i])
     # Rescale axis limits
     ax.relim()
     ax.autoscale_view(tight=True)
@@ -100,3 +104,27 @@ def animate(
   # Display animation
   if show:
     HTML(anim.to_jshtml())
+
+def animate_dist(
+  path,
+  t,
+  n_m,
+  molecule,
+  markersize=6
+):
+  for (k, nk) in n_m.items():
+    if (nk.shape[-1] != molecule.nb_comp):
+      nk = nk.T
+    n_m[k] = nk / molecule.lev["g"]
+  animate(
+    t=t,
+    x=molecule.lev['e'] / const.eV_to_J,
+    y=n_m,
+    markersize=markersize,
+    frames=100,
+    fps=10,
+    filename=path + "/dist.mp4",
+    dpi=600,
+    save=True,
+    show=False
+  )

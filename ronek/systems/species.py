@@ -30,7 +30,9 @@ class Species(object):
 
   def compute_mom(self, n, m=0):
     e = self.lev["e"] / const.eV_to_J
-    return np.sum(n * e**m, axis=0)
+    if (n.shape[-1] != self.nb_comp):
+      n = n.T
+    return np.sum(n * e**m, axis=-1)
 
   def compute_mom_basis(self, max_mom):
     e = self.lev["e"] / const.eV_to_J
