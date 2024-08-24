@@ -1,5 +1,5 @@
 """
-Generate FOM data.
+Build balanced truncation-based ROM.
 """
 
 import os
@@ -30,16 +30,17 @@ env.set(**inputs["env"])
 # Libraries
 # =====================================
 import numpy as np
-import dill as pickle
 
+from tqdm import tqdm
 from ronek import utils
 from ronek import systems as sys_mod
+from ronek.roms import BalancedTruncation
 
 # Main
 # =====================================
 if (__name__ == '__main__'):
 
-  # Isothermal master equation model
+  # Isothermal master equation system
   # -----------------------------------
   path_to_dtb = inputs["paths"]["dtb"]
   system = utils.get_class(
@@ -53,46 +54,46 @@ if (__name__ == '__main__'):
     **inputs["system"]["kwargs"]
   )
 
-  # Data generation
+  # Balanced truncation
   # -----------------------------------
   # Initialization
   # ---------------
   # Path to saving
-  path_to_saving = inputs["paths"]["saving"] + "/data/"
+  max_mom = int(inputs["max_mom"])
+  path_to_saving = inputs["paths"]["saving"] + f"/max_mom_{max_mom}/"
   os.makedirs(path_to_saving, exist_ok=True)
-  # Time grid
-  t = np.geomspace(**inputs["grids"]["t"])
+  # Time and internal temperature grids
+  t = system.get_tgrid(**inputs["grids"]["t"])
+  Tint = np.geomspace(**inputs["grids"]["Tint"])
+  rho = None
+  if ("rho" in inputs["grids"]):
+    rho = np.geomspace(**inputs["grids"]["rho"])
 
-  # Sampled cases
+  # Model reduction
   # ---------------
-  # Construct design matrix
-  mu = system.construct_design_mat(**inputs["param_space"]["sampled"])
-  # Generate data
-  utils.generate_case_parallel(
-    sol_fun=system.compute_fom_sol,
-    sol_kwargs=dict(
-      t=t,
-      mu=mu,
-      path=path_to_saving,
-      filename=None
-    ),
-    nb_samples=inputs["param_space"]["sampled"]["nb_samples"],
-    nb_workers=inputs["param_space"]["nb_workers"]
-  )
-  # Save parameters
-  filename = path_to_saving + "/mu.p"
-  pickle.dump(mu, open(filename, "wb"))
-
-  # Defined cases
-  # ---------------
-  for (k, mui) in inputs["param_space"]["defined"].items():
-    system.compute_fom_sol(
-      t=t,
-      mu=mui,
-      path=None,
-      index=None,
-      filename=path_to_saving + f"/case_{k}.p"
+  if (rho is None):
+    inputs["btrunc"]["saving"] = True
+    lin_ops = system.compute_lin_fom_ops(Tint=Tint, max_mom=max_mom)
+    btrunc = BalancedTruncation(
+      operators=lin_ops, path_to_saving=path_to_saving, **inputs["btrunc"]
     )
+    btrunc(t)
+  else:
+    X, Y = [], []
+    inputs["btrunc"]["saving"] = False
+    inputs["btrunc"]["verbose"] = False
+    for ri in tqdm(rho, ncols=80, desc="Densities"):
+      # > Linear operators
+      lin_ops = system.compute_lin_fom_ops(rho=ri, Tint=Tint, max_mom=max_mom)
+      btrunc = BalancedTruncation(
+        operators=lin_ops, path_to_saving=path_to_saving, **inputs["btrunc"]
+      )
+      # > Gramians
+      Xi, Yi = btrunc(t=t, compute_modes=False)
+      X.append(Xi), Y.append(Yi)
+    # > Compute balancing modes
+    X, Y = np.hstack(X), np.hstack(Y)
+    btrunc.compute_balancing_modes(X, Y)
 
   # Copy input file
   # ---------------

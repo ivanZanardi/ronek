@@ -24,7 +24,7 @@ class Basic(object):
   ):
     # Thermochemistry database
     # -------------
-    self.T = T
+    self.T = float(T)
     # > Species
     self.nb_eqs = 0
     self.species = {}
@@ -179,7 +179,7 @@ class Basic(object):
       raise ValueError("Provide set of operators as input.")
     sol = sp.integrate.solve_ivp(
       fun=fun,
-      t_span=[t[0],t[-1]],
+      t_span=[0.0,t[-1]],
       y0=y0/const.UNA,
       method="LSODA",
       t_eval=t,

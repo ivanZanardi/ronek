@@ -12,7 +12,7 @@
     "t": {
       "start": 1e-9,
       "stop": 1e-3,
-      "num": 501
+      "num": 500
     }
   },
   "system": {
@@ -38,6 +38,6 @@
   },
   "paths": {
     "dtb": "./../database/",
-    "saving": "./run01/"
+    "saving": "./test01/"
   }
 }

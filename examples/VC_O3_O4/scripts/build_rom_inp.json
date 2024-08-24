@@ -17,11 +17,16 @@
     "Tint": {
       "start": 3e2,
       "stop": 1e4,
-      "num": 20
+      "num": 50
+    },
+    "rho": {
+      "start": 1e-5,
+      "stop": 1e0,
+      "num": 50
     }
   },
   "system": {
-    "name": "TASystem",
+    "name": "TAFASystem",
     "kwargs": {
       "T": 1e4,
       "use_einsum": false,
@@ -30,7 +35,7 @@
   },
   "btrunc": {
     "lg_deg": 3,
-    "saving": true,
+    "saving": false,
     "verbose": true
   },
   "max_mom": 10,

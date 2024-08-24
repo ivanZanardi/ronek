@@ -2,6 +2,7 @@
 Build balanced truncation-based ROM.
 """
 
+import os
 import sys
 import json
 import argparse
@@ -54,14 +55,26 @@ if (__name__ == '__main__'):
 
   # Balanced truncation
   # -----------------------------------
+  # Initialization
+  # ---------------
+  # Path to saving
+  max_mom = int(inputs["max_mom"])
+  path_to_saving = inputs["paths"]["saving"] + f"/max_mom_{max_mom}/"
+  os.makedirs(path_to_saving, exist_ok=True)
   # Time and internal temperature grids
   t = system.get_tgrid(**inputs["grids"]["t"])
   Tint = np.geomspace(**inputs["grids"]["Tint"])
   # Model reduction
-  max_mom = int(inputs["max_mom"])
+  # ---------------
   btrunc = BalancedTruncation(
     operators=system.compute_lin_fom_ops(Tint=Tint, max_mom=max_mom),
-    path_to_saving=inputs["paths"]["saving"] + f"/max_mom_{max_mom}/",
+    path_to_saving=path_to_saving,
     **inputs["btrunc"]
   )
   btrunc(t)
+
+  # Copy input file
+  # ---------------
+  filename = path_to_saving + "/inputs.json"
+  with open(filename, "w") as file:
+    json.dump(inputs, file, indent=2)

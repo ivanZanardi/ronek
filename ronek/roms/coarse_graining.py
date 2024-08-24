@@ -14,9 +14,12 @@ class CoarseGraining(object):
   # ===================================
   def __init__(
     self,
+    T,
     molecule
   ):
+    self.T = float(T)
     self.molecule = Species(molecule)
+    self.molecule.update(self.T)
 
   # Calling
   # ===================================
@@ -42,7 +45,7 @@ class CoarseGraining(object):
     e = self.molecule.lev["e"]
     e_min, e_max = np.amin(e), np.amax(e)
     # Dissociation energy
-    e_d = min(self.molecule.lev["e_d"], e_max)
+    e_d = min(self.molecule.e_d, e_max)
     # Number of bound and quasi-bound bins
     nb_b = round(e_d/e_max*nb_bins)
     if ((nb_b == nb_bins) and (e_d < e_max)):
@@ -61,7 +64,7 @@ class CoarseGraining(object):
     """Probability matrix"""
     mapping = (mapping - np.amin(mapping)).astype(int)
     nb_lev, nb_bins = self.molecule.nb_comp, np.amax(mapping)+1
-    data = np.ones_like(nb_lev)
+    data = np.ones(nb_lev)
     indices = (np.arange(nb_lev), mapping)
     shape = (nb_lev, nb_bins)
     return sp.sparse.coo_matrix((data, indices), shape).toarray()
