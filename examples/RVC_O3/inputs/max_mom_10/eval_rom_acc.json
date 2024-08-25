@@ -1,0 +1,31 @@
+{
+  "path_to_lib": "/home/zanardi/Codes/ML/RONEK/ronek/",
+  "env": {
+    "backend": "numpy",
+    "device": "cpu",
+    "device_idx": 0,
+    "nb_threads": 8,
+    "epsilon": 1e-10,
+    "floatx": "float64"
+  },
+  "system": {
+    "name": "TASystem",
+    "kwargs": {
+      "T": 1e4,
+      "use_einsum": false,
+      "use_factorial": false
+    }
+  },
+  "paths": {
+    "dtb": "./../../database/",
+    "bases": "./../../test/max_mom_10/bases.hdf5",
+    "saving": "./../../test/max_mom_10/"
+  },
+  "data": {
+    "nb_samples": 100,
+    "nb_workers": 20,
+    "path": "./../../test/data/"
+  },
+  "rom_range": [30,41],
+  "eval_err_on": "dist"
+}

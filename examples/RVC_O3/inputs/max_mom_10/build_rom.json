@@ -33,9 +33,9 @@
     "saving": true,
     "verbose": true
   },
-  "max_mom": 10,
   "paths": {
-    "dtb": "./../database/",
-    "saving": "./test01/"
-  }
+    "dtb": "./../../database/",
+    "saving": "./../../test/max_mom_10/"
+  },
+  "max_mom": 10
 }

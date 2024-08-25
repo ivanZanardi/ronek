@@ -17,15 +17,15 @@
     }
   },
   "paths": {
-    "dtb": "./../database/",
-    "bases": "./data/max_mom_10/bases.hdf5",
-    "saving": "./run01/"
+    "dtb": "./../../database/",
+    "bases": "./../../test/max_mom_2/bases.hdf5",
+    "saving": "./../../test/max_mom_2/"
   },
   "data": {
-    "nb_samples": 10,
-    "nb_workers": 2,
-    "path": "./run01/data/"
+    "nb_samples": 100,
+    "nb_workers": 20,
+    "path": "./../../test/data/"
   },
-  "rom_range": [35,38],
-  "eval_err_on": "dist"
+  "rom_range": [6,11],
+  "eval_err_on": "mom"
 }

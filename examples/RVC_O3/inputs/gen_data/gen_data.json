@@ -37,7 +37,7 @@
     "nb_workers": 20
   },
   "paths": {
-    "dtb": "./../database/",
-    "saving": "./test01/"
+    "dtb": "./../../database/",
+    "saving": "./../../test/data/"
   }
 }

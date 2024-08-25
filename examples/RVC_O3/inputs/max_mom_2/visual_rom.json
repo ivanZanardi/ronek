@@ -17,18 +17,22 @@
     }
   },
   "paths": {
-    "dtb": "./../database/",
-    "bases": "./data/max_mom_10/bases.hdf5",
-    "saving": "./run01/"
+    "dtb": "./../../database/",
+    "bases": "./../../test/max_mom_2/bases.hdf5",
+    "saving": "./../../test/max_mom_2/"
   },
   "data": {
-    "cases": ["cold", "hot"],
+    "case_ids": ["cold", "hot"],
     "teval": {
       "cold": [1e-8, 1e-7, 7e-7, 3e-6, 1e-4],
       "hot":  [1e-7, 1e-6, 4e-6, 2e-5, 1e-3]
     },
-    "path": "./run01/data/"
+    "path": "./../../test/data/"
   },
-  "rom_range": [35,38],
-  "animate": true
+  "plot": {
+    "style": "/home/zanardi/Workspace/Research/styles/matplotlib/paper_1column.mplstyle",
+    "animate": false,
+    "markersize": 1
+  },
+  "rom_range": [6,11]
 }
