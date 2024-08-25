@@ -36,11 +36,11 @@
   "btrunc": {
     "lg_deg": 3,
     "saving": false,
-    "verbose": true
+    "verbose": false
   },
-  "max_mom": 10,
   "paths": {
-    "dtb": "./../database/",
-    "saving": "./test01/"
-  }
+    "dtb": "./../../database/",
+    "saving": "./../../test/max_mom_2/"
+  },
+  "max_mom": 2
 }

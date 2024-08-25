@@ -203,8 +203,7 @@ def plot_multi_dist_2d(
   for i in range(len(teval)):
     plot_dist_2d(
       x=molecule.lev["e"] / const.eV_to_J,
-      y={k: n_m_eval[k][i] for k in n_m.keys() if ("FOM" in k)},
-      y_pred={k: n_m_eval[k][i] for k in n_m.keys() if ("FOM" not in k)},
+      y={k: nk[i] for (k, nk) in n_m_eval.items()},
       labels=[r"$\epsilon_i$ [eV]", r"$n_i/g_i$ [m$^{-3}$]"],
       scales=["linear", "log"],
       markersize=markersize,

@@ -59,8 +59,7 @@ if (__name__ == '__main__'):
   # Initialization
   # ---------------
   # Path to saving
-  max_mom = int(inputs["max_mom"])
-  path_to_saving = inputs["paths"]["saving"] + f"/max_mom_{max_mom}/"
+  path_to_saving = inputs["paths"]["saving"]
   os.makedirs(path_to_saving, exist_ok=True)
   # Time and internal temperature grids
   t = system.get_tgrid(**inputs["grids"]["t"])
@@ -71,6 +70,7 @@ if (__name__ == '__main__'):
 
   # Model reduction
   # ---------------
+  max_mom = int(inputs["max_mom"])
   if (rho is None):
     inputs["btrunc"]["saving"] = True
     lin_ops = system.compute_lin_fom_ops(Tint=Tint, max_mom=max_mom)

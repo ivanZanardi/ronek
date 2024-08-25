@@ -53,8 +53,12 @@ class CoarseGraining(object):
     nb_qb = nb_bins - nb_b
     # Energy intervals
     inter_b = np.linspace(e_min, e_d, nb_b+1)
-    inter_qb = np.linspace(e_d, e_max*(1.0+eps), nb_qb+1)
-    intervals = np.concatenate([inter_b, inter_qb[1:]])
+    if (nb_qb > 0):
+      inter_qb = np.linspace(e_d, e_max, nb_qb+1)[1:]
+    else:
+      inter_qb = np.array([])
+    intervals = np.concatenate([inter_b, inter_qb])
+    intervals[-1] *= 1.0+eps
     # Define mapping
     mapping = (e.reshape(-1,1) >= intervals.reshape(1,-1))
     mapping = np.sum(mapping, axis=1)

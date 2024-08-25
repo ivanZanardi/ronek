@@ -103,8 +103,8 @@ def save_case(
   pickle.dump(data, open(filename, "wb"))
 
 def load_case(
-  path: str,
-  index: int,
+  path: Union[str, None] = None,
+  index: Union[int, None] = 0,
   key: Union[str, None] = None,
   filename: Union[str, None] = None
 ) -> Any:

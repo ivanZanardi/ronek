@@ -1,0 +1,46 @@
+{
+  "path_to_lib": "/home/zanardi/Codes/ML/RONEK/ronek/",
+  "env": {
+    "backend": "torch",
+    "device": "cuda",
+    "device_idx": 0,
+    "nb_threads": 4,
+    "epsilon": 1e-10,
+    "floatx": "float64"
+  },
+  "grids": {
+    "t": {
+      "start": 1e-12,
+      "stop": 1e-2,
+      "num": 50
+    },
+    "Tint": {
+      "start": 3e2,
+      "stop": 1e4,
+      "num": 50
+    },
+    "rho": {
+      "start": 1e-5,
+      "stop": 1e0,
+      "num": 50
+    }
+  },
+  "system": {
+    "name": "TAFASystem",
+    "kwargs": {
+      "T": 1e4,
+      "use_einsum": false,
+      "use_factorial": false
+    }
+  },
+  "btrunc": {
+    "lg_deg": 3,
+    "saving": false,
+    "verbose": false
+  },
+  "paths": {
+    "dtb": "./../../database/",
+    "saving": "./../../test/max_mom_10/"
+  },
+  "max_mom": 10
+}

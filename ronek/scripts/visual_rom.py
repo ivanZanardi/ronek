@@ -29,6 +29,9 @@ env.set(**inputs["env"])
 
 # Libraries
 # =====================================
+import matplotlib.pyplot as plt
+plt.style.use(inputs["plot"].get("style", None))
+
 from tqdm import tqdm
 from ronek import utils
 from ronek import postproc as pp
@@ -65,18 +68,18 @@ if (__name__ == '__main__'):
   # ROM models
   bt_bases = h5todict(inputs["paths"]["bases"])
   bt_bases = [bt_bases[k] for k in ("phi", "psi")]
-  cg_model = CoarseGraining(molecule=path_to_dtb+"/species/molecule.json")
+  cg_model = CoarseGraining(
+    T=system.T,
+    molecule=path_to_dtb+"/species/molecule.json"
+  )
 
   # Loop over test cases
   # ---------------
-  for case_id in tqdm(
-    iterable=inputs["data"]["case_ids"],
-    ncols=80,
-    desc="  Cases",
-    file=sys.stdout
-  ):
+  for case_id in inputs["data"]["case_ids"]:
+    print(f"\nSolving case '{case_id}' ...")
     # > Load test case
-    icase = utils.load_case(inputs["data"]["path"]+f"/case_{case_id}.p")
+    filename = inputs["data"]["path"]+f"/case_{case_id}.p"
+    icase = utils.load_case(filename=filename)
     n_fom, t, n0 = [icase[k] for k in ("n", "t", "n0")]
     # > Loop over ROM dimensions
     for r in range(*inputs["rom_range"]):
@@ -84,10 +87,11 @@ if (__name__ == '__main__'):
       path_to_saving_i = path_to_saving + f"/case_{case_id}/r{r}/"
       os.makedirs(path_to_saving_i, exist_ok=True)
       # > Solve BT ROM
-      print(f"\n> Solving BT ROM with {r} dimensions ...")
+      print(f"> Solving BT ROM with {r} dimensions ...")
       system.update_rom_ops(phi=bt_bases[0][:,:r], psi=bt_bases[1][:,:r])
       n_rom_bt = system.solve_rom_bt(t, n0)
       # > Solve CG ROM
+      print(f"> Solving CG ROM with {r} dimensions ...")
       system.update_rom_ops(*cg_model(nb_bins=r))
       n_rom_cg = system.solve_rom_cg(t, n0)
       # > Collect solutions
@@ -97,11 +101,12 @@ if (__name__ == '__main__'):
         "ROM-CG": n_rom_cg[1]
       }
       # > Postprocessing
+      print(f"> Postprocessing with {r} dimensions ...")
       common_kwargs = dict(
         path=path_to_saving_i,
         t=t,
         n_m=sols,
-        molecule=system.molecule
+        molecule=system.species["molecule"]
       )
       pp.plot_mom_evolution(
         max_mom=2,
@@ -109,12 +114,12 @@ if (__name__ == '__main__'):
       )
       pp.plot_multi_dist_2d(
         teval=inputs["data"]["teval"][case_id],
-        markersize=1,
+        markersize=inputs["plot"]["markersize"],
         **common_kwargs
       )
-      if inputs["animate"]:
+      if inputs["plot"]["animate"]:
         pp.animate_dist(
-          markersize=1,
+          markersize=inputs["plot"]["markersize"],
           **common_kwargs
         )
 

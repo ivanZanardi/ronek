@@ -58,7 +58,7 @@ if (__name__ == '__main__'):
   # Initialization
   # ---------------
   # Path to saving
-  path_to_saving = inputs["paths"]["saving"] + "/data/"
+  path_to_saving = inputs["paths"]["saving"]
   os.makedirs(path_to_saving, exist_ok=True)
   # Time grid
   t = np.geomspace(**inputs["grids"]["t"])
