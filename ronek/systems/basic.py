@@ -105,18 +105,19 @@ class Basic(object):
 
   # ROM
   # -----------------------------------
-  def update_rom_ops(self, phi, psi):
+  def update_rom_ops(self, phi, psi, biortho=True):
     self.is_einsum_used("update_rom_ops")
     # Set basis
-    self.set_basis(phi, psi)
+    self.set_basis(phi, psi, biortho)
     # Compose operators
     self.rom_ops = self._update_rom_ops()
     self.rom_ops["m_ratio"] = self.mass_ratio @ self.phif
 
-  def set_basis(self, phi, psi):
-    self.phi, self.psi = phi, psi
+  def set_basis(self, phi, psi, biortho=True):
+    self.phi, self.phif, self.psi = phi, phi, psi
     # Biorthogonalize
-    self.phif = self.phi @ sp.linalg.inv(self.psi.T @ self.phi)
+    if biortho:
+      self.phif = self.phi @ sp.linalg.inv(self.psi.T @ self.phi)
     # Check if complex
     for k in ("phi", "psi", "phif"):
       bases = getattr(self, k)
