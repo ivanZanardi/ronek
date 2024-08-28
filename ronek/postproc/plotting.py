@@ -41,6 +41,7 @@ def plot_cum_energy(
 def plot_evolution(
   x,
   y,
+  ylim=None,
   labels=[r"$t$ [s]", r"$n$ [m$^{-3}$]"],
   scales=["log", "linear"],
   figname=None,
@@ -57,6 +58,8 @@ def plot_evolution(
   # y axis
   ax.set_ylabel(labels[1])
   ax.set_yscale(scales[1])
+  if (ylim is not None):
+    ax.set_ylim(ylim)
   # Plotting
   if isinstance(y, dict):
     i = 0
@@ -86,6 +89,7 @@ def plot_mom_evolution(
   t,
   n_m,
   molecule,
+  molecule_label,
   max_mom=2
 ):
   path = path + "/moments/"
@@ -100,13 +104,16 @@ def plot_mom_evolution(
   for m in range(max_mom):
     if (m == 0):
       yscale = "log"
-      label_sol = r"$n$ [m$^{-3}$]"
+      label_sol = fr"$n_{molecule_label}$ [m$^{{-3}}$]"
+      label_err = fr"$n_{molecule_label}$ error [\%]"
     else:
       yscale = "linear"
       if (m == 1):
-        label_sol = r"$e_{\text{int}}$ [eV]"
+        label_sol = fr"$e_{molecule_label}$ [eV]"
+        label_err = fr"$e_{molecule_label}$ error [\%]"
       else:
         label_sol = fr"$\gamma_{m}$ [eV$^{m}$]"
+        label_err = fr"$\gamma_{m}$ error [\%]"
     # > Moment
     plot_evolution(
       x=t,
@@ -129,8 +136,8 @@ def plot_mom_evolution(
     plot_evolution(
       x=t,
       y=moms_err,
-      labels=[r"$t$ [s]", r"Error [\%]"],
-      scales=['log', 'linear'],
+      labels=[r"$t$ [s]", label_err],
+      scales=["log", "log"],
       figname=path + f"/m{m}_err",
       save=True,
       show=False
@@ -167,6 +174,7 @@ def plot_dist_2d(
     for (k, yk) in y.items():
       if ("FOM" in k.upper()):
         c = "k"
+        ax.set_ylim((yk.min()*2e-1, yk.max()*5e0))
       else:
         c = COLORS[i]
         i += 1
@@ -200,9 +208,10 @@ def plot_multi_dist_2d(
       nk = nk.T
     nk = sp.interpolate.interp1d(t, nk, kind="cubic", axis=0)(teval)
     n_m_eval[k] = nk / molecule.lev["g"]
+  x = (molecule.lev["e"] - molecule.e_d) / const.eV_to_J
   for i in range(len(teval)):
     plot_dist_2d(
-      x=molecule.lev["e"] / const.eV_to_J,
+      x=x,
       y={k: nk[i] for (k, nk) in n_m_eval.items()},
       labels=[r"$\epsilon_i$ [eV]", r"$n_i/g_i$ [m$^{-3}$]"],
       scales=["linear", "log"],

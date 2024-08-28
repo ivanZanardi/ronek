@@ -29,6 +29,7 @@ env.set(**inputs["env"])
 
 # Libraries
 # =====================================
+import numpy as np
 import matplotlib.pyplot as plt
 plt.style.use(inputs["plot"].get("style", None))
 
@@ -83,6 +84,7 @@ if (__name__ == '__main__'):
     cg_m1 = roms.CoarseGrainingM1(
       molecule=path_to_dtb+"/species/molecule.json"
     )
+  cg_active_both = (cg_model["1"]["active"] + cg_model["0"]["active"] == 2)
 
   # Loop over test cases
   # ---------------
@@ -90,8 +92,8 @@ if (__name__ == '__main__'):
     print(f"\nSolving case '{icase}' ...")
     # > Load test case
     filename = inputs["data"]["path"]+f"/case_{icase}.p"
-    icase = utils.load_case(filename=filename)
-    n_fom, t, n0 = [icase[k] for k in ("n", "t", "n0")]
+    data = utils.load_case(filename=filename)
+    n_fom, t, n0 = [data[k] for k in ("n", "t", "n0")]
     # > Solutions container
     sols = {"FOM-StS": n_fom[1]}
     # > Loop over ROM dimensions
@@ -106,17 +108,20 @@ if (__name__ == '__main__'):
       sols["ROM-BT"] = n_rom_bt[1]
       # > Solve ROM-CG
       if cg_model["0"]["active"]:
-        print(f"> Solving ROM-CG-M0 with {r} bins ...")
+        name = "ROM-CG-M0" if cg_active_both else "ROM-CG"
+        print(f"> Solving {name} with {r} bins ...")
         cg_m0.build(nb_bins=r)
         system.update_rom_ops(cg_m0.phi, cg_m0.psi)
         n_rom_cg = system.solve_rom_cg_m0(t, n0)
-        sols["ROM-CG-M0"] = n_rom_cg[1]
+        name = "ROM-CG-M0" if cg_active_both else "ROM-CG"
+        sols[name] = n_rom_cg[1]
       if (cg_model["1"]["active"] and (2*cg_model["1"]["nb_bins"] == r)):
-        print(f"> Reading ROM-CG-M1 with {int(r/2)} bins ...")
+        name = "ROM-CG-M1" if cg_active_both else "ROM-CG"
+        print(f"> Reading {name} with {int(r/2)} bins ...")
         cg_m1.build(mapping=cg_model["1"]["mapping"])
-        sols["ROM-CG-M1"] = cg_m1.decode(
+        sols[name] = cg_m1.decode(
           x=cg_m1.read_sol(
-            filename=cg_model["1"][icase],
+            filename=cg_model["1"]["cases"][icase],
             teval=t
           )
         )
@@ -130,6 +135,7 @@ if (__name__ == '__main__'):
       )
       pp.plot_mom_evolution(
         max_mom=2,
+        molecule_label=inputs["plot"]["molecule_label"],
         **common_kwargs
       )
       pp.plot_multi_dist_2d(
