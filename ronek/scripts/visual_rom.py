@@ -32,11 +32,10 @@ env.set(**inputs["env"])
 import matplotlib.pyplot as plt
 plt.style.use(inputs["plot"].get("style", None))
 
-from tqdm import tqdm
+from ronek import roms
 from ronek import utils
 from ronek import postproc as pp
 from ronek import systems as sys_mod
-from ronek.roms import CoarseGraining
 from silx.io.dictdump import h5todict
 
 # Main
@@ -66,40 +65,61 @@ if (__name__ == '__main__'):
   os.makedirs(path_to_saving, exist_ok=True)
 
   # ROM models
+  # > Balanced truncation (BT)
   bt_bases = h5todict(inputs["paths"]["bases"])
   bt_bases = [bt_bases[k] for k in ("phi", "psi")]
-  cg_model = CoarseGraining(
-    T=system.T,
-    molecule=path_to_dtb+"/species/molecule.json"
+  # > Coarse graining (CG)
+  cg_model = inputs.get(
+    "cg_model", {
+      "0": {"active": False},
+      "1": {"active": False}
+    }
   )
+  if cg_model["0"]["active"]:
+    cg_m0 = roms.CoarseGrainingM0(
+      molecule=path_to_dtb+"/species/molecule.json", T=system.T
+    )
+  if cg_model["1"]["active"]:
+    cg_m1 = roms.CoarseGrainingM1(
+      molecule=path_to_dtb+"/species/molecule.json"
+    )
 
   # Loop over test cases
   # ---------------
-  for case_id in inputs["data"]["case_ids"]:
-    print(f"\nSolving case '{case_id}' ...")
+  for icase in inputs["data"]["cases"]:
+    print(f"\nSolving case '{icase}' ...")
     # > Load test case
-    filename = inputs["data"]["path"]+f"/case_{case_id}.p"
+    filename = inputs["data"]["path"]+f"/case_{icase}.p"
     icase = utils.load_case(filename=filename)
     n_fom, t, n0 = [icase[k] for k in ("n", "t", "n0")]
+    # > Solutions container
+    sols = {"FOM-StS": n_fom[1]}
     # > Loop over ROM dimensions
     for r in range(*inputs["rom_range"]):
       # > Saving folder
-      path_to_saving_i = path_to_saving + f"/case_{case_id}/r{r}/"
+      path_to_saving_i = path_to_saving + f"/case_{icase}/r{r}/"
       os.makedirs(path_to_saving_i, exist_ok=True)
-      # > Solve BT ROM
-      print(f"> Solving BT ROM with {r} dimensions ...")
+      # > Solve ROM-BT
+      print(f"> Solving ROM-BT with {r} dimensions ...")
       system.update_rom_ops(phi=bt_bases[0][:,:r], psi=bt_bases[1][:,:r])
       n_rom_bt = system.solve_rom_bt(t, n0)
-      # > Solve CG ROM
-      print(f"> Solving CG ROM with {r} dimensions ...")
-      system.update_rom_ops(*cg_model(nb_bins=r))
-      n_rom_cg = system.solve_rom_cg(t, n0)
-      # > Collect solutions
-      sols = {
-        "FOM-StS": n_fom[1],
-        "ROM-BT": n_rom_bt[1],
-        "ROM-CG": n_rom_cg[1]
-      }
+      sols["ROM-BT"] = n_rom_bt[1]
+      # > Solve ROM-CG
+      if cg_model["0"]["active"]:
+        print(f"> Solving ROM-CG-M0 with {r} bins ...")
+        cg_m0.build(nb_bins=r)
+        system.update_rom_ops(cg_m0.phi, cg_m0.psi)
+        n_rom_cg = system.solve_rom_cg_m0(t, n0)
+        sols["ROM-CG-M0"] = n_rom_cg[1]
+      if (cg_model["1"]["active"] and (2*cg_model["1"]["nb_bins"] == r)):
+        print(f"> Reading ROM-CG-M1 with {int(r/2)} bins ...")
+        cg_m1.build(mapping=cg_model["1"]["mapping"])
+        sols["ROM-CG-M1"] = cg_m1.decode(
+          x=cg_m1.read_sol(
+            filename=cg_model["1"][icase],
+            teval=t
+          )
+        )
       # > Postprocessing
       print(f"> Postprocessing with {r} dimensions ...")
       common_kwargs = dict(
@@ -113,7 +133,7 @@ if (__name__ == '__main__'):
         **common_kwargs
       )
       pp.plot_multi_dist_2d(
-        teval=inputs["data"]["teval"][case_id],
+        teval=inputs["data"]["teval"][icase],
         markersize=inputs["plot"]["markersize"],
         **common_kwargs
       )

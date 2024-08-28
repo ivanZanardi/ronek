@@ -1,5 +1,6 @@
 import numpy as np
 import scipy as sp
+import pandas as pd
 
 from .coarse_graining_m0 import CoarseGrainingM0
 
@@ -30,6 +31,18 @@ class CoarseGrainingM1(CoarseGrainingM0):
     # Test bases
     e = self.molecule.lev["e"].reshape(-1,1)
     self.psi = np.hstack([self.P, self.P*e])
+
+  def read_sol(self, filename, teval=None):
+    data = pd.read_csv(filename)
+    bins = [i+1 for i in range(self.nb_bins)]
+    Xg = data[[f"X_{self.molecule.name}_{i}" for i in bins]].values
+    ng = data[["n"]].values * Xg
+    Tg = data[[f"Tg_{i}" for i in bins]].values
+    x = np.hstack([ng, Tg])
+    if (teval is not None):
+      t = data["t"].values
+      x = sp.interpolate.interp1d(t, x, kind="cubic", axis=0)(teval)
+    return x
 
   def encode(self, x):
     return x @ self.psi

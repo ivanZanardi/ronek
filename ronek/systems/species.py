@@ -64,5 +64,5 @@ class Species(object):
 
   def q_int_2d(self, T):
     T = T.reshape(-1,1)
-    e, g = [self.lev[k].reshape(1,-1) for k in ("g", "e")]
+    g, e = [self.lev[k].reshape(1,-1) for k in ("g", "e")]
     return g * np.exp(-e/(const.UKB*T))

@@ -35,7 +35,7 @@ import joblib as jl
 from tqdm import tqdm
 from ronek import utils
 from ronek import systems as sys_mod
-from ronek.roms import CoarseGraining
+from ronek.roms import CoarseGrainingM0
 from silx.io.dictdump import dicttoh5, h5todict
 
 # Main
@@ -69,7 +69,7 @@ if (__name__ == '__main__'):
   # ROM models
   bt_bases = h5todict(inputs["paths"]["bases"])
   bt_bases = [bt_bases[k] for k in ("phi", "psi")]
-  cg_model = CoarseGraining(
+  cg_model = CoarseGrainingM0(
     T=system.T,
     molecule=path_to_dtb+"/species/molecule.json"
   )
@@ -119,11 +119,11 @@ if (__name__ == '__main__'):
     # Solve CG ROM
     print(f"> Solving CG ROM with {r} dimensions ...")
     system.update_rom_ops(*cg_model(nb_bins=r))
-    errors = compute_err_parallel("cg")
+    errors = compute_err_parallel("cg_m0")
     cg_err[str(r)] = compute_err_stats(errors)
   # Save error statistics
   save_err_stats("bt", bt_err)
-  save_err_stats("cg", cg_err)
+  save_err_stats("cg_m0", cg_err)
 
   # Copy input file
   # ---------------

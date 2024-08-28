@@ -217,7 +217,7 @@ class Basic(object):
     )
     return n[:1], n[1:]
 
-  def solve_rom_cg(
+  def solve_rom_cg_m0(
     self,
     t,
     n0,
@@ -227,7 +227,7 @@ class Basic(object):
   ):
     """Solve coarse-graining-based ROM."""
     self.check_rom_ops()
-    self.is_einsum_used("solve_rom_cg")
+    self.is_einsum_used("solve_rom_cg_m0")
     # Encode initial condition
     z_m = self.encode(n0[1:])
     # Solve
@@ -338,7 +338,7 @@ class Basic(object):
     icase = utils.load_case(path=path, index=index, filename=filename)
     n_fom, t, n0 = [icase[k] for k in ("n", "t", "n0")]
     # Solve ROM
-    solve = self.solve_rom_bt if (model == "bt") else self.solve_rom_cg
+    solve = self.solve_rom_bt if (model == "bt") else self.solve_rom_cg_m0
     n_rom = solve(t, n0)
     # Evaluate error
     if (eval_err_on == "mom"):

@@ -55,6 +55,8 @@ class CoarseGrainingM0(object):
     """Probability matrix"""
     if (mapping is None):
       mapping = self.get_mapping(nb_bins)
+    elif isinstance(mapping, str):
+      mapping = np.loadtxt(mapping, delimiter=",")[:,1].astype(np.int16)
     mapping = (mapping - np.amin(mapping)).astype(int)
     nb_lev, self.nb_bins = self.molecule.nb_comp, np.amax(mapping)+1
     data = np.ones(nb_lev)
