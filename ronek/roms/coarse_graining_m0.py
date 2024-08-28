@@ -4,7 +4,7 @@ import scipy as sp
 from ronek.systems.species import Species
 
 
-class CoarseGraining(object):
+class CoarseGrainingM0(object):
   """
   See:
     http://dx.doi.org/10.1063/1.4915926
@@ -14,12 +14,16 @@ class CoarseGraining(object):
   # ===================================
   def __init__(
     self,
-    T,
-    molecule
+    molecule,
+    T=None
   ):
-    self.T = float(T)
     self.molecule = Species(molecule)
-    self.molecule.update(self.T)
+    if (T is not None):
+      self.molecule.update(float(T))
+    self.P = None
+    self.phi = None
+    self.psi = None
+    self.nb_bins = None
 
   # Calling
   # ===================================
@@ -28,16 +32,35 @@ class CoarseGraining(object):
     mapping=None,
     nb_bins=1
   ):
+    return self.build(mapping, nb_bins)
+
+  def build(
+    self,
+    mapping=None,
+    nb_bins=1
+  ):
+    self.set_probmat(mapping, nb_bins)
+    # Trial bases
+    self.phi = self.P * self.molecule.q.reshape(-1,1)
+    Q = self.P.T @ self.molecule.q
+    self.phi /= Q.reshape(1,-1)
+    # Test bases
+    self.psi = self.P
+
+  def set_probmat(
+    self,
+    mapping=None,
+    nb_bins=1
+  ):
+    """Probability matrix"""
     if (mapping is None):
       mapping = self.get_mapping(nb_bins)
-    P = self.construct_probmat(mapping)
-    # Trial bases
-    phi = P * self.molecule.q.reshape(-1,1)
-    Q = P.T @ self.molecule.q
-    phi /= Q.reshape(1,-1)
-    # Test bases
-    psi = P
-    return phi, psi
+    mapping = (mapping - np.amin(mapping)).astype(int)
+    nb_lev, self.nb_bins = self.molecule.nb_comp, np.amax(mapping)+1
+    data = np.ones(nb_lev)
+    indices = (np.arange(nb_lev), mapping)
+    shape = (nb_lev, self.nb_bins)
+    self.P = sp.sparse.coo_matrix((data, indices), shape).toarray()
 
   def get_mapping(self, nb_bins, eps=1e-6):
     """Energy-based binning"""
@@ -63,12 +86,3 @@ class CoarseGraining(object):
     mapping = (e.reshape(-1,1) >= intervals.reshape(1,-1))
     mapping = np.sum(mapping, axis=1)
     return mapping
-
-  def construct_probmat(self, mapping):
-    """Probability matrix"""
-    mapping = (mapping - np.amin(mapping)).astype(int)
-    nb_lev, nb_bins = self.molecule.nb_comp, np.amax(mapping)+1
-    data = np.ones(nb_lev)
-    indices = (np.arange(nb_lev), mapping)
-    shape = (nb_lev, nb_bins)
-    return sp.sparse.coo_matrix((data, indices), shape).toarray()
