@@ -16,13 +16,21 @@
       "use_factorial": false
     }
   },
+  "cg_model": {
+    "0": {
+      "active": false
+    },
+    "1": {
+      "active": false
+    }
+  },
   "paths": {
     "dtb": "./../../database/",
     "bases": "./../../test/max_mom_2/bases.hdf5",
     "saving": "./../../test/max_mom_2/"
   },
   "data": {
-    "case_ids": ["cold", "hot"],
+    "cases": ["cold", "hot"],
     "teval": {
       "cold": [1e-8, 1e-7, 7e-7, 3e-6, 1e-4],
       "hot":  [1e-7, 1e-6, 4e-6, 2e-5, 1e-3]
@@ -32,7 +40,9 @@
   "plot": {
     "style": "/home/zanardi/Workspace/Research/styles/matplotlib/paper_1column.mplstyle",
     "animate": false,
-    "markersize": 6
+    "markersize": 6,
+    "err_scale": "log",
+    "molecule_label": "\\text{O$_2$}"
   },
   "rom_range": [4,8]
 }

@@ -26,6 +26,12 @@
     "nb_workers": 20,
     "path": "./../../test/data/"
   },
-  "rom_range": [6,11],
+  "plot": {
+    "style": "/home/zanardi/Workspace/Research/styles/matplotlib/paper_1column.mplstyle",
+    "scales": ["log", "linear"],
+    "molecule_label": "\\text{O$_2$}",
+    "err_scale": "log"
+  },
+  "rom_range": [6,13,2],
   "eval_err_on": "mom"
 }

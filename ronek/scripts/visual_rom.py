@@ -29,7 +29,6 @@ env.set(**inputs["env"])
 
 # Libraries
 # =====================================
-import numpy as np
 import matplotlib.pyplot as plt
 plt.style.use(inputs["plot"].get("style", None))
 
@@ -134,8 +133,9 @@ if (__name__ == '__main__'):
         molecule=system.species["molecule"]
       )
       pp.plot_mom_evolution(
-        max_mom=2,
+        max_mom=inputs["plot"].get("max_mom", 2),
         molecule_label=inputs["plot"]["molecule_label"],
+        err_scale=inputs["plot"].get("err_scale", "linear"),
         **common_kwargs
       )
       pp.plot_multi_dist_2d(

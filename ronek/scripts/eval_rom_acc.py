@@ -31,9 +31,12 @@ env.set(**inputs["env"])
 # =====================================
 import numpy as np
 import joblib as jl
+import matplotlib.pyplot as plt
+plt.style.use(inputs["plot"].get("style", None))
 
 from tqdm import tqdm
 from ronek import utils
+from ronek import postproc as pp
 from ronek import systems as sys_mod
 from ronek.roms import CoarseGrainingM0
 from silx.io.dictdump import dicttoh5, h5todict
@@ -67,12 +70,15 @@ if (__name__ == '__main__'):
   t = utils.load_case(path=inputs["data"]["path"], index=0, key="t")
 
   # ROM models
+  # > Balanced truncation (BT)
   bt_bases = h5todict(inputs["paths"]["bases"])
   bt_bases = [bt_bases[k] for k in ("phi", "psi")]
-  cg_model = CoarseGrainingM0(
-    T=system.T,
-    molecule=path_to_dtb+"/species/molecule.json"
-  )
+  # > Coarse graining (CG)
+  cg_model = inputs.get("cg_model", {"active": False})
+  if cg_model["active"]:
+    cg_m0 = CoarseGrainingM0(
+      molecule=path_to_dtb+"/species/molecule.json", T=system.T
+    )
 
   # Util functions
   # ---------------
@@ -91,13 +97,16 @@ if (__name__ == '__main__'):
         file=sys.stdout
       )
     )
-    return np.vstack(err)
+    if (inputs["eval_err_on"] == "mom"):
+      return np.stack(err, axis=0)
+    else:
+      return np.vstack(err)
 
   def compute_err_stats(err):
     return {
       "t": t,
-      "over_t": {"mean": np.mean(err, axis=0), "std": np.std(err, axis=0)},
-      "global": {"mean": np.mean(err), "std": np.std(err)}
+      "mean": np.mean(err, axis=0),
+      "std": np.std(err, axis=0)
     }
 
   def save_err_stats(model, stats):
@@ -117,13 +126,32 @@ if (__name__ == '__main__'):
     errors = compute_err_parallel("bt")
     bt_err[str(r)] = compute_err_stats(errors)
     # Solve CG ROM
-    print(f"> Solving CG ROM with {r} dimensions ...")
-    system.update_rom_ops(*cg_model(nb_bins=r))
-    errors = compute_err_parallel("cg_m0")
-    cg_err[str(r)] = compute_err_stats(errors)
-  # Save error statistics
+    if cg_model["active"]:
+      print(f"> Solving CG ROM with {r} dimensions ...")
+      cg_m0.build(nb_bins=r)
+      system.update_rom_ops(cg_m0.phi, cg_m0.psi)
+      errors = compute_err_parallel("cg_m0")
+      cg_err[str(r)] = compute_err_stats(errors)
+  # Save/plot error statistics
+  common_kwargs = dict(
+    eval_err_on=inputs["eval_err_on"],
+    err_scale=inputs["plot"].get("err_scale", "linear"),
+    molecule_label=inputs["plot"]["molecule_label"],
+    max_mom=inputs["plot"].get("max_mom", 2)
+  )
   save_err_stats("bt", bt_err)
-  save_err_stats("cg_m0", cg_err)
+  pp.plot_err_evolution(
+    path=path_to_saving+"/bt/",
+    err=bt_err,
+    **common_kwargs
+  )
+  if cg_model["active"]:
+    save_err_stats("cg", cg_err)
+    pp.plot_err_evolution(
+      path=path_to_saving+"/cg/",
+      err=cg_err,
+      **common_kwargs
+    )
 
   # Copy input file
   # ---------------

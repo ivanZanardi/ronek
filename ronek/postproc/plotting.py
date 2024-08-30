@@ -41,6 +41,7 @@ def plot_cum_energy(
 def plot_evolution(
   x,
   y,
+  ls=None,
   ylim=None,
   labels=[r"$t$ [s]", r"$n$ [m$^{-3}$]"],
   scales=["log", "linear"],
@@ -65,13 +66,13 @@ def plot_evolution(
     i = 0
     for (k, yk) in y.items():
       if ("FOM" in k.upper()):
-        c = "k"
-        ls = "-"
+        _c = "k"
+        _ls = "-" if (ls is None) else ls
       else:
-        c = COLORS[i]
-        ls = "--"
+        _c = COLORS[i]
+        _ls = "--" if (ls is None) else ls
         i += 1
-      ax.plot(x, yk, ls=ls, c=c, label=k)
+      ax.plot(x, yk, ls=_ls, c=_c, label=k)
     ax.legend()
   else:
     ax.plot(x, y, "-", c="k")
@@ -90,6 +91,7 @@ def plot_mom_evolution(
   n_m,
   molecule,
   molecule_label,
+  err_scale="linear",
   max_mom=2
 ):
   path = path + "/moments/"
@@ -137,8 +139,51 @@ def plot_mom_evolution(
       x=t,
       y=moms_err,
       labels=[r"$t$ [s]", label_err],
-      scales=["log", "log"],
+      scales=["log", err_scale],
       figname=path + f"/m{m}_err",
+      save=True,
+      show=False
+    )
+
+def plot_err_evolution(
+  path,
+  err,
+  eval_err_on,
+  molecule_label,
+  err_scale="linear",
+  max_mom=2
+):
+  os.makedirs(path, exist_ok=True)
+  for r in err.keys():
+    t = err[r]["t"]
+    break
+  if (eval_err_on == "mom"):
+    for m in range(max_mom):
+      if (m == 0):
+        label = fr"$n_{molecule_label}$ error [\%]"
+      else:
+        if (m == 1):
+          label = fr"$e_{molecule_label}$ error [\%]"
+        else:
+          label = fr"$\gamma_{m}$ error [\%]"
+      plot_evolution(
+        x=t,
+        y={f"$r={r}$": err[r]["mean"][m] for r in err.keys()},
+        ls="-",
+        labels=[r"$t$ [s]", label],
+        scales=["log", err_scale],
+        figname=path + f"/mean_m{m}_err",
+        save=True,
+        show=False
+      )
+  else:
+    plot_evolution(
+      x=t,
+      y={f"$r={r}$": err[r]["mean"] for r in err.keys()},
+      ls="-",
+      labels=[r"$t$ [s]", r"$n_i/g_i$ error [\%]"],
+      scales=["log", err_scale],
+      figname=path + "/mean_dist_err",
       save=True,
       show=False
     )

@@ -354,7 +354,7 @@ class Basic(object):
           mom_fom /= mom0_fom
           mom_rom /= mom0_rom
         error.append(utils.absolute_percentage_error(mom_rom, mom_fom))
-      return error
+      return np.vstack(error)
     elif (eval_err_on == "dist"):
       # > Distribution
       y_pred = n_rom[1] / const.UNA
