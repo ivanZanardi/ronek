@@ -21,6 +21,7 @@ class TAFASystem(TASystem):
     super(TAFASystem, self).__init__(
       T, rates, species, use_einsum, use_factorial
     )
+    self.loop_equilibria = True
 
   # Operators
   # ===================================
@@ -77,16 +78,24 @@ class TAFASystem(TASystem):
 
   # Linearized FOM
   # -----------------------------------
-  def _compute_lin_fom_ops(self, rho, Tint, max_mom=10):
-    n_a_eq, _ = self.compute_eq_comp(rho)
+  def _compute_lin_fom_ops(self, Tint, X_a, rho, max_mom=10):
+    n_a_eq, n_m_eq = self.compute_eq_comp(rho)
     return {
       "A": self._compute_lin_fom_ops_a(n_a_eq),
       "B": self._compute_lin_fom_ops_b(
         b=self._get_lin_fom_ops_b(n_a_eq),
-        Tint=Tint
+        x0=self._get_lin_init_sols(Tint, X_a, rho, n_m_eq)
       ),
       "C": self._compute_lin_fom_ops_c(max_mom)
     }
+
+  def _get_lin_init_sols(self, Tint, X_a, rho, n_m_eq):
+    x0 = []
+    for Ti in Tint:
+      for Xi in X_a:
+        n0 = self.get_init_sol(T=Ti, X_a=Xi, rho=rho)
+        x0.append(n0[1:] - n_m_eq)
+    return x0
 
   def _compute_lin_fom_ops_a(self, n_a_eq):
     A1 = self._compute_lin_fom_ops_a1()

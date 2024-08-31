@@ -61,19 +61,20 @@ if (__name__ == '__main__'):
   # Path to saving
   path_to_saving = inputs["paths"]["saving"]
   os.makedirs(path_to_saving, exist_ok=True)
-  # Time and internal temperature grids
+  # Time grid
   t = system.get_tgrid(**inputs["grids"]["t"])
-  Tint = np.geomspace(**inputs["grids"]["Tint"])
-  rho = None
-  if ("rho" in inputs["grids"]):
-    rho = np.geomspace(**inputs["grids"]["rho"])
+  # Initial condition grid
+  Tint = np.geomspace(**inputs["grids"]["n0"]["Tint"])
+  if system.loop_equilibria:
+    rho = np.geomspace(**inputs["grids"]["n0"]["rho"])
+    X_a = np.linspace(**inputs["grids"]["n0"]["X_a"])
 
   # Model reduction
   # ---------------
   max_mom = int(inputs["max_mom"])
-  if (rho is None):
+  if (not system.loop_equilibria):
     inputs["btrunc"]["saving"] = True
-    lin_ops = system.compute_lin_fom_ops(Tint=Tint, max_mom=max_mom)
+    lin_ops = system.compute_lin_fom_ops(Tint, max_mom=max_mom)
     btrunc = BalancedTruncation(
       operators=lin_ops, path_to_saving=path_to_saving, **inputs["btrunc"]
     )
@@ -84,7 +85,7 @@ if (__name__ == '__main__'):
     inputs["btrunc"]["verbose"] = False
     for ri in tqdm(rho, ncols=80, desc="Densities"):
       # > Linear operators
-      lin_ops = system.compute_lin_fom_ops(rho=ri, Tint=Tint, max_mom=max_mom)
+      lin_ops = system.compute_lin_fom_ops(Tint, X_a, rho=ri, max_mom=max_mom)
       btrunc = BalancedTruncation(
         operators=lin_ops, path_to_saving=path_to_saving, **inputs["btrunc"]
       )

@@ -45,6 +45,7 @@ def plot_evolution(
   ylim=None,
   labels=[r"$t$ [s]", r"$n$ [m$^{-3}$]"],
   scales=["log", "linear"],
+  legend_loc="best",
   figname=None,
   save=False,
   show=False
@@ -73,7 +74,7 @@ def plot_evolution(
         _ls = "--" if (ls is None) else ls
         i += 1
       ax.plot(x, yk, ls=_ls, c=_c, label=k)
-    ax.legend()
+    ax.legend(loc=legend_loc)
   else:
     ax.plot(x, y, "-", c="k")
   # Tight layout
@@ -121,6 +122,7 @@ def plot_mom_evolution(
       x=t,
       y=moms[m],
       labels=[r"$t$ [s]", label_sol],
+      legend_loc="lower left" if (m == 0) else "upper left",
       scales=["log", yscale],
       figname=path + f"/m{m}",
       save=True,
@@ -189,9 +191,15 @@ def plot_err_evolution(
     )
 
 # 2D distribution
+def as_si(x, ndp=0):
+  s = "{x:0.{ndp:d}e}".format(x=x, ndp=ndp)
+  m, e = s.split("e")
+  return r"{m:s}\times 10^{{{e:d}}}".format(m=m, e=int(e))
+
 def plot_dist_2d(
   x,
   y,
+  t=None,
   labels=[r"$\epsilon_i$ [eV]", r"$n_i/g_i$ [m$^{-3}$]"],
   scales=["linear", "log"],
   markersize=6,
@@ -219,15 +227,23 @@ def plot_dist_2d(
     for (k, yk) in y.items():
       if ("FOM" in k.upper()):
         c = "k"
-        ax.set_ylim((yk.min()*2e-1, yk.max()*5e0))
+        ymin = yk.min()
       else:
         c = COLORS[i]
         i += 1
+      yk[yk<ymin*0.1] = 0.0
       ax.plot(x, yk, c=c, markersize=markersize, **style)
       lines.append(plt.plot([], [], c=c, **style)[0])
     ax.legend(lines, list(y.keys()))
   else:
     ax.plot(x, y, c="k", markersize=markersize, **style)
+  if (t is not None):
+    ax.text(
+      0.05, 0.05,
+      r"$t = {0:s}$ s".format(as_si(t)),
+      transform=ax.transAxes,
+      fontsize=25
+    )
   # Tight layout
   plt.tight_layout()
   if save:
@@ -242,7 +258,8 @@ def plot_multi_dist_2d(
   t,
   n_m,
   molecule,
-  markersize=6
+  markersize=6,
+  shift_diss_en=False
 ):
   path = path + "/dist/"
   os.makedirs(path, exist_ok=True)
@@ -253,11 +270,15 @@ def plot_multi_dist_2d(
       nk = nk.T
     nk = sp.interpolate.interp1d(t, nk, kind="cubic", axis=0)(teval)
     n_m_eval[k] = nk / molecule.lev["g"]
-  x = (molecule.lev["e"] - molecule.e_d) / const.eV_to_J
+  if shift_diss_en:
+    x = (molecule.lev["e"] - molecule.e_d) / const.eV_to_J
+  else:
+    x = molecule.lev["e"] / const.eV_to_J
   for i in range(len(teval)):
     plot_dist_2d(
       x=x,
       y={k: nk[i] for (k, nk) in n_m_eval.items()},
+      t=float(teval[i]),
       labels=[r"$\epsilon_i$ [eV]", r"$n_i/g_i$ [m$^{-3}$]"],
       scales=["linear", "log"],
       markersize=markersize,

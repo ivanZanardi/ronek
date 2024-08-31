@@ -25,6 +25,7 @@ class Basic(object):
     # Thermochemistry database
     # -------------
     self.T = float(T)
+    self.loop_equilibria = False
     # > Species
     self.nb_eqs = 0
     self.species = {}
@@ -155,13 +156,28 @@ class Basic(object):
     n_m = self.gamma*n_a**2
     return n_a, n_m
 
-  def compute_eq_dist(self, Tint):
-    q = [self.species["molecule"].q_int(Ti) for Ti in Tint]
-    return [qi/np.sum(qi) for qi in q]
-
   # Solving
   # ===================================
-  def get_init_sol(self, T, p, X_a):
+  def get_init_sol(self, T=None, p=None, X_a=None, rho=None):
+    if (p is None):
+      return self._get_init_sol_from_rho(T, X_a, rho)
+    else:
+      return self._get_init_sol_from_p(T, X_a, p)
+
+  def _get_init_sol_from_rho(self, T, X_a, rho):
+    # Compute mass fractions
+    norm = X_a * self.species["atom"].m \
+         + (1.0-X_a) * self.species["molecule"].m
+    Y_a = X_a * self.species["atom"].m / norm
+    Y_m = 1.0-Y_a
+    # Compute number densities
+    n_a = rho * Y_a / self.species["atom"].m
+    n_a = np.array([n_a]).reshape(-1)
+    q_m = self.species["molecule"].q_int(T)
+    n_m = (rho * Y_m / self.species["molecule"].m) * (q_m / np.sum(q_m))
+    return np.concatenate([n_a, n_m])
+
+  def _get_init_sol_from_p(self, T, X_a, p):
     n = p / (const.UKB * T)
     n_a = np.array([n * X_a]).reshape(-1)
     q_m = self.species["molecule"].q_int(T)

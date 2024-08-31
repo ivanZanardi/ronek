@@ -47,7 +47,7 @@ class TASystem(Basic):
       "A": self.fom_ops["ed"] * const.UNA,
       "B": self._compute_lin_fom_ops_b(
         b=self._get_lin_fom_ops_b(),
-        Tint=Tint
+        x0=self._get_lin_init_sols(Tint)
       ),
       "C": self._compute_lin_fom_ops_c(max_mom)
     }
@@ -56,9 +56,12 @@ class TASystem(Basic):
     b = self.fom_ops["ed"] @ self.gamma + 3*self.fom_ops["r"]
     return b * const.UNA**2
 
-  def _compute_lin_fom_ops_b(self, b, Tint):
+  def _get_lin_init_sols(self, Tint):
+    return [self.species["molecule"].q_int(Ti) for Ti in Tint]
+
+  def _compute_lin_fom_ops_b(self, b, x0):
     # Compose B
-    B = np.vstack([b] + self.compute_eq_dist(Tint))
+    B = np.vstack([b] + x0)
     # Normalize B
     B *= (np.linalg.norm(b) / np.linalg.norm(B, axis=-1, keepdims=True))
     return np.transpose(B)
