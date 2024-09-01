@@ -74,7 +74,7 @@ def plot_evolution(
         _ls = "--" if (ls is None) else ls
         i += 1
       ax.plot(x, yk, ls=_ls, c=_c, label=k)
-    ax.legend(loc=legend_loc)
+    ax.legend(loc=legend_loc, fancybox=True, framealpha=0.9)
   else:
     ax.plot(x, y, "-", c="k")
   # Tight layout
@@ -152,6 +152,7 @@ def plot_err_evolution(
   err,
   eval_err_on,
   molecule_label,
+  subscript="i",
   err_scale="linear",
   max_mom=2
 ):
@@ -183,7 +184,7 @@ def plot_err_evolution(
       x=t,
       y={f"$r={r}$": err[r]["mean"] for r in err.keys()},
       ls="-",
-      labels=[r"$t$ [s]", r"$n_i/g_i$ error [\%]"],
+      labels=[r"$t$ [s]", fr"$n_{subscript}/g_{subscript}$ error [\%]"],
       scales=["log", err_scale],
       figname=path + "/mean_dist_err",
       save=True,
@@ -200,7 +201,7 @@ def plot_dist_2d(
   x,
   y,
   t=None,
-  labels=[r"$\epsilon_i$ [eV]", r"$n_i/g_i$ [m$^{-3}$]"],
+  subscript="i",
   scales=["linear", "log"],
   markersize=6,
   figname=None,
@@ -211,10 +212,10 @@ def plot_dist_2d(
   fig = plt.figure()
   ax = fig.add_subplot()
   # x axis
-  ax.set_xlabel(labels[0])
+  ax.set_xlabel(fr"$\varepsilon_{subscript}$ [eV]")
   ax.set_xscale(scales[0])
   # y axis
-  ax.set_ylabel(labels[1])
+  ax.set_ylabel(fr"$n_{subscript}/g_{subscript}$ [m$^{{-3}}$]")
   ax.set_yscale(scales[1])
   # Plotting
   style = dict(
@@ -234,7 +235,7 @@ def plot_dist_2d(
       yk[yk<ymin*0.1] = 0.0
       ax.plot(x, yk, c=c, markersize=markersize, **style)
       lines.append(plt.plot([], [], c=c, **style)[0])
-    ax.legend(lines, list(y.keys()))
+    ax.legend(lines, list(y.keys()), fancybox=True, framealpha=0.9)
   else:
     ax.plot(x, y, c="k", markersize=markersize, **style)
   if (t is not None):
@@ -258,6 +259,7 @@ def plot_multi_dist_2d(
   t,
   n_m,
   molecule,
+  subscript="i",
   markersize=6,
   shift_diss_en=False
 ):
@@ -279,7 +281,7 @@ def plot_multi_dist_2d(
       x=x,
       y={k: nk[i] for (k, nk) in n_m_eval.items()},
       t=float(teval[i]),
-      labels=[r"$\epsilon_i$ [eV]", r"$n_i/g_i$ [m$^{-3}$]"],
+      subscript=subscript,
       scales=["linear", "log"],
       markersize=markersize,
       figname=path + f"/t{i+1}",

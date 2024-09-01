@@ -29,6 +29,7 @@
   "plot": {
     "style": "/home/zanardi/Workspace/Research/styles/matplotlib/paper_1column.mplstyle",
     "molecule_label": "\\text{O$_2$}",
+    "subscript": "i",
     "err_scale": "log"
   },
   "rom_range": [28,37,2],

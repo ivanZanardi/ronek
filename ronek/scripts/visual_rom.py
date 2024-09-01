@@ -140,7 +140,8 @@ if (__name__ == '__main__'):
       )
       pp.plot_multi_dist_2d(
         teval=inputs["data"]["teval"][icase],
-        markersize=inputs["plot"]["markersize"],
+        markersize=inputs["plot"].get("markersize", 1),
+        subscript=inputs["plot"].get("subscript", "i"),
         **common_kwargs
       )
       if inputs["plot"]["animate"]:

@@ -26,9 +26,10 @@
     "nb_workers": 20,
     "path": "./../../test/data/"
   },
-"plot": {
+  "plot": {
     "style": "/home/zanardi/Workspace/Research/styles/matplotlib/paper_1column.mplstyle",
     "molecule_label": "\\text{O$_2$}",
+    "subscript": "v",
     "err_scale": "log"
   },
   "rom_range": [12,16],

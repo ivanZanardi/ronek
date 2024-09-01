@@ -14,10 +14,12 @@
       "stop": 1e-2,
       "num": 50
     },
-    "Tint": {
-      "start": 3e2,
-      "stop": 1e4,
-      "num": 20
+    "n0": {
+      "Tint": {
+        "start": 3e2,
+        "stop": 1e4,
+        "num": 20
+      }
     }
   },
   "system": {

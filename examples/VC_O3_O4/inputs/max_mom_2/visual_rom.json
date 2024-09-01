@@ -41,6 +41,7 @@
     "style": "/home/zanardi/Workspace/Research/styles/matplotlib/paper_1column.mplstyle",
     "animate": false,
     "markersize": 6,
+    "subscript": "v",
     "err_scale": "log",
     "molecule_label": "\\text{O$_2$}"
   },

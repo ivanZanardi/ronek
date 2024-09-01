@@ -14,15 +14,22 @@
       "stop": 1e-2,
       "num": 50
     },
-    "Tint": {
-      "start": 3e2,
-      "stop": 1e4,
-      "num": 50
-    },
-    "rho": {
-      "start": 1e-5,
-      "stop": 1e0,
-      "num": 50
+    "n0": {
+      "Tint": {
+        "start": 3e2,
+        "stop": 1e4,
+        "num": 20
+      },
+      "X_a": {
+        "start": 0.01,
+        "stop": 0.99,
+        "num": 10
+      },
+      "rho": {
+        "start": 1e-5,
+        "stop": 1e0,
+        "num": 50
+      }
     }
   },
   "system": {
