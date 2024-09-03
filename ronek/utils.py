@@ -226,7 +226,7 @@ def generate_case_parallel(
 # Statistics
 # =====================================
 def absolute_percentage_error(y_true, y_pred, eps=1e-8):
-	return 100*np.abs(y_true-y_pred)/(np.abs(y_true)+eps)
+  return 100*np.abs(y_true-y_pred)/(np.abs(y_true)+eps)
 
 # Operations
 # =====================================
