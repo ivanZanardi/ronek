@@ -184,7 +184,8 @@ def plot_err_evolution(
       x=t,
       y={f"$r={r}$": err[r]["mean"] for r in err.keys()},
       ls="-",
-      labels=[r"$t$ [s]", fr"$n_{subscript}/g_{subscript}$ error [\%]"],
+      # labels=[r"$t$ [s]", fr"$n_{subscript}/g_{subscript}$ error [\%]"],
+      labels=[r"$t$ [s]", fr"$c_{subscript}$ error [\%]"],
       scales=["log", err_scale],
       figname=path + "/mean_dist_err",
       save=True,
@@ -212,7 +213,7 @@ def plot_dist_2d(
   fig = plt.figure()
   ax = fig.add_subplot()
   # x axis
-  ax.set_xlabel(fr"$\varepsilon_{subscript}$ [eV]")
+  ax.set_xlabel(fr"$\epsilon_{subscript}$ [eV]")
   ax.set_xscale(scales[0])
   # y axis
   ax.set_ylabel(fr"$n_{subscript}/g_{subscript}$ [m$^{{-3}}$]")
@@ -248,7 +249,7 @@ def plot_dist_2d(
   # Tight layout
   plt.tight_layout()
   if save:
-    plt.savefig(figname)
+    plt.savefig(figname, dpi=300)
   if show:
     plt.show()
   plt.close()
