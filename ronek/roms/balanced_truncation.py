@@ -28,7 +28,7 @@ class BalancedTruncation(object):
     verbose=True
   ):
     self.verbose = verbose
-    # Initialize operators (A, C, and X0)
+    # Initialize operators (A, C, and M)
     # -------------
     self.ops = operators
     # Nb. of equations
@@ -81,16 +81,14 @@ class BalancedTruncation(object):
     X=None,
     Y=None,
     xnot=None,
-    max_rank=0,
-    real_only=True,
     compute_modes=True
   ):
     if ((X is None) or (Y is None)):
       self.initialize(t)
-      self.compute_eiga(real_only)
+      self.compute_eiga()
       if self.verbose:
         print("Computing Gramians ...")
-      X, Y = self.compute_gramians(max_rank)
+      X, Y = self.compute_gramians()
       if (xnot is not None):
         mask = np.ones(self.nb_eqs)
         mask[xnot] = 0
