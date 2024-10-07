@@ -62,6 +62,7 @@ class TASystem(Basic):
     C = self._compute_lin_fom_ops_c(max_mom)
     # Initial solutions
     X0, w0 = self._compute_lin_init_sols(mu, rho, n_eq)
+    # Return data
     return {"A": A, "C": C, "X0": X0, "w0": w0, "x_eq": n_eq}
 
   def _compute_lin_fom_ops_a(
