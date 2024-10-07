@@ -61,40 +61,49 @@ if (__name__ == '__main__'):
   # Path to saving
   path_to_saving = inputs["paths"]["saving"]
   os.makedirs(path_to_saving, exist_ok=True)
-  # Time grid
+  # Grids
+  # > Time
   t = system.get_tgrid(**inputs["grids"]["t"])
-  # Initial condition grid
-  Tint = np.geomspace(**inputs["grids"]["n0"]["Tint"])
-  if system.loop_equilibria:
-    rho = np.geomspace(**inputs["grids"]["n0"]["rho"])
-    X_a = np.linspace(**inputs["grids"]["n0"]["X_a"])
+  # > Density space (lambda)
+  rho = np.geomspace(**inputs["grids"]["rho"])
+  rho, w_rho = utils.get_gl_quad_1d(rho, deg=2, adim=True)
+  sqrt_w_rho = np.sqrt(w_rho)
+  # > Initial conditions space (mu)
+  mu = tuple([
+    np.geomspace(**inputs["grids"]["mu"]["Tint"]),
+    np.linspace(**inputs["grids"]["mu"]["X_a"])
+  ])
 
   # Model reduction
   # ---------------
-  max_mom = int(inputs["max_mom"])
-  if (not system.loop_equilibria):
-    inputs["btrunc"]["saving"] = True
-    lin_ops = system.compute_lin_fom_ops(Tint, max_mom=max_mom)
-    btrunc = BalancedTruncation(
-      operators=lin_ops, path_to_saving=path_to_saving, **inputs["btrunc"]
+  X, Y = [], []
+  for (i, rhoi) in tqdm(enumerate(rho), ncols=80, desc="Densities"):
+    # > Linear operators
+    lin_ops = system.compute_lin_fom_ops(
+      mu=mu,
+      rho=rhoi,
+      max_mom=int(inputs["max_mom"])
     )
-    btrunc(t)
-  else:
-    X, Y = [], []
-    inputs["btrunc"]["saving"] = False
-    inputs["btrunc"]["verbose"] = False
-    for ri in tqdm(rho, ncols=80, desc="Densities"):
-      # > Linear operators
-      lin_ops = system.compute_lin_fom_ops(Tint, X_a, rho=ri, max_mom=max_mom)
-      btrunc = BalancedTruncation(
-        operators=lin_ops, path_to_saving=path_to_saving, **inputs["btrunc"]
-      )
-      # > Gramians
-      Xi, Yi = btrunc(t=t, compute_modes=False)
-      X.append(Xi), Y.append(Yi)
-    # > Compute balancing modes
-    X, Y = np.hstack(X), np.hstack(Y)
-    btrunc.compute_balancing_modes(X, Y)
+    btrunc = BalancedTruncation(
+      operators=lin_ops,
+      path_to_saving=path_to_saving,
+      saving=False,
+      verbose=False
+    )
+    # > Gramians
+    Xi, Yi = btrunc(
+      t=t,
+      xnot=[0],
+      compute_modes=False
+    )
+    wi = sqrt_w_rho[i]
+    X.append(wi*Xi), Y.append(wi*Yi)
+  # > Compute balancing modes
+  btrunc(
+    X=np.hstack(X),
+    Y=np.hstack(Y),
+    compute_modes=True
+  )
 
   # Copy input file
   # ---------------

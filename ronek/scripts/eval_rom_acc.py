@@ -64,7 +64,7 @@ if (__name__ == '__main__'):
   # Initialization
   # ---------------
   # Path to saving
-  path_to_saving = inputs["paths"]["saving"] + "/error/" + inputs["eval_err_on"]
+  path_to_saving = inputs["paths"]["saving"]+"/error/"+inputs["eval_err_on"]
   os.makedirs(path_to_saving, exist_ok=True)
   # Time grid
   t = utils.load_case(path=inputs["data"]["path"], index=0, key="t")
@@ -82,10 +82,9 @@ if (__name__ == '__main__'):
 
   # Util functions
   # ---------------
-  def compute_err_parallel(model="bt"):
+  def compute_err_parallel():
     err = jl.Parallel(inputs["data"]["nb_workers"])(
       jl.delayed(system.compute_rom_sol)(
-        model=model,
         path=inputs["data"]["path"],
         index=i,
         filename=None,
@@ -123,14 +122,14 @@ if (__name__ == '__main__'):
     # Solve BT ROM
     print(f"\n> Solving BT ROM with {r} dimensions ...")
     system.update_rom_ops(phi=bt_bases[0][:,:r], psi=bt_bases[1][:,:r])
-    errors = compute_err_parallel("bt")
+    errors = compute_err_parallel()
     bt_err[str(r)] = compute_err_stats(errors)
     # Solve CG ROM
     if cg_model["active"]:
       print(f"> Solving CG ROM with {r} dimensions ...")
       cg_m0.build(nb_bins=r)
       system.update_rom_ops(cg_m0.phi, cg_m0.psi)
-      errors = compute_err_parallel("cg_m0")
+      errors = compute_err_parallel()
       cg_err[str(r)] = compute_err_stats(errors)
   # Save/plot error statistics
   common_kwargs = dict(

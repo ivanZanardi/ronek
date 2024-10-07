@@ -22,7 +22,6 @@ class BalancedTruncation(object):
   def __init__(
     self,
     operators,
-    lg_deg=3,
     path_to_saving="./",
     saving=True,
     verbose=True
@@ -33,9 +32,6 @@ class BalancedTruncation(object):
     self.ops = operators
     # Nb. of equations
     self.nb_eqs = self.ops["A"].shape[0]
-    # Gauss-Legendre quadrature points and weights
-    # -------------
-    self.lg_deg = lg_deg
     # Saving
     # -------------
     self.saving = saving
@@ -105,7 +101,7 @@ class BalancedTruncation(object):
   def initialize(self, t):
     # Gauss-Legendre quadrature points
     # > Time space
-    t, w = utils.get_gl_quad_1d(t, deg=self.lg_deg, adim=True)
+    t, w = utils.get_gl_quad_1d(t, deg=3, adim=True)
     self.t = bkd.to_backend(t)
     self.time_dim = len(self.t)
     self.sqrt_w_t = torch.sqrt(bkd.to_backend(w)).reshape(-1)

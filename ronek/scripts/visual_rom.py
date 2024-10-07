@@ -100,11 +100,11 @@ if (__name__ == '__main__'):
       # > Saving folder
       path_to_saving_i = path_to_saving + f"/case_{icase}/r{r}/"
       os.makedirs(path_to_saving_i, exist_ok=True)
-      # > Solve ROM-BT
-      print(f"> Solving ROM-BT with {r} dimensions ...")
+      # > Solve ROM-PG
+      print(f"> Solving ROM-PG with {r} dimensions ...")
       system.update_rom_ops(phi=bt_bases[0][:,:r], psi=bt_bases[1][:,:r])
       n_rom_bt = system.solve_rom_bt(t, n0)
-      sols["ROM-BT"] = n_rom_bt[1]
+      sols["ROM-PG"] = n_rom_bt[1]
       # > Solve ROM-CG
       if cg_model["0"]["active"]:
         name = "ROM-CG-M0" if cg_active_both else "ROM-CG"
