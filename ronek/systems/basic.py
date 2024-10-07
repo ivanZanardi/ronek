@@ -47,8 +47,6 @@ class Basic(object):
     self.fun = None
     self.jac = None
     # Operators
-    ratio = self.species["molecule"].m / self.species["atom"].m
-    self.mass_ratio = np.full(self.nb_eqs-1, ratio).reshape(1,-1)
     self.update_fom_ops()
     # ROM
     # -------------
@@ -88,6 +86,8 @@ class Basic(object):
       self.fom_ops = self.kinetics.rates
     else:
       self.fom_ops = self._update_fom_ops(self.kinetics.rates)
+    self.mass_ratio = self.species["molecule"].m / self.species["atom"].m
+    self.mass_ratio = np.full(self.nb_eqs-1, self.mass_ratio).reshape(1,-1)
     self.fom_ops["m_ratio"] = self.mass_ratio
 
   @abc.abstractmethod

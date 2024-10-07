@@ -61,9 +61,9 @@ class TASystem(Basic):
     # C operator
     C = self._compute_lin_fom_ops_c(max_mom)
     # Initial solutions
-    X0, w0 = self._compute_lin_init_sols(mu, rho, n_eq)
+    M, w_mu = self._compute_lin_init_sols(mu, rho, n_eq)
     # Return data
-    return {"A": A, "C": C, "X0": X0, "w0": w0, "x_eq": n_eq}
+    return {"A": A, "C": C, "M": M, "w_mu": w_mu, "x_eq": n_eq}
 
   def _compute_lin_fom_ops_a(
     self,
@@ -99,12 +99,12 @@ class TASystem(Basic):
     deg: int = 2
   ) -> Tuple[np.ndarray, np.ndarray]:
     mu, w = utils.get_gl_quad_2d(*mu, deg=deg, adim=True)
-    x0 = []
+    M = []
     for mui in mu:
       n0 = self.get_init_sol(T=mui[0], X_a=mui[1], rho=rho)
-      x0.append(n0 - n_eq)
-    x0 = np.vstack(x0).T
-    return x0, w
+      M.append(n0 - n_eq)
+    M = np.vstack(M).T
+    return M, w
 
   # ROM
   # -----------------------------------

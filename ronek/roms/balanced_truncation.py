@@ -3,19 +3,18 @@ import torch
 import numpy as np
 import scipy as sp
 
+from .. import utils
 from .. import backend as bkd
 from silx.io.dictdump import dicttoh5, h5todict
 
 
 class BalancedTruncation(object):
   """
-  Model reduction using balanced proper orthogonal decomposition for
-  a stable linear input-output system:
-    dx = Ax + Bu
-    y = Cx
+  Model Reduction for Nonlinear Systems by Balanced Truncation of State
+  and Gradient Covariance (CoBRAS)
 
   See:
-    https://doi.org/10.1142/S0218127405012429
+    https://doi.org/10.1137/22M1513228
   """
 
   # Initialization
@@ -29,7 +28,7 @@ class BalancedTruncation(object):
     verbose=True
   ):
     self.verbose = verbose
-    # Initialize operators (A, B, and C)
+    # Initialize operators (A, C, and X0)
     # -------------
     self.ops = operators
     # Nb. of equations
@@ -37,8 +36,6 @@ class BalancedTruncation(object):
     # Gauss-Legendre quadrature points and weights
     # -------------
     self.lg_deg = lg_deg
-    self.lg = np.polynomial.legendre.leggauss(self.lg_deg)
-    self.lg = dict(zip(("x", "w"), self.lg))
     # Saving
     # -------------
     self.saving = saving
@@ -83,16 +80,21 @@ class BalancedTruncation(object):
     t,
     X=None,
     Y=None,
+    xnot=None,
     max_rank=0,
     real_only=True,
     compute_modes=True
   ):
     if ((X is None) or (Y is None)):
-      self.set_quad(t)
+      self.initialize(t)
       self.compute_eiga(real_only)
       if self.verbose:
         print("Computing Gramians ...")
       X, Y = self.compute_gramians(max_rank)
+      if (xnot is not None):
+        mask = np.ones(self.nb_eqs)
+        mask[xnot] = 0
+        X, Y = X[mask], Y[mask]
     if compute_modes:
       if self.verbose:
         print("Computing balancing modes ...")
@@ -102,20 +104,17 @@ class BalancedTruncation(object):
 
   # Setting up
   # -----------------------------------
-  # Gauss-Legendre quadrature
-  def set_quad(self, t):
-    _t, _w = [], []
-    for i in range(len(t)-1):
-      # Scaling and shifting
-      a = (t[i+1] - t[i])/2
-      b = (t[i+1] + t[i])/2
-      wi = a * self.lg["w"]
-      ti = a * self.lg["x"] + b
-      _t.append(ti), _w.append(wi)
-    # Set quadrature
-    self.t = bkd.to_backend(np.concatenate(_t).squeeze())
-    self.w = bkd.to_backend(np.concatenate(_w).squeeze())
+  def initialize(self, t):
+    # Gauss-Legendre quadrature points
+    # > Time space
+    t, w = utils.get_gl_quad_1d(t, deg=self.lg_deg, adim=True)
+    self.t = bkd.to_backend(t)
     self.time_dim = len(self.t)
+    self.sqrt_w_t = torch.sqrt(bkd.to_backend(w)).reshape(-1)
+    # > Initial conditions space
+    self.sqrt_w_mu = torch.sqrt(self.ops["w_mu"]).reshape(1,-1)
+    # Steady-state equilibrium solution
+    self.x_eq = self.ops["x_eq"].reshape(-1,1)
 
   # Eigendecomposition
   def compute_eiga(self, real_only=True):
@@ -144,34 +143,28 @@ class BalancedTruncation(object):
 
   # Gramians computation
   # -----------------------------------
-  def compute_gramians(self, max_rank=0):
+  def compute_gramians(self):
     # Compute the empirical controllability Gramian
-    X = self.compute_gramian(op=self.ops["B"])
+    X = self.compute_gramian(op=self.ops["M"])
     # Compute the empirical observability Gramian
-    if (max_rank > 0):
-      # Perform output projection
-      C = self.ops["C"].to("cpu")
-      U = torch.linalg.svd(C @ X, full_matrices=False)[0]
-      Ct = C.t() @ U[:,:max_rank]
-      Ct = Ct.to(bkd.device())
-    else:
-      # Perform standard balanced truncation
-      Ct = self.ops["C"].t()
-    # Compute Gramian
-    Y = self.compute_gramian(op=Ct, transpose=True)
+    Y = self.compute_gramian(op=self.ops["C"].t(), transpose=True)
     return [bkd.to_numpy(z) for z in (X, Y)]
 
   def compute_gramian(self, op, transpose=False):
-    # Allocate memory
+    # Allocate Gramian's memory
     shape = [self.time_dim] + list(op.shape)
     g = torch.zeros(shape, dtype=bkd.floatx(), device="cpu")
     # Compute tensor
-    sqrt_w = torch.sqrt(self.w)
-    y = self.eiga["v"].t() @ op if transpose else self.eiga["vinv"] @ op
+    x = self.eiga["v"].t() @ op if transpose else self.eiga["vinv"] @ op
     for i in range(self.time_dim):
-      yi = y * torch.exp(self.t[i]*self.eiga["l"]).reshape(-1,1)
-      gi = self.eiga["vinv"].t() @ yi if transpose else self.eiga["v"] @ yi
-      g[i] = (sqrt_w[i] * gi).cpu()
+      xi = x * torch.exp(self.t[i]*self.eiga["l"]).reshape(-1,1)
+      xi = self.eiga["vinv"].t() @ xi if transpose else self.eiga["v"] @ xi
+      if (not transpose):
+        # Add steady-state equilibrium solution
+        xi += self.x_eq
+        # Scale by quadrature weights
+        xi *= self.sqrt_w_mu
+      g[i] = (self.sqrt_w_t[i] * xi).cpu()
     # Manipulate tensor
     g = torch.permute(g, dims=(1,2,0))
     g = torch.reshape(g, (self.nb_eqs,-1))
