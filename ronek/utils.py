@@ -8,7 +8,7 @@ import joblib as jl
 import dill as pickle
 
 from tqdm import tqdm
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Tuple, Union
 
 
 # Classes
@@ -21,17 +21,17 @@ def get_class(
   """
   Return a class object given its name and the module it belongs to.
 
-  This function searches for a class with the specified name within the given 
-  module(s). If found, it can return an instance of the class with optional 
-  keyword arguments provided in `kwargs`. If no class is found, an error is 
+  This function searches for a class with the specified name within the given
+  module(s). If found, it can return an instance of the class with optional
+  keyword arguments provided in `kwargs`. If no class is found, an error is
   raised.
 
   :param modules: A module or a list of modules to search for the class.
   :type modules: list or module
   :param name: The name of the class to retrieve.
   :type name: str, optional
-  :param kwargs: Optional keyword arguments to pass when initializing the 
-                 class (it can contain the name of the class if 'name' 
+  :param kwargs: Optional keyword arguments to pass when initializing the
+                 class (it can contain the name of the class if 'name'
                  is not provided).
   :type kwargs: dict, optional
 
@@ -85,7 +85,7 @@ def save_case(
   """
   Save simluated case to a file with specific format.
 
-  The file is saved with a name formatted as `case_{index}.p`, where `index` 
+  The file is saved with a name formatted as `case_{index}.p`, where `index`
   is zero-padded to 5 digits.
 
   :param path: Directory path where the file will be saved.
@@ -111,8 +111,8 @@ def load_case(
   """
   Load simluated case from a file and optionally retrieve a specific item.
 
-  Constructs the filename from the provided path and index, then loads 
-  the data from this file. If a key is specified, return the value associated 
+  Constructs the filename from the provided path and index, then loads
+  the data from this file. If a key is specified, return the value associated
   with that key. Otherwise, return the entire data.
 
   :param path: Directory path where the case file is located.
@@ -141,10 +141,10 @@ def load_case_parallel(
   nb_workers: int = 1
 ) -> List[Any]:
   """
-  Load simluated cases in parallel or sequentially based on the number 
+  Load simluated cases in parallel or sequentially based on the number
   of workers.
 
-  This function uses `joblib` to parallelize the loading of cases if 
+  This function uses `joblib` to parallelize the loading of cases if
   `nb_workers` is greater than 1. Otherwise, it loads the cases sequentially.
 
   :param path: Path to the data source.
@@ -183,10 +183,10 @@ def generate_case_parallel(
   """
   Generate cases in parallel and check solver convergence.
 
-  The `sol_fun` callable function should return 0 or 1 to indicate whether 
+  The `sol_fun` callable function should return 0 or 1 to indicate whether
   the solver has converged or not.
 
-  :param sol_fun: A callable that performs the solver operation and returns 
+  :param sol_fun: A callable that performs the solver operation and returns
                   convergence status as 0 or 1.
   :type sol_fun: callable
   :param nb_samples: Number of samples or cases to generate.
@@ -196,16 +196,16 @@ def generate_case_parallel(
   :param desc: Description to display in the progress bar. Defaults to
                "> Cases".
   :type desc: str
-  :param verbose: If True, prints the total number of converged cases. 
+  :param verbose: If True, prints the total number of converged cases.
                   Defaults to True.
   :type verbose: bool
 
   :return: None
   :rtype: None
 
-  This function uses `joblib` for parallel processing and `tqdm` for showing 
-  a progress bar. It applies the `sol_fun` function to a range of sample 
-  indices and collects convergence results. If `verbose` is True, it prints 
+  This function uses `joblib` for parallel processing and `tqdm` for showing
+  a progress bar. It applies the `sol_fun` function to a range of sample
+  indices and collects convergence results. If `verbose` is True, it prints
   the total number of converged cases.
   """
   iterable = tqdm(
@@ -237,7 +237,7 @@ def map_nested_dict(
   """
   Recursively apply a function to all values in a nested dictionary.
 
-  This function traverses a nested dictionary and applies the given 
+  This function traverses a nested dictionary and applies the given
   function to each value. It supports dictionaries, lists, and tuples.
 
   :param obj: The nested dictionary or other container to map.
@@ -255,3 +255,90 @@ def map_nested_dict(
       return [fun(x) for x in obj]
     else:
       return fun(obj)
+
+# Integral
+# -------------------------------------
+def get_gl_quad_1d(
+  x: np.ndarray,
+  deg: int = 3,
+  adim: bool = False
+) -> Tuple[np.ndarray, np.ndarray]:
+  """
+  Compute 1D Gauss-Legendre quadrature points and weights over the domain
+  defined by `x`.
+
+  :param x: Array of points defining the intervals for quadrature.
+  :type x: np.ndarray
+  :param deg: Degree of the Gauss-Legendre quadrature (number of points
+              within each subinterval). Default is 3.
+  :type deg: int
+  :param adim: If True, normalize the weights by the total interval length.
+               Default is False.
+  :type adim: bool
+
+  :raises ValueError: If the input `x` contains fewer than two points.
+
+  :return: Tuple of arrays containing the quadrature points and weights.
+  :rtype: Tuple[np.ndarray, np.ndarray]
+  """
+  if (len(x) < 2):
+    raise ValueError("The input must be at least of length 2.")
+  if adim:
+    dx = np.amax(x) - np.amin(x)
+  # Compute Gauss-Legendre quadrature points
+  # and weights for reference interval [-1, 1]
+  xlg, wlg = np.polynomial.legendre.leggauss(deg)
+  _x, _w = [], []
+  # Loop over each interval in x
+  for i in range(len(x) - 1):
+    # Scaling and shifting from the reference
+    # interval to the current interval
+    a = 0.5 * (x[i+1] - x[i])
+    b = 0.5 * (x[i+1] + x[i])
+    _x.append(a * xlg + b)
+    _w.append(a * wlg)
+  # Concatenate all points and weights
+  x = np.concatenate(_x).squeeze()
+  w = np.concatenate(_w).squeeze()
+  # Normalize weights
+  if adim:
+    w /= dx
+  return x, w
+
+def get_gl_quad_2d(
+  x: np.ndarray,
+  y: np.ndarray,
+  deg: int = 3,
+  adim: bool = False
+) -> Tuple[np.ndarray, np.ndarray]:
+  """
+  Compute 2D Gauss-Legendre quadrature points and weights over the domain
+  defined by `x` and `y`.
+
+  :param x: Array of points defining the intervals along the x-axis.
+  :type x: np.ndarray
+  :param y: Array of points defining the intervals along the y-axis.
+  :type y: np.ndarray
+  :param deg: Degree of the Gauss-Legendre quadrature (number of points
+              within each subinterval). Default is 3.
+  :type deg: int
+  :param adim: If True, normalize the weights by the total area.
+               Default is False.
+  :type adim: bool
+
+  :return: Tuple containing:
+           - `xy`: (N, 2) array of quadrature points where N is
+             the number of points.
+           - `w`: Array of quadrature weights.
+  :rtype: Tuple[np.ndarray, np.ndarray]
+  """
+  # Get 1D quadrature points and weights for x and y axes
+  x, wx = get_gl_quad_1d(x, deg, adim)
+  y, wy = get_gl_quad_1d(y, deg, adim)
+  # Create 2D grid of points using meshgrid and reshape them into (N, 2)
+  xy = [z.reshape(-1) for z in np.meshgrid(x, y)]
+  xy = np.vstack(xy).T
+  # Compute 2D quadrature weights by the product of the 1D weights
+  w = [z.reshape(-1) for z in np.meshgrid(wx, wy)]
+  w = np.prod(w, axis=0)
+  return xy, w
