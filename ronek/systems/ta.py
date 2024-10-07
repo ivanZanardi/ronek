@@ -1,7 +1,9 @@
 import numpy as np
 
 from .. import const
+from .. import utils
 from .basic import Basic
+from typing import Dict, Tuple
 
 
 class TASystem(Basic):
@@ -23,10 +25,10 @@ class TASystem(Basic):
     # Solving
     # -------------
     if self.use_einsum:
-      self.fom_fun = self._fom_fun_einsum
+      self.fun = self._fun_einsum
     else:
-      self.fom_fun = self._fom_fun_matmul
-      self.fom_jac = self._fom_jac_matmul
+      self.fun = self._fun_matmul
+      self.jac = self._jac_matmul
 
   # Operators
   # ===================================
@@ -42,50 +44,79 @@ class TASystem(Basic):
 
   # Linearized FOM
   # -----------------------------------
-  def _compute_lin_fom_ops(self, Tint, max_mom=-1):
-    return {
-      "A": self.fom_ops["ed"] * const.UNA,
-      "B": self._compute_lin_fom_ops_b(
-        b=self._get_lin_fom_ops_b(),
-        x0=self._get_lin_init_sols(Tint)
-      ),
-      "C": self._compute_lin_fom_ops_c(max_mom)
-    }
+  def _compute_lin_fom_ops(
+    self,
+    mu: Tuple[np.ndarray],
+    rho: float,
+    max_mom: int = 10
+  ) -> Dict[str, np.ndarray]:
+    n_a_eq, n_m_eq = self.compute_eq_comp(rho)
+    n_eq = np.concatenate([n_a_eq, n_m_eq])
+    # A operator
+    A_m = self._compute_lin_fom_ops_a(n_a_eq)
+    b_m = self._compute_lin_fom_ops_b(n_a_eq)
+    A_m = np.hstack([b_m.reshape(-1,1), A_m])
+    A_a = - self.mass_ratio @ A_m
+    A = np.vstack([A_a.reshape(1,-1), A_m])
+    # C operator
+    C = self._compute_lin_fom_ops_c(max_mom)
+    # Initial solutions
+    X0, w0 = self._compute_lin_init_sols(mu, rho, n_eq)
+    # Return data
+    return {"A": A, "C": C, "X0": X0, "w0": w0, "x_eq": n_eq}
 
-  def _get_lin_fom_ops_b(self):
-    b = self.fom_ops["ed"] @ self.gamma + 3*self.fom_ops["r"]
-    return b * const.UNA**2
+  def _compute_lin_fom_ops_a(
+    self,
+    n_a_eq: float
+  ) -> np.ndarray:
+    return self.fom_ops["ed"] * n_a_eq
 
-  def _get_lin_init_sols(self, Tint):
-    return [self.species["molecule"].q_int(Ti) for Ti in Tint]
-
-  def _compute_lin_fom_ops_b(self, b, x0):
-    # Compose B
-    B = np.vstack([b] + x0)
-    # Normalize B
-    B *= (np.linalg.norm(b) / np.linalg.norm(B, axis=-1, keepdims=True))
-    return np.transpose(B)
+  def _compute_lin_fom_ops_b(
+    self,
+    n_a_eq: float
+  ) -> np.ndarray:
+    return (
+      self.fom_ops["ed"] @ self.gamma \
+      + 3 * self.fom_ops["r"]
+    ) * n_a_eq**2
 
   def _compute_lin_fom_ops_c(self, max_mom):
     if (max_mom > 0):
-      return self.species["molecule"].compute_mom_basis(max_mom)
+      C = np.zeros((max_mom+1,self.nb_eqs))
+      # Atom
+      C[0,0] = 1.0
+      # Molecule
+      C[1:,1:] = self.species["molecule"].compute_mom_basis(max_mom)
+      return C
     else:
-      return np.eye(self.species["molecule"].nb_comp)
+      return np.eye(self.nb_eqs)
+
+  def _compute_lin_init_sols(
+    self,
+    mu: Tuple[np.ndarray],
+    rho: float,
+    n_eq: np.ndarray,
+    deg: int = 2
+  ) -> Tuple[np.ndarray, np.ndarray]:
+    mu, w = utils.get_gl_quad_2d(*mu, deg=deg, adim=True)
+    x0 = []
+    for mui in mu:
+      n0 = self.get_init_sol(T=mui[0], X_a=mui[1], rho=rho)
+      x0.append(n0 - n_eq)
+    x0 = np.vstack(x0).T
+    return x0, w
 
   # ROM
   # -----------------------------------
   def _update_rom_ops(self):
     return {
       "ed": self.psi.T @ self.fom_ops["ed"] @ self.phif,
-      "ed_eq": self.psi.T @ self.fom_ops["ed"] @ self.gamma,
       "r": self.psi.T @ self.fom_ops["r"]
     }
 
   # Solving
   # ===================================
-  # FOM
-  # -----------------------------------
-  def _fom_fun_matmul(self, t, c, ops):
+  def _fun_matmul(self, t, c, ops):
     # Extract number densities
     n = c * const.UNA
     n_a, n_m = n[:1], n[1:]
@@ -99,7 +130,7 @@ class TASystem(Basic):
     f = np.concatenate([w_a, w_m], axis=0)
     return f / const.UNA
 
-  def _fom_jac_matmul(self, t, c, ops):
+  def _jac_matmul(self, t, c, ops):
     # Extract number densities
     n = c * const.UNA
     n_a, n_m = n[:1], n[1:]
@@ -115,7 +146,7 @@ class TASystem(Basic):
     j = np.concatenate([j_a, j_m], axis=0)
     return j
 
-  def _fom_fun_einsum(self, t, c, ops):
+  def _fun_einsum(self, t, c, ops):
     # Extract variables
     n = c * const.UNA
     n_a, n_m = n[:1], n[1:]
@@ -132,37 +163,3 @@ class TASystem(Basic):
     # Compose full source term
     f = np.concatenate([w_a, w_m], axis=0)
     return f / const.UNA
-
-  # ROM
-  # -----------------------------------
-  def rom_fun(self, t, x, ops):
-    # Extract variables
-    x = x * const.UNA
-    n_a, z = x[:1], x[1:]
-    # Compose source terms
-    # > Molecule
-    w_m = ops["ed"] @ z * n_a \
-        + ops["ed_eq"] * ops["n_a_eq"]**2 * n_a \
-        + ops["r"] * n_a**3
-    # > Atom
-    w_a = - ops["m_ratio"] @ w_m
-    # Compose full source term
-    f = np.concatenate([w_a, w_m], axis=0)
-    return f / const.UNA
-
-  def rom_jac(self, t, x, ops):
-    # Extract variables
-    x = x * const.UNA
-    n_a, z = x[:1], x[1:]
-    # Compose Jacobians
-    # > Molecule
-    j_ma = ops["ed"] @ z \
-         + ops["ed_eq"] * ops["n_a_eq"]**2 \
-         + ops["r"] * 3*n_a**2
-    j_mm = ops["ed"] * n_a
-    j_m = np.concatenate([j_ma.reshape(-1,1), j_mm], axis=1)
-    # > Atom
-    j_a = - ops["m_ratio"] @ j_m
-    # Compose full Jacobian
-    j = np.concatenate([j_a, j_m], axis=0)
-    return j

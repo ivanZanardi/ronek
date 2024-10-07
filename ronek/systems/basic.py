@@ -8,6 +8,7 @@ from .. import const
 from .. import utils
 from .species import Species
 from .kinetics import Kinetics
+from typing import Dict, Tuple
 
 
 class Basic(object):
@@ -25,7 +26,6 @@ class Basic(object):
     # Thermochemistry database
     # -------------
     self.T = float(T)
-    self.loop_equilibria = False
     # > Species
     self.nb_eqs = 0
     self.species = {}
@@ -44,11 +44,11 @@ class Basic(object):
     # -------------
     # Solving
     self.use_einsum = use_einsum
-    self.fom_fun = None
-    self.fom_jac = None
+    self.fun = None
+    self.jac = None
     # Operators
     ratio = self.species["molecule"].m / self.species["atom"].m
-    self.mass_ratio = np.full((1,self.nb_eqs-1), ratio)
+    self.mass_ratio = np.full(self.nb_eqs-1, ratio).reshape(1,-1)
     self.update_fom_ops()
     # ROM
     # -------------
@@ -96,12 +96,22 @@ class Basic(object):
 
   # Linearized FOM
   # -----------------------------------
-  def compute_lin_fom_ops(self, *args, **kwargs):
+  def compute_lin_fom_ops(
+    self,
+    mu: Tuple[np.ndarray],
+    rho: float,
+    max_mom: int = 10
+  ) -> Dict[str, np.ndarray]:
     self.is_einsum_used("compute_lin_fom_ops")
-    return self._compute_lin_fom_ops(*args, **kwargs)
+    return self._compute_lin_fom_ops(mu, rho, max_mom)
 
   @abc.abstractmethod
-  def _compute_lin_fom_ops(self, *args, **kwargs):
+  def _compute_lin_fom_ops(
+    self,
+    mu: Tuple[np.ndarray],
+    rho: float,
+    max_mom: int = 10
+  ) -> Dict[str, np.ndarray]:
     pass
 
   # ROM
@@ -127,14 +137,6 @@ class Basic(object):
 
   @abc.abstractmethod
   def _update_rom_ops(self):
-    pass
-
-  @abc.abstractmethod
-  def rom_fun(self, t, x, ops):
-    pass
-
-  @abc.abstractmethod
-  def rom_jac(self, t, x, ops):
     pass
 
   # Equilibrium composition
@@ -192,25 +194,23 @@ class Basic(object):
   def solve(
     self,
     t,
-    y0,
-    fun,
-    jac=None,
+    n0,
     ops=None,
     rtol=1e-6
   ):
     if (ops is None):
       raise ValueError("Provide set of operators as input.")
     sol = sp.integrate.solve_ivp(
-      fun=fun,
+      fun=self.fun,
       t_span=[0.0,t[-1]],
-      y0=y0/const.UNA,
+      y0=n0/const.UNA,
       method="LSODA",
       t_eval=t,
       args=(ops,),
       first_step=1e-14,
       rtol=rtol,
       atol=0.0,
-      jac=jac
+      jac=self.jac
     )
     return sol.y * const.UNA
 
@@ -218,40 +218,32 @@ class Basic(object):
     self,
     t,
     n0,
-    rtol=1e-6,
-    *args,
-    **kwargs
+    rtol=1e-6
   ):
-    """Solve state-to-state FOM."""
+    """Solve FOM."""
     n = self.solve(
       t=t,
-      y0=n0,
-      fun=self.fom_fun,
-      jac=self.fom_jac,
+      n0=n0,
       ops=self.fom_ops,
       rtol=rtol
     )
     return n[:1], n[1:]
 
-  def solve_rom_cg_m0(
+  def solve_rom(
     self,
     t,
     n0,
-    rtol=1e-6,
-    *args,
-    **kwargs
+    rtol=1e-6
   ):
-    """Solve coarse-graining-based ROM."""
+    """Solve ROM."""
     self.check_rom_ops()
-    self.is_einsum_used("solve_rom_cg_m0")
+    self.is_einsum_used("solve_rom")
     # Encode initial condition
     z_m = self.encode(n0[1:])
     # Solve
     z = self.solve(
       t=t,
       y0=np.concatenate([n0[:1], z_m]),
-      fun=self.fom_fun,
-      jac=self.fom_jac,
       ops=self.rom_ops,
       rtol=rtol
     )
@@ -259,49 +251,11 @@ class Basic(object):
     n_m = self.decode(z[1:].T).T
     return z[:1], n_m
 
-  def solve_rom_bt(
-    self,
-    t,
-    n0,
-    rtol=1e-6,
-    use_abs=False,
-    *args,
-    **kwargs
-  ):
-    """Solve balanced truncation-based ROM."""
-    self.check_rom_ops()
-    self.is_einsum_used("solve_rom_bt")
-    # Compute equilibrium value
-    rho = self.compute_rho(n=n0)
-    n_a_eq, n_m_eq = self.compute_eq_comp(rho)
-    self.rom_ops["n_a_eq"] = n_a_eq
-    # Encode initial condition
-    z_m = self.encode(n0[1:], x_eq=n_m_eq)
-    # Solve
-    z = self.solve(
-      t=t,
-      y0=np.concatenate([n0[:1], z_m]),
-      fun=self.rom_fun,
-      jac=self.rom_jac,
-      ops=self.rom_ops,
-      rtol=rtol
-    )
-    # Decode solution
-    n_m = self.decode(z[1:].T, x_eq=n_m_eq).T
-    if use_abs:
-      n_m = np.abs(n_m)
-    return z[:1], n_m
-
-  def encode(self, x, x_eq=None):
-    if (x_eq is not None):
-      x = x - x_eq
+  def encode(self, x):
     return x @ self.psi
 
-  def decode(self, z, x_eq=None):
-    x = z @ self.phif.T
-    if (x_eq is not None):
-      x = x + x_eq
-    return x
+  def decode(self, z):
+    return z @ self.phif.T
 
   # Data generation
   # ===================================
@@ -344,7 +298,6 @@ class Basic(object):
   # ===================================
   def compute_rom_sol(
     self,
-    model="bt",
     path=None,
     index=None,
     filename=None,
@@ -354,8 +307,7 @@ class Basic(object):
     icase = utils.load_case(path=path, index=index, filename=filename)
     n_fom, t, n0 = [icase[k] for k in ("n", "t", "n0")]
     # Solve ROM
-    solve = self.solve_rom_bt if (model == "bt") else self.solve_rom_cg_m0
-    n_rom = solve(t, n0)
+    n_rom = self.solve_fom(t, n0)
     # Evaluate error
     if (eval_err_on == "mom"):
       # > Moments
