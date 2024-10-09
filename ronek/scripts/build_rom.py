@@ -86,8 +86,6 @@ if (__name__ == '__main__'):
   )
   quad["rho"] = {"x": rho, "w": np.sqrt(w_rho)}
 
-  print(utils.map_nested_dict(quad, np.shape))
-
   # Model reduction
   # ---------------
   X, Y = [], []
