@@ -5,6 +5,7 @@ Build balanced truncation-based ROM.
 import os
 import sys
 import json
+import time
 import argparse
 import importlib
 
@@ -39,6 +40,8 @@ from ronek.roms import BalancedTruncation
 # Main
 # =====================================
 if (__name__ == '__main__'):
+
+  runtime = time.time()
 
   # Isothermal master equation system
   # -----------------------------------
@@ -124,3 +127,7 @@ if (__name__ == '__main__'):
   filename = path_to_saving + "/inputs.json"
   with open(filename, "w") as file:
     json.dump(inputs, file, indent=2)
+
+  runtime = time.time()-runtime
+  with open(path_to_saving + "/runtime.txt", "w") as file:
+    file.write("Execution time: %.2f s" % runtime)
