@@ -110,16 +110,16 @@ class TAFASystem(TASystem):
     return {
       # > Molecule-Atom collisons
       "m-a": {
-        "ed": self.psi.T @ self.fom_ops["m-a"]["ed"] @ self.phif,
+        "ed": self.psi.T @ self.fom_ops["m-a"]["ed"] @ self.phi,
         "r": self.psi.T @ self.fom_ops["m-a"]["r"]
       },
       # > Molecule-Molecule collisons
       "m-m": {
         "ed": np.einsum(
           "ip,ijk,jq,kr->pqr",
-          self.psi, self.fom_ops["m-m"]["ed"], self.phif, self.phif
+          self.psi, self.fom_ops["m-m"]["ed"], self.phi, self.phi
         ),
-        "er": self.psi.T @ self.fom_ops["m-m"]["er"] @ self.phif,
+        "er": self.psi.T @ self.fom_ops["m-m"]["er"] @ self.phi,
         "r": self.psi.T @ self.fom_ops["m-m"]["r"]
       }
     }

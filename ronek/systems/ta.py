@@ -110,7 +110,7 @@ class TASystem(Basic):
   # -----------------------------------
   def _update_rom_ops(self):
     return {
-      "ed": self.psi.T @ self.fom_ops["ed"] @ self.phif,
+      "ed": self.psi.T @ self.fom_ops["ed"] @ self.phi,
       "r": self.psi.T @ self.fom_ops["r"]
     }
 

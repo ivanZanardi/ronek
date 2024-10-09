@@ -55,7 +55,6 @@ class Basic(object):
     # Bases
     self.phi = None
     self.psi = None
-    self.phif = None
 
   def set_eq_ratio(self):
     q_a, q_m = [self.species[k].q_tot(self.T) for k in ("atom", "molecule")]
@@ -117,28 +116,25 @@ class Basic(object):
 
   # ROM
   # -----------------------------------
-  def update_rom_ops(self, phi, psi, biortho=True):
+  def update_rom_ops(self, phi, psi):
     self.is_einsum_used("update_rom_ops")
     # Set basis
-    self.set_basis(phi, psi, biortho)
+    self.set_basis(phi, psi)
     # Compose operators
     self.rom_ops = self._update_rom_ops()
-    self.rom_ops["m_ratio"] = self.mass_ratio @ self.phif
+    self.rom_ops["m_ratio"] = self.mass_ratio @ self.phi
 
-  def set_basis(self, phi, psi, biortho=True):
-    self.phi, self.phif, self.psi = phi, phi, psi
-    # Biorthogonalize
-    if biortho:
-      self.phif = self.phi @ sp.linalg.inv(self.psi.T @ self.phi)
+  def set_basis(self, phi, psi):
+    self.phi, self.psi = phi, psi
     # Check if complex
-    for k in ("phi", "psi", "phif"):
+    for k in ("phi", "psi"):
       bases = getattr(self, k)
       if np.iscomplexobj(bases):
         setattr(self, k, bases.real)
-    # Check invertibility
+    # Check orthogonality
     eps = 1e-5
-    ones = np.diag(self.psi.T @ self.phi)
-    if (ones < 1-eps).any():
+    iden = np.diag(self.psi.T @ self.phi)
+    if (iden < 1-eps).any():
       self.rom_valid = False
     else:
       self.rom_valid = True
@@ -271,7 +267,7 @@ class Basic(object):
     return x @ self.psi
 
   def decode(self, z):
-    return z @ self.phif.T
+    return z @ self.phi.T
 
   # Data generation
   # ===================================

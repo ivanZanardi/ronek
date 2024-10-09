@@ -190,9 +190,19 @@ class BalancedTruncation(object):
       sqrt_s = np.diag(np.sqrt(1/s))
       phi = X @ V @ sqrt_s
       psi = Y @ U @ sqrt_s
+    # Extract only orthogonal bases
+    eps = 1e-5
+    iden = np.diag(psi.T @ phi)
+    if np.iscomplexobj(iden):
+      iden = iden.real
+    orth = (iden > 1-eps)
     # Save balancing modes
     dicttoh5(
-      treedict={"s": s, "phi": phi, "psi": psi},
+      treedict={
+        "s": s[orth],
+        "phi": phi[:,orth],
+        "psi": psi[:,orth]
+      },
       h5file=self.path_to_saving+"/bases.hdf5",
       overwrite_data=True
     )
