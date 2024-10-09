@@ -160,9 +160,11 @@ class BalancedTruncation(object):
       if (not transpose):
         # Add steady-state equilibrium solution
         xi += self.ops["x_eq"].reshape(-1,1)
-        # Scale by quadrature weights
+        # Scale by quadrature weights - mu
         xi *= self.quad["mu"]["w"].reshape(1,-1)
-      g[i] = (self.quad["t"]["w"][i] * xi).cpu()
+      # Scale by quadrature weights - t
+      xi *= self.quad["t"]["w"][i]
+      g[i] = xi.cpu()
     # Manipulate tensor
     g = torch.permute(g, dims=(1,2,0))
     g = torch.reshape(g, (self.nb_eqs,-1))
