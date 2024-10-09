@@ -103,7 +103,10 @@ if (__name__ == '__main__'):
       # > Solve ROM-PG
       print(f"> Solving ROM-PG with {r} dimensions ...")
       system.update_rom_ops(phi=bt_bases[0][:,:r], psi=bt_bases[1][:,:r])
-      n_rom_bt = system.solve_rom_bt(t, n0)
+      if (not system.rom_valid):
+        print(f"  PG ROM with {r} dimensions not valid!")
+        continue
+      n_rom_bt = system.solve_rom(t, n0)
       sols["ROM-PG"] = n_rom_bt[1]
       # > Solve ROM-CG
       if cg_model["0"]["active"]:
@@ -111,7 +114,7 @@ if (__name__ == '__main__'):
         print(f"> Solving {name} with {r} bins ...")
         cg_m0.build(nb_bins=r)
         system.update_rom_ops(cg_m0.phi, cg_m0.psi)
-        n_rom_cg = system.solve_rom_cg_m0(t, n0)
+        n_rom_cg = system.solve_rom(t, n0)
         name = "ROM-CG-M0" if cg_active_both else "ROM-CG"
         sols[name] = n_rom_cg[1]
       if (cg_model["1"]["active"] and (2*cg_model["1"]["nb_bins"] == r)):

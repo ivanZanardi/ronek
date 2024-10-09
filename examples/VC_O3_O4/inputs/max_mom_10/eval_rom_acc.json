@@ -32,6 +32,6 @@
     "subscript": "v",
     "err_scale": "log"
   },
-  "rom_range": [12,16],
+  "rom_range": [6,10],
   "eval_err_on": "dist"
 }

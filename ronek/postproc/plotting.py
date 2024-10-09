@@ -204,6 +204,7 @@ def plot_dist_2d(
   t=None,
   subscript="i",
   scales=["linear", "log"],
+  labels=None,
   markersize=6,
   figname=None,
   save=False,
@@ -212,11 +213,16 @@ def plot_dist_2d(
   # Initialize figures
   fig = plt.figure()
   ax = fig.add_subplot()
+  if (labels is None):
+    labels = [
+      fr"$\epsilon_{subscript}$ [eV]",
+      fr"$n_{subscript}/g_{subscript}$ [m$^{{-3}}$]"
+    ]
   # x axis
-  ax.set_xlabel(fr"$\epsilon_{subscript}$ [eV]")
+  ax.set_xlabel(labels[0])
   ax.set_xscale(scales[0])
   # y axis
-  ax.set_ylabel(fr"$n_{subscript}/g_{subscript}$ [m$^{{-3}}$]")
+  ax.set_ylabel(labels[1])
   ax.set_yscale(scales[1])
   # Plotting
   style = dict(

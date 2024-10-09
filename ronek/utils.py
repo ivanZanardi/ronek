@@ -256,12 +256,12 @@ def map_nested_dict(
     else:
       return fun(obj)
 
-# Integral
+# Integrals
 # -------------------------------------
 def get_gl_quad_1d(
   x: np.ndarray,
   deg: int = 3,
-  adim: bool = False
+  dist: str = "uniform"
 ) -> Tuple[np.ndarray, np.ndarray]:
   """
   Compute 1D Gauss-Legendre quadrature points and weights over the domain
@@ -272,19 +272,19 @@ def get_gl_quad_1d(
   :param deg: Degree of the Gauss-Legendre quadrature (number of points
               within each subinterval). Default is 3.
   :type deg: int
-  :param adim: If True, normalize the weights by the total interval length.
-               Default is False.
-  :type adim: bool
+  :param dist: The type of distribution to scale the quadrature weights.
+               Default is "uniform".
+  :type dist: str
 
   :raises ValueError: If the input `x` contains fewer than two points.
 
-  :return: Tuple of arrays containing the quadrature points and weights.
+  :return: Tuple of arrays containing quadrature points and weights.
   :rtype: Tuple[np.ndarray, np.ndarray]
   """
   if (len(x) < 2):
     raise ValueError("The input must be at least of length 2.")
-  if adim:
-    dx = np.amax(x) - np.amin(x)
+  # Limits
+  a, b = np.amin(x), np.amax(x)
   # Compute Gauss-Legendre quadrature points
   # and weights for reference interval [-1, 1]
   xlg, wlg = np.polynomial.legendre.leggauss(deg)
@@ -300,16 +300,15 @@ def get_gl_quad_1d(
   # Concatenate all points and weights
   x = np.concatenate(_x).squeeze()
   w = np.concatenate(_w).squeeze()
-  # Normalize weights
-  if adim:
-    w /= dx
-  return x, w
+  f = compute_dist(x, a, b, dist)
+  return x, w*f
 
 def get_gl_quad_2d(
   x: np.ndarray,
   y: np.ndarray,
   deg: int = 3,
-  adim: bool = False
+  dist_x: str = "uniform",
+  dist_y: str = "uniform"
 ) -> Tuple[np.ndarray, np.ndarray]:
   """
   Compute 2D Gauss-Legendre quadrature points and weights over the domain
@@ -322,9 +321,12 @@ def get_gl_quad_2d(
   :param deg: Degree of the Gauss-Legendre quadrature (number of points
               within each subinterval). Default is 3.
   :type deg: int
-  :param adim: If True, normalize the weights by the total area.
-               Default is False.
-  :type adim: bool
+  :param dist_x: The type of distribution to scale the quadrature weights
+                 along the x-axis. Default is "uniform".
+  :type dist_x: str
+  :param dist_y: The type of distribution to scale the quadrature weights
+                 along the y-axis. Default is "uniform".
+  :type dist_y: str
 
   :return: Tuple containing:
            - `xy`: (N, 2) array of quadrature points where N is
@@ -333,8 +335,8 @@ def get_gl_quad_2d(
   :rtype: Tuple[np.ndarray, np.ndarray]
   """
   # Get 1D quadrature points and weights for x and y axes
-  x, wx = get_gl_quad_1d(x, deg, adim)
-  y, wy = get_gl_quad_1d(y, deg, adim)
+  x, wx = get_gl_quad_1d(x, deg, dist_x)
+  y, wy = get_gl_quad_1d(y, deg, dist_y)
   # Create 2D grid of points using meshgrid and reshape them into (N, 2)
   xy = [z.reshape(-1) for z in np.meshgrid(x, y)]
   xy = np.vstack(xy).T
@@ -342,3 +344,32 @@ def get_gl_quad_2d(
   w = [z.reshape(-1) for z in np.meshgrid(wx, wy)]
   w = np.prod(w, axis=0)
   return xy, w
+
+def compute_dist(
+  x: np.ndarray,
+  a: float,
+  b: float,
+  model: str = "uniform"
+) -> np.ndarray:
+  """
+  Compute the probability distribution over a set of points based on the
+  specified distribution model.
+
+  :param x: Array of points defining the intervals along the x-axis.
+  :type x: np.ndarray
+  :param model: The type of distribution to compute. Options are 'uniform' or
+                'loguniform'. Default is 'uniform'.
+  :type model: str
+
+  :raises ValueError: If the specified model is not recognized.
+
+  :return: Computed distribution values.
+  :rtype: np.ndarray
+  """
+  if (model == "uniform"):
+    return np.full(x.shape, 1/(b-a))
+  elif (model == "loguniform"):
+    dx = np.log(b) - np.log(a)
+    return 1/(x*dx)
+  else:
+    raise ValueError(f"Distribution model not recognized: '{model}'")

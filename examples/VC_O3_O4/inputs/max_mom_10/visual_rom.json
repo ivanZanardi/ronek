@@ -45,5 +45,5 @@
     "err_scale": "log",
     "molecule_label": "\\text{O$_2$}"
   },
-  "rom_range": [12,16]
+  "rom_range": [8,9]
 }

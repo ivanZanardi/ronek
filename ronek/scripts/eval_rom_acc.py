@@ -70,7 +70,7 @@ if (__name__ == '__main__'):
   t = utils.load_case(path=inputs["data"]["path"], index=0, key="t")
 
   # ROM models
-  # > Balanced truncation (BT)
+  # > Balanced truncation (BT) / Petrov-Galerkin (PG)
   bt_bases = h5todict(inputs["paths"]["bases"])
   bt_bases = [bt_bases[k] for k in ("phi", "psi")]
   # > Coarse graining (CG)
@@ -119,9 +119,12 @@ if (__name__ == '__main__'):
   # ---------------
   bt_err, cg_err = {}, {}
   for r in range(*inputs["rom_range"]):
-    # Solve BT ROM
-    print(f"\n> Solving BT ROM with {r} dimensions ...")
+    # Solve PG ROM
+    print(f"\n> Solving PG ROM with {r} dimensions ...")
     system.update_rom_ops(phi=bt_bases[0][:,:r], psi=bt_bases[1][:,:r])
+    if (not system.rom_valid):
+      print(f"  PG ROM with {r} dimensions not valid!")
+      continue
     errors = compute_err_parallel()
     bt_err[str(r)] = compute_err_stats(errors)
     # Solve CG ROM

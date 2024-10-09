@@ -56,47 +56,63 @@ if (__name__ == '__main__'):
 
   # Balanced truncation
   # -----------------------------------
-  # Initialization
-  # ---------------
   # Path to saving
   path_to_saving = inputs["paths"]["saving"]
   os.makedirs(path_to_saving, exist_ok=True)
-  # Grids
+
+  # Quadrature points
+  quad = {}
   # > Time
-  t = system.get_tgrid(**inputs["grids"]["t"])
-  # > Density space (lambda)
-  rho = np.geomspace(**inputs["grids"]["rho"])
-  rho, w_rho = utils.get_gl_quad_1d(rho, deg=2, adim=True)
-  sqrt_w_rho = np.sqrt(w_rho)
+  t, w_t = utils.get_gl_quad_1d(
+    x=system.get_tgrid(**inputs["grids"]["t"]),
+    deg=3,
+    dist="uniform"
+  )
+  quad["t"] = {"x": t, "w": np.sqrt(w_t)}
   # > Initial conditions space (mu)
-  mu = tuple([
-    np.geomspace(**inputs["grids"]["mu"]["Tint"]),
-    np.linspace(**inputs["grids"]["mu"]["X_a"])
-  ])
+  mu, w_mu = utils.get_gl_quad_2d(
+    x=np.geomspace(**inputs["grids"]["mu"]["Tint"]),
+    y=np.linspace(**inputs["grids"]["mu"]["X_a"]),
+    deg=2,
+    dist_x="loguniform",
+    dist_y="uniform"
+  )
+  quad["mu"] = {"x": mu, "w": np.sqrt(w_mu)}
+  # > Density space (lambda)
+  rho, w_rho = utils.get_gl_quad_1d(
+    x=np.geomspace(**inputs["grids"]["rho"]),
+    deg=2,
+    dist="loguniform"
+  )
+  quad["rho"] = {"x": rho, "w": np.sqrt(w_rho)}
+
+  print(utils.map_nested_dict(quad, np.shape))
 
   # Model reduction
   # ---------------
   X, Y = [], []
-  for (i, rhoi) in tqdm(enumerate(rho), ncols=80, desc="Densities"):
+  for (i, rhoi) in enumerate(
+    tqdm(quad["rho"]["x"], ncols=80, desc="Densities")
+  ):
     # > Linear operators
     lin_ops = system.compute_lin_fom_ops(
-      mu=mu,
+      mu=quad["mu"]["x"],
       rho=rhoi,
       max_mom=int(inputs["max_mom"])
     )
     btrunc = BalancedTruncation(
       operators=lin_ops,
+      quadrature=quad,
       path_to_saving=path_to_saving,
       saving=False,
       verbose=False
     )
     # > Gramians
     Xi, Yi = btrunc(
-      t=t,
       xnot=[0],
       compute_modes=False
     )
-    wi = sqrt_w_rho[i]
+    wi = quad["rho"]["w"][i]
     X.append(wi*Xi), Y.append(wi*Yi)
   # > Compute balancing modes
   btrunc(

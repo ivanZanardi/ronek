@@ -31,6 +31,6 @@
     "molecule_label": "\\text{O$_2$}",
     "err_scale": "log"
   },
-  "rom_range": [4,8],
+  "rom_range": [3,7],
   "eval_err_on": "mom"
 }

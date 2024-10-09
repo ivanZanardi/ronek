@@ -8,7 +8,7 @@ from .. import const
 from .. import utils
 from .species import Species
 from .kinetics import Kinetics
-from typing import Dict, Tuple
+from typing import Dict
 
 
 class Basic(object):
@@ -50,6 +50,7 @@ class Basic(object):
     self.update_fom_ops()
     # ROM
     # -------------
+    self.rom_valid = True
     self.rom_ops = None
     # Bases
     self.phi = None
@@ -98,7 +99,7 @@ class Basic(object):
   # -----------------------------------
   def compute_lin_fom_ops(
     self,
-    mu: Tuple[np.ndarray],
+    mu: np.ndarray,
     rho: float,
     max_mom: int = 10
   ) -> Dict[str, np.ndarray]:
@@ -108,7 +109,7 @@ class Basic(object):
   @abc.abstractmethod
   def _compute_lin_fom_ops(
     self,
-    mu: Tuple[np.ndarray],
+    mu: np.ndarray,
     rho: float,
     max_mom: int = 10
   ) -> Dict[str, np.ndarray]:
@@ -134,6 +135,13 @@ class Basic(object):
       bases = getattr(self, k)
       if np.iscomplexobj(bases):
         setattr(self, k, bases.real)
+    # Check invertibility
+    eps = 1e-5
+    ones = np.diag(self.psi.T @ self.phi)
+    if (ones < 1-eps).any():
+      self.rom_valid = False
+    else:
+      self.rom_valid = True
 
   @abc.abstractmethod
   def _update_rom_ops(self):
@@ -166,17 +174,25 @@ class Basic(object):
     else:
       return self._get_init_sol_from_p(T, X_a, p)
 
-  def _get_init_sol_from_rho(self, T, X_a, rho):
+  def _get_init_sol_from_rho(self, T, X_a, rho, noise=False, eps=1e-2):
     # Compute mass fractions
+    # > Atom
+    if noise:
+      X_a = np.clip(X_a + eps * np.random.rand(1), 0, 1)
     norm = X_a * self.species["atom"].m \
-         + (1.0-X_a) * self.species["molecule"].m
+         + (1-X_a) * self.species["molecule"].m
     Y_a = X_a * self.species["atom"].m / norm
-    Y_m = 1.0-Y_a
-    # Compute number densities
-    n_a = rho * Y_a / self.species["atom"].m
-    n_a = np.array([n_a]).reshape(-1)
+    # > Molecule
     q_m = self.species["molecule"].q_int(T)
-    n_m = (rho * Y_m / self.species["molecule"].m) * (q_m / np.sum(q_m))
+    if noise:
+      q_m *= (1 + eps * np.random.rand(*q_m.shape))
+    Y_m = (1-Y_a) * (q_m / np.sum(q_m))
+    # Compute number densities
+    # > Atom
+    n_a = rho * Y_a / self.species["atom"].m
+    n_a = np.array(n_a).reshape(-1)
+    # > Molecule
+    n_m = rho * Y_m / self.species["molecule"].m
     return np.concatenate([n_a, n_m])
 
   def _get_init_sol_from_p(self, T, X_a, p):
@@ -243,7 +259,7 @@ class Basic(object):
     # Solve
     z = self.solve(
       t=t,
-      y0=np.concatenate([n0[:1], z_m]),
+      n0=np.concatenate([n0[:1], z_m]),
       ops=self.rom_ops,
       rtol=rtol
     )
@@ -307,7 +323,7 @@ class Basic(object):
     icase = utils.load_case(path=path, index=index, filename=filename)
     n_fom, t, n0 = [icase[k] for k in ("n", "t", "n0")]
     # Solve ROM
-    n_rom = self.solve_fom(t, n0)
+    n_rom = self.solve_rom(t, n0)
     # Evaluate error
     if (eval_err_on == "mom"):
       # > Moments

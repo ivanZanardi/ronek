@@ -46,12 +46,12 @@ class TASystem(Basic):
   # -----------------------------------
   def _compute_lin_fom_ops(
     self,
-    mu: Tuple[np.ndarray],
+    mu: np.ndarray,
     rho: float,
     max_mom: int = 10
   ) -> Dict[str, np.ndarray]:
     n_a_eq, n_m_eq = self.compute_eq_comp(rho)
-    n_eq = np.concatenate([n_a_eq, n_m_eq])
+    n_eq = np.concatenate([n_a_eq.reshape(1), n_m_eq])
     # A operator
     A_m = self._compute_lin_fom_ops_a(n_a_eq)
     b_m = self._compute_lin_fom_ops_b(n_a_eq)
@@ -61,9 +61,9 @@ class TASystem(Basic):
     # C operator
     C = self._compute_lin_fom_ops_c(max_mom)
     # Initial solutions
-    M, w_mu = self._compute_lin_init_sols(mu, rho, n_eq)
+    M = self._compute_lin_init_sols(mu, rho, n_eq)
     # Return data
-    return {"A": A, "C": C, "M": M, "w_mu": w_mu, "x_eq": n_eq}
+    return {"A": A, "C": C, "M": M, "x_eq": n_eq}
 
   def _compute_lin_fom_ops_a(
     self,
@@ -82,29 +82,29 @@ class TASystem(Basic):
 
   def _compute_lin_fom_ops_c(self, max_mom):
     if (max_mom > 0):
-      C = np.zeros((max_mom+1,self.nb_eqs))
-      # Atom
-      C[0,0] = 1.0
-      # Molecule
-      C[1:,1:] = self.species["molecule"].compute_mom_basis(max_mom)
-      return C
+      C = np.zeros((max_mom,self.nb_eqs))
+      C[:,1:] = self.species["molecule"].compute_mom_basis(max_mom)
     else:
-      return np.eye(self.nb_eqs)
+      C = np.eye(self.nb_eqs)
+      C[0,0] = 0.0
+    return C
 
   def _compute_lin_init_sols(
     self,
-    mu: Tuple[np.ndarray],
+    mu: np.ndarray,
     rho: float,
     n_eq: np.ndarray,
-    deg: int = 2
+    noise: bool = True,
+    eps: float = 1e-2
   ) -> Tuple[np.ndarray, np.ndarray]:
-    mu, w = utils.get_gl_quad_2d(*mu, deg=deg, adim=True)
     M = []
     for mui in mu:
-      n0 = self.get_init_sol(T=mui[0], X_a=mui[1], rho=rho)
+      n0 = self._get_init_sol_from_rho(
+        T=mui[0], X_a=mui[1], rho=rho, noise=noise, eps=eps
+      )
       M.append(n0 - n_eq)
     M = np.vstack(M).T
-    return M, w
+    return M
 
   # ROM
   # -----------------------------------

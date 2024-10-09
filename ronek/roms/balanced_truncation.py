@@ -22,6 +22,7 @@ class BalancedTruncation(object):
   def __init__(
     self,
     operators,
+    quadrature,
     path_to_saving="./",
     saving=True,
     verbose=True
@@ -30,6 +31,7 @@ class BalancedTruncation(object):
     # Initialize operators (A, C, and M)
     # -------------
     self.ops = operators
+    self.quad = quadrature
     # Nb. of equations
     self.nb_eqs = self.ops["A"].shape[0]
     # Saving
@@ -58,6 +60,19 @@ class BalancedTruncation(object):
           op = op.reshape(-1,1)
         self._ops[k] = bkd.to_backend(op)
 
+  # Quadrature points
+  @property
+  def quad(self):
+    return self._quad
+
+  @quad.setter
+  def quad(self, value):
+    self._quad = None
+    if (value is not None):
+      self._quad = utils.map_nested_dict(
+        value, lambda x: bkd.to_backend(x.reshape(-1))
+      )
+
   # Eigendecomposition of operator A
   @property
   def eiga(self):
@@ -73,22 +88,19 @@ class BalancedTruncation(object):
   # ===================================
   def __call__(
     self,
-    t,
     X=None,
     Y=None,
     xnot=None,
     compute_modes=True
   ):
     if ((X is None) or (Y is None)):
-      self.initialize(t)
       self.compute_eiga()
       if self.verbose:
         print("Computing Gramians ...")
       X, Y = self.compute_gramians()
-      if (xnot is not None):
-        mask = np.ones(self.nb_eqs)
-        mask[xnot] = 0
-        X, Y = X[mask], Y[mask]
+    if (xnot is not None):
+      mask = self.make_mask(xnot)
+      X, Y = X[mask], Y[mask]
     if compute_modes:
       if self.verbose:
         print("Computing balancing modes ...")
@@ -96,22 +108,14 @@ class BalancedTruncation(object):
     else:
       return X, Y
 
-  # Setting up
-  # -----------------------------------
-  def initialize(self, t):
-    # Gauss-Legendre quadrature points
-    # > Time space
-    t, w = utils.get_gl_quad_1d(t, deg=3, adim=True)
-    self.t = bkd.to_backend(t)
-    self.time_dim = len(self.t)
-    self.sqrt_w_t = torch.sqrt(bkd.to_backend(w)).reshape(-1)
-    # > Initial conditions space
-    self.sqrt_w_mu = torch.sqrt(self.ops["w_mu"]).reshape(1,-1)
-    # Steady-state equilibrium solution
-    self.x_eq = self.ops["x_eq"].reshape(-1,1)
+  def make_mask(self, xnot):
+    xnot = np.array(xnot).astype(int).reshape(-1)
+    mask = np.ones(self.nb_eqs)
+    mask[xnot] = 0
+    return mask.astype(bool)
 
-  # Eigendecomposition
   def compute_eiga(self, real_only=True):
+    """Eigendecomposition of operator A"""
     if (self.eiga is None):
       filename = self.path_to_saving + "/eiga.hdf5"
       if os.path.exists(filename):
@@ -146,19 +150,19 @@ class BalancedTruncation(object):
 
   def compute_gramian(self, op, transpose=False):
     # Allocate Gramian's memory
-    shape = [self.time_dim] + list(op.shape)
+    shape = [len(self.quad["t"]["x"])] + list(op.shape)
     g = torch.zeros(shape, dtype=bkd.floatx(), device="cpu")
     # Compute tensor
     x = self.eiga["v"].t() @ op if transpose else self.eiga["vinv"] @ op
-    for i in range(self.time_dim):
-      xi = x * torch.exp(self.t[i]*self.eiga["l"]).reshape(-1,1)
+    for (i, ti) in enumerate(self.quad["t"]["x"]):
+      xi = x * torch.exp(ti*self.eiga["l"]).reshape(-1,1)
       xi = self.eiga["vinv"].t() @ xi if transpose else self.eiga["v"] @ xi
       if (not transpose):
         # Add steady-state equilibrium solution
-        xi += self.x_eq
+        xi += self.ops["x_eq"].reshape(-1,1)
         # Scale by quadrature weights
-        xi *= self.sqrt_w_mu
-      g[i] = (self.sqrt_w_t[i] * xi).cpu()
+        xi *= self.quad["mu"]["w"].reshape(1,-1)
+      g[i] = (self.quad["t"]["w"][i] * xi).cpu()
     # Manipulate tensor
     g = torch.permute(g, dims=(1,2,0))
     g = torch.reshape(g, (self.nb_eqs,-1))
