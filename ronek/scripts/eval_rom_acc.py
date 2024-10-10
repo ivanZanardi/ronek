@@ -64,7 +64,7 @@ if (__name__ == '__main__'):
   # Initialization
   # ---------------
   # Path to saving
-  path_to_saving = inputs["paths"]["saving"]+"/error/"+inputs["eval_err_on"]
+  path_to_saving = inputs["paths"]["saving"]+"/error/"+inputs["eval_err"]
   os.makedirs(path_to_saving, exist_ok=True)
   # Time grid
   t = utils.load_case(path=inputs["data"]["path"], index=0, key="t")
@@ -88,7 +88,7 @@ if (__name__ == '__main__'):
         path=inputs["data"]["path"],
         index=i,
         filename=None,
-        eval_err_on=inputs["eval_err_on"]
+        eval_err=inputs["eval_err"]
       ) for i in tqdm(
         iterable=range(inputs["data"]["nb_samples"]),
         ncols=80,
@@ -96,7 +96,7 @@ if (__name__ == '__main__'):
         file=sys.stdout
       )
     )
-    if (inputs["eval_err_on"] == "mom"):
+    if (inputs["eval_err"] == "mom"):
       return np.stack(err, axis=0)
     else:
       return np.vstack(err)
@@ -122,9 +122,6 @@ if (__name__ == '__main__'):
     # Solve PG ROM
     print(f"\n> Solving PG ROM with {r} dimensions ...")
     system.update_rom_ops(phi=bt_bases[0][:,:r], psi=bt_bases[1][:,:r])
-    if (not system.rom_valid):
-      print(f"  PG ROM with {r} dimensions not valid!")
-      continue
     errors = compute_err_parallel()
     bt_err[str(r)] = compute_err_stats(errors)
     # Solve CG ROM
@@ -136,20 +133,24 @@ if (__name__ == '__main__'):
       cg_err[str(r)] = compute_err_stats(errors)
   # Save/plot error statistics
   common_kwargs = dict(
-    eval_err_on=inputs["eval_err_on"],
+    eval_err=inputs["eval_err"],
     err_scale=inputs["plot"].get("err_scale", "linear"),
     molecule_label=inputs["plot"]["molecule_label"],
     subscript=inputs["plot"].get("subscript", "i"),
     max_mom=inputs["plot"].get("max_mom", 2)
   )
+  print("\n> Saving PG ROM error evolution ...")
   save_err_stats("bt", bt_err)
+  print("\n> Plotting PG ROM error evolution ...")
   pp.plot_err_evolution(
     path=path_to_saving+"/bt/",
     err=bt_err,
     **common_kwargs
   )
   if cg_model["active"]:
-    save_err_stats("cg", cg_err)
+    print("\n> Saving CG ROM error evolution ...")
+    save_err_stats("cg", bt_err)
+    print("\n> Plotting CG ROM error evolution ...")
     pp.plot_err_evolution(
       path=path_to_saving+"/cg/",
       err=cg_err,

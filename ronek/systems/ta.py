@@ -1,13 +1,11 @@
 import numpy as np
-import scipy as sp
 
 from .. import const
-from .. import utils
-from .basic import Basic
-from typing import Dict, Tuple
+from .basic import BasicSystem
+from typing import Dict
 
 
-class TASystem(Basic):
+class TASystem(BasicSystem):
   """3-atomic system"""
 
   # Initialization
@@ -51,16 +49,16 @@ class TASystem(Basic):
     rho: float,
     max_mom: int = 10
   ) -> Dict[str, np.ndarray]:
+    # Equilibrium
     n_a_eq, n_m_eq = self.compute_eq_comp(rho)
     n_eq = np.concatenate([n_a_eq, n_m_eq])
-    w_eq = (1.0/rho) * self.M @ n_eq
-    assert np.isclose(np.sum(w_eq), 1.0, rtol=1e-5, atol=1e-8)
+    w_eq = self._get_w(n_eq, rho)
     # A operator
-    A_m = self._compute_lin_fom_ops_a(n_a_eq)
-    b_m = self._compute_lin_fom_ops_b(n_a_eq)
-    A_m = np.hstack([b_m.reshape(-1,1), A_m])
-    A_a = - self.mass_ratio @ A_m
-    A = np.vstack([A_a.reshape(1,-1), A_m])
+    A = self._compute_lin_fom_ops_a(n_a_eq)
+    b = self._compute_lin_fom_ops_b(n_a_eq)
+    A = np.hstack([b.reshape(-1,1), A])
+    a = - self.m_ratio @ A
+    A = np.vstack([a.reshape(1,-1), A])
     A = self.M @ A @ self.Minv
     # C operator
     C = self._compute_lin_fom_ops_c(max_mom)
@@ -92,13 +90,13 @@ class TASystem(Basic):
 
   def _compute_lin_fom_ops_a(
     self,
-    n_a_eq: float
+    n_a_eq: np.ndarray
   ) -> np.ndarray:
     return self.fom_ops["ed"] * n_a_eq
 
   def _compute_lin_fom_ops_b(
     self,
-    n_a_eq: float
+    n_a_eq: np.ndarray
   ) -> np.ndarray:
     return (
       self.fom_ops["ed"] @ self.gamma \
@@ -119,11 +117,11 @@ class TASystem(Basic):
     mu: np.ndarray,
     w_eq: np.ndarray,
     noise: bool = True,
-    eps: float = 1e-2
-  ) -> Tuple[np.ndarray, np.ndarray]:
+    sigma: float = 1e-2
+  ) -> np.ndarray:
     M = []
     for mui in mu:
-      w0 = self._get_init_sol(T=mui[0], w_a=mui[1], noise=noise, eps=eps)
+      w0 = self.get_init_sol(*mui, noise=noise, sigma=sigma)
       M.append(w0 - w_eq)
     M = np.vstack(M).T
     return M

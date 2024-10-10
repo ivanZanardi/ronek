@@ -172,13 +172,13 @@ class BalancedTruncation(object):
 
   # Balancing modes
   # -----------------------------------
-  def compute_balancing_modes(self, X, Y, rank=100):
+  def compute_balancing_modes(self, X, Y, rank=100, niter=20):
     # Perform randomized SVD
     X, Y = [bkd.to_backend(z) for z in (X, Y)]
     U, s, V = torch.svd_lowrank(
       A=Y.T@X,
       q=min(rank, X.shape[0]),
-      niter=10
+      niter=niter
     )
     # Compute balancing transformation
     sqrt_s = torch.diag(torch.sqrt(1/s))

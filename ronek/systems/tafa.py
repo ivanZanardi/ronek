@@ -79,7 +79,7 @@ class TAFASystem(TASystem):
   # -----------------------------------
   def _compute_lin_fom_ops_a(
     self,
-    n_a_eq: float
+    n_a_eq: np.ndarray
   ) -> np.ndarray:
     A1 = self.fom_ops["m-m"]["ed"]
     A1 = (A1 + np.transpose(A1, axes=(0,2,1))) @ self.gamma
@@ -95,7 +95,7 @@ class TAFASystem(TASystem):
 
   def _compute_lin_fom_ops_b(
     self,
-    n_a_eq: float
+    n_a_eq: np.ndarray
   ) -> np.ndarray:
     return (
       2 * (self.fom_ops["m-m"]["er"] @ self.gamma) * n_a_eq \

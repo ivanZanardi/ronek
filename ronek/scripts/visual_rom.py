@@ -103,9 +103,6 @@ if (__name__ == '__main__'):
       # > Solve ROM-PG
       print(f"> Solving ROM-PG with {r} dimensions ...")
       system.update_rom_ops(phi=bt_bases[0][:,:r], psi=bt_bases[1][:,:r])
-      if (not system.rom_valid):
-        print(f"  PG ROM with {r} dimensions not valid!")
-        continue
       n_rom_bt = system.solve_rom(t, n0)
       sols["ROM-PG"] = n_rom_bt[1]
       # > Solve ROM-CG

@@ -150,7 +150,7 @@ def plot_mom_evolution(
 def plot_err_evolution(
   path,
   err,
-  eval_err_on,
+  eval_err,
   molecule_label,
   subscript="i",
   err_scale="linear",
@@ -160,7 +160,7 @@ def plot_err_evolution(
   for r in err.keys():
     t = err[r]["t"]
     break
-  if (eval_err_on == "mom"):
+  if (eval_err == "mom"):
     for m in range(max_mom):
       if (m == 0):
         label = fr"$n_{molecule_label}$ error [\%]"
@@ -184,8 +184,7 @@ def plot_err_evolution(
       x=t,
       y={f"$r={r}$": err[r]["mean"] for r in err.keys()},
       ls="-",
-      # labels=[r"$t$ [s]", fr"$n_{subscript}/g_{subscript}$ error [\%]"],
-      labels=[r"$t$ [s]", fr"$c_{subscript}$ error [\%]"],
+      labels=[r"$t$ [s]", fr"$w_{subscript}$ error [\%]"],
       scales=["log", err_scale],
       figname=path + "/mean_dist_err",
       save=True,
