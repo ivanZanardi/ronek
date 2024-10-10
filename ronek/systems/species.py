@@ -42,7 +42,8 @@ class Species(object):
       if self.use_factorial:
         mi /= (i+1)
       m.append(mi)
-    return np.vstack(m)
+    # return np.vstack(m)
+    return np.vstack(m) / (self.m*const.UNA)
 
   # Partition functions
   # ===================================

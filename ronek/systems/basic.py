@@ -82,13 +82,24 @@ class Basic(object):
     # Update kinetics
     self.kinetics.update(self.T)
     # Compose operators
+    self._set_mass_matrix()
+    self._set_mass_ratio()
     if self.use_einsum:
       self.fom_ops = self.kinetics.rates
     else:
       self.fom_ops = self._update_fom_ops(self.kinetics.rates)
+    self.fom_ops["m_ratio"] = self.mass_ratio
+
+  def _set_mass_matrix(self):
+    # Compose mass matrix
+    m = np.full(self.nb_eqs, self.species["molecule"].m)
+    m[0] = self.species["atom"].m
+    self.M = np.diag(m)
+    self.Minv = np.diag(1.0/m)
+
+  def _set_mass_ratio(self):
     self.mass_ratio = self.species["molecule"].m / self.species["atom"].m
     self.mass_ratio = np.full(self.nb_eqs-1, self.mass_ratio).reshape(1,-1)
-    self.fom_ops["m_ratio"] = self.mass_ratio
 
   @abc.abstractmethod
   def _update_fom_ops(self, rates):
@@ -126,18 +137,13 @@ class Basic(object):
 
   def set_basis(self, phi, psi):
     self.phi, self.psi = phi, psi
+    # Biorthogonalize
+    self.phi = self.phi @ sp.linalg.inv(self.psi.T @ self.phi)
     # Check if complex
-    for k in ("phi", "psi"):
-      bases = getattr(self, k)
-      if np.iscomplexobj(bases):
-        setattr(self, k, bases.real)
-    # Check orthogonality
-    eps = 1e-5
-    iden = np.diag(self.psi.T @ self.phi)
-    if (iden < 1-eps).any():
-      self.rom_valid = False
-    else:
-      self.rom_valid = True
+    if np.iscomplexobj(self.phi):
+      self.phi = self.phi.real
+    if np.iscomplexobj(self.psi):
+      self.psi = self.psi.real
 
   @abc.abstractmethod
   def _update_rom_ops(self):
@@ -160,42 +166,55 @@ class Basic(object):
     c = -rho
     n_a = (-b+np.sqrt(b**2-4*a*c))/(2*a)
     n_m = self.gamma*n_a**2
-    return n_a, n_m
+    return n_a.reshape(-1), n_m.reshape(-1)
 
   # Solving
   # ===================================
-  def get_init_sol(self, T=None, p=None, X_a=None, rho=None):
+  def get_init_sol(self, T=None, p=None, x_a=None, rho=None):
     if (p is None):
-      return self._get_init_sol_from_rho(T, X_a, rho)
+      return self._get_init_sol_from_rho(T, x_a, rho)
     else:
-      return self._get_init_sol_from_p(T, X_a, p)
+      return self._get_init_sol_from_p(T, x_a, p)
 
-  def _get_init_sol_from_rho(self, T, X_a, rho, noise=False, eps=1e-2):
+  def _get_init_sol_from_rho(self, T, x_a, rho, noise=False, eps=1e-2):
     # Compute mass fractions
     # > Atom
     if noise:
-      X_a = np.clip(X_a + eps * np.random.rand(1), 0, 1)
-    norm = X_a * self.species["atom"].m \
-         + (1-X_a) * self.species["molecule"].m
-    Y_a = X_a * self.species["atom"].m / norm
+      x_a = np.clip(x_a + eps * np.random.rand(1), 0, 1)
+    norm = x_a * self.species["atom"].m \
+         + (1-x_a) * self.species["molecule"].m
+    w_a = x_a * self.species["atom"].m / norm
     # > Molecule
     q_m = self.species["molecule"].q_int(T)
     if noise:
       q_m *= (1 + eps * np.random.rand(*q_m.shape))
-    Y_m = (1-Y_a) * (q_m / np.sum(q_m))
+    w_m = (1-w_a) * (q_m / np.sum(q_m))
     # Compute number densities
     # > Atom
-    n_a = rho * Y_a / self.species["atom"].m
+    n_a = rho * w_a / self.species["atom"].m
     n_a = np.array(n_a).reshape(-1)
     # > Molecule
-    n_m = rho * Y_m / self.species["molecule"].m
+    n_m = rho * w_m / self.species["molecule"].m
     return np.concatenate([n_a, n_m])
 
-  def _get_init_sol_from_p(self, T, X_a, p):
-    n = p / (const.UKB * T)
-    n_a = np.array([n * X_a]).reshape(-1)
+  def _get_init_sol(self, T, w_a, noise=False, eps=1e-2):
+    """Compute initial mass fractions"""
+    # > Atom
+    w_a = np.array(w_a).reshape(1)
+    if noise:
+      w_a = np.clip(w_a + eps * np.random.rand(1), 0, 1)
+    # > Molecule
     q_m = self.species["molecule"].q_int(T)
-    n_m = n * (1-X_a) * q_m / np.sum(q_m)
+    if noise:
+      q_m *= (1 + eps * np.random.rand(*q_m.shape))
+    w_m = (1-w_a) * (q_m / np.sum(q_m))
+    return np.concatenate([w_a, w_m])
+
+  def _get_init_sol_from_p(self, T, x_a, p):
+    n = p / (const.UKB * T)
+    n_a = np.array([n * x_a]).reshape(-1)
+    q_m = self.species["molecule"].q_int(T)
+    n_m = n * (1-x_a) * q_m / np.sum(q_m)
     return np.concatenate([n_a, n_m])
 
   def get_tgrid(self, start, stop, num):
@@ -275,10 +294,10 @@ class Basic(object):
     self,
     T_lim,
     p_lim,
-    X_a_lim,
+    x_a_lim,
     nb_samples
   ):
-    design_space = [np.sort(T_lim), np.sort(p_lim), np.sort(X_a_lim)]
+    design_space = [np.sort(T_lim), np.sort(p_lim), np.sort(x_a_lim)]
     design_space = np.array(design_space).T
     # Construct
     ddim = design_space.shape[1]
@@ -313,7 +332,8 @@ class Basic(object):
     path=None,
     index=None,
     filename=None,
-    eval_err_on=None
+    eval_err_on=None,
+    eps=1e-7
   ):
     # Load test case
     icase = utils.load_case(path=path, index=index, filename=filename)
@@ -333,13 +353,14 @@ class Basic(object):
         else:
           mom_fom /= mom0_fom
           mom_rom /= mom0_rom
-        error.append(utils.absolute_percentage_error(mom_rom, mom_fom))
+        error.append(utils.absolute_percentage_error(mom_rom, mom_fom, eps))
       return np.vstack(error)
     elif (eval_err_on == "dist"):
       # > Distribution
-      y_pred = n_rom[1] / const.UNA
-      y_true = n_fom[1] / const.UNA
-      return utils.absolute_percentage_error(y_pred, y_true, eps=1e-8)
+      rho = self.compute_rho(n0)
+      y_pred = n_rom[1] * self.species["molecule"].m / rho
+      y_true = n_fom[1] * self.species["molecule"].m / rho
+      return utils.absolute_percentage_error(y_pred, y_true, eps)
     else:
       # > None: return the solution
       return t, n_fom, n_rom

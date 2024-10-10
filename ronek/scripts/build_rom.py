@@ -68,7 +68,7 @@ if (__name__ == '__main__'):
   # > Time
   t, w_t = utils.get_gl_quad_1d(
     x=system.get_tgrid(**inputs["grids"]["t"]),
-    deg=3,
+    deg=2,
     dist="uniform"
   )
   quad["t"] = {"x": t, "w": np.sqrt(w_t)}
@@ -85,7 +85,7 @@ if (__name__ == '__main__'):
   rho, w_rho = utils.get_gl_quad_1d(
     x=np.geomspace(**inputs["grids"]["rho"]),
     deg=2,
-    dist="loguniform"
+    dist="uniform"
   )
   quad["rho"] = {"x": rho, "w": np.sqrt(w_rho)}
 
@@ -115,7 +115,9 @@ if (__name__ == '__main__'):
     )
     wi = quad["rho"]["w"][i]
     X.append(wi*Xi), Y.append(wi*Yi)
+
   # > Compute balancing modes
+  btrunc.verbose = True
   btrunc(
     X=np.hstack(X),
     Y=np.hstack(Y),

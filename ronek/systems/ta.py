@@ -1,4 +1,5 @@
 import numpy as np
+import scipy as sp
 
 from .. import const
 from .. import utils
@@ -51,19 +52,43 @@ class TASystem(Basic):
     max_mom: int = 10
   ) -> Dict[str, np.ndarray]:
     n_a_eq, n_m_eq = self.compute_eq_comp(rho)
-    n_eq = np.concatenate([n_a_eq.reshape(1), n_m_eq])
+    n_eq = np.concatenate([n_a_eq, n_m_eq])
+    w_eq = (1.0/rho) * self.M @ n_eq
+    assert np.isclose(np.sum(w_eq), 1.0, rtol=1e-5, atol=1e-8)
     # A operator
     A_m = self._compute_lin_fom_ops_a(n_a_eq)
     b_m = self._compute_lin_fom_ops_b(n_a_eq)
     A_m = np.hstack([b_m.reshape(-1,1), A_m])
     A_a = - self.mass_ratio @ A_m
     A = np.vstack([A_a.reshape(1,-1), A_m])
+    A = self.M @ A @ self.Minv
     # C operator
     C = self._compute_lin_fom_ops_c(max_mom)
     # Initial solutions
-    M = self._compute_lin_init_sols(mu, rho, n_eq)
+    M = self._compute_lin_init_sols(mu, w_eq)
     # Return data
-    return {"A": A, "C": C, "M": M, "x_eq": n_eq}
+    return {"A": A, "C": C, "M": M, "x_eq": w_eq}
+
+  # def _compute_lin_fom_ops(
+  #   self,
+  #   mu: np.ndarray,
+  #   rho: float,
+  #   max_mom: int = 10
+  # ) -> Dict[str, np.ndarray]:
+  #   n_a_eq, n_m_eq = self.compute_eq_comp(rho)
+  #   n_eq = np.concatenate([n_a_eq.reshape(1), n_m_eq])
+  #   # A operator
+  #   A_m = self._compute_lin_fom_ops_a(n_a_eq)
+  #   b_m = self._compute_lin_fom_ops_b(n_a_eq)
+  #   A_m = np.hstack([b_m.reshape(-1,1), A_m])
+  #   A_a = - self.mass_ratio @ A_m
+  #   A = np.vstack([A_a.reshape(1,-1), A_m])
+  #   # C operator
+  #   C = self._compute_lin_fom_ops_c(max_mom)
+  #   # Initial solutions
+  #   M = self._compute_lin_init_sols(mu, rho, n_eq)
+  #   # Return data
+  #   return {"A": A, "C": C, "M": M, "x_eq": n_eq}
 
   def _compute_lin_fom_ops_a(
     self,
@@ -92,19 +117,33 @@ class TASystem(Basic):
   def _compute_lin_init_sols(
     self,
     mu: np.ndarray,
-    rho: float,
-    n_eq: np.ndarray,
+    w_eq: np.ndarray,
     noise: bool = True,
     eps: float = 1e-2
   ) -> Tuple[np.ndarray, np.ndarray]:
     M = []
     for mui in mu:
-      n0 = self._get_init_sol_from_rho(
-        T=mui[0], X_a=mui[1], rho=rho, noise=noise, eps=eps
-      )
-      M.append(n0 - n_eq)
+      w0 = self._get_init_sol(T=mui[0], w_a=mui[1], noise=noise, eps=eps)
+      M.append(w0 - w_eq)
     M = np.vstack(M).T
     return M
+
+  # def _compute_lin_init_sols(
+  #   self,
+  #   mu: np.ndarray,
+  #   rho: float,
+  #   n_eq: np.ndarray,
+  #   noise: bool = True,
+  #   eps: float = 1e-2
+  # ) -> Tuple[np.ndarray, np.ndarray]:
+  #   M = []
+  #   for mui in mu:
+  #     n0 = self._get_init_sol_from_rho(
+  #       T=mui[0], X_a=mui[1], rho=rho, noise=noise, eps=eps
+  #     )
+  #     M.append(n0 - n_eq)
+  #   M = np.vstack(M).T
+  #   return M
 
   # ROM
   # -----------------------------------

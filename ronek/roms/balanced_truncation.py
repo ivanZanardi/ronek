@@ -172,37 +172,22 @@ class BalancedTruncation(object):
 
   # Balancing modes
   # -----------------------------------
-  def compute_balancing_modes(self, X, Y):
-    n, q, p = *X.shape, Y.shape[1]
-    if (q*p > n**2):
-      # Compute full Gramians
-      WcWo = (X @ X.T) @ (Y @ Y.T)
-      s, phi = sp.linalg.eig(WcWo)
-      psi = sp.linalg.inv(phi).conj().T
-      # Sorting
-      indices = np.flip(np.argsort(s.real, axis=-1).reshape(-1))
-      s, phi, psi = [np.take(x, indices, axis=-1) for x in (s, phi, psi)]
-    else:
-      # Perform SVD
-      U, s, Vh = sp.linalg.svd(Y.T @ X, full_matrices=False)
-      V = Vh.T
-      # Compute balancing transformation
-      sqrt_s = np.diag(np.sqrt(1/s))
-      phi = X @ V @ sqrt_s
-      psi = Y @ U @ sqrt_s
-    # Extract only orthogonal bases
-    eps = 1e-5
-    iden = np.diag(psi.T @ phi)
-    if np.iscomplexobj(iden):
-      iden = iden.real
-    orth = (iden > 1-eps)
+  def compute_balancing_modes(self, X, Y, rank=100):
+    # Perform randomized SVD
+    X, Y = [bkd.to_backend(z) for z in (X, Y)]
+    U, s, V = torch.svd_lowrank(
+      A=Y.T@X,
+      q=min(rank, X.shape[0]),
+      niter=10
+    )
+    # Compute balancing transformation
+    sqrt_s = torch.diag(torch.sqrt(1/s))
+    phi = X @ V @ sqrt_s
+    psi = Y @ U @ sqrt_s
     # Save balancing modes
+    s, phi, psi = [bkd.to_numpy(z) for z in (s, phi, psi)]
     dicttoh5(
-      treedict={
-        "s": s[orth],
-        "phi": phi[:,orth],
-        "psi": psi[:,orth]
-      },
+      treedict={"s": s, "phi": phi, "psi": psi},
       h5file=self.path_to_saving+"/bases.hdf5",
       overwrite_data=True
     )

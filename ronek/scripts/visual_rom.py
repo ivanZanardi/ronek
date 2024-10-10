@@ -94,7 +94,7 @@ if (__name__ == '__main__'):
     data = utils.load_case(filename=filename)
     n_fom, t, n0 = [data[k] for k in ("n", "t", "n0")]
     # > Solutions container
-    sols = {"FOM-StS": n_fom[1]}
+    sols = {"FOM": n_fom[1]}
     # > Loop over ROM dimensions
     for r in range(*inputs["rom_range"]):
       # > Saving folder
