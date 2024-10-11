@@ -134,6 +134,7 @@ if (__name__ == '__main__'):
   # Save/plot error statistics
   common_kwargs = dict(
     eval_err=inputs["eval_err"],
+    hline=inputs["plot"].get("hline", None),
     err_scale=inputs["plot"].get("err_scale", "linear"),
     molecule_label=inputs["plot"]["molecule_label"],
     subscript=inputs["plot"].get("subscript", "i"),

@@ -43,6 +43,7 @@ def plot_evolution(
   y,
   ls=None,
   ylim=None,
+  hline=None,
   labels=[r"$t$ [s]", r"$n$ [m$^{-3}$]"],
   scales=["log", "linear"],
   legend_loc="best",
@@ -54,15 +55,25 @@ def plot_evolution(
   fig = plt.figure()
   ax = fig.add_subplot()
   # x axis
+  xmin, xmax = np.amin(x), np.amax(x)
   ax.set_xlabel(labels[0])
   ax.set_xscale(scales[0])
-  ax.set_xlim([np.amin(x), np.amax(x)])
+  ax.set_xlim([xmin, xmax])
   # y axis
   ax.set_ylabel(labels[1])
   ax.set_yscale(scales[1])
   if (ylim is not None):
     ax.set_ylim(ylim)
   # Plotting
+  if (hline is not None):
+    ax.text(
+      0.99, hline,
+      r"{:0.1f} \%".format(hline),
+      va="bottom", ha="right",
+      transform=ax.get_yaxis_transform(),
+      fontsize=20
+    )
+    ax.hlines(hline, xmin, xmax, colors="grey", lw=1.0)
   if isinstance(y, dict):
     i = 0
     for (k, yk) in y.items():
@@ -93,6 +104,7 @@ def plot_mom_evolution(
   molecule,
   molecule_label,
   err_scale="linear",
+  hline=None,
   max_mom=2
 ):
   path = path + "/moments/"
@@ -140,7 +152,9 @@ def plot_mom_evolution(
     plot_evolution(
       x=t,
       y=moms_err,
+      hline=hline,
       labels=[r"$t$ [s]", label_err],
+      legend_loc="lower left",
       scales=["log", err_scale],
       figname=path + f"/m{m}_err",
       save=True,
@@ -154,6 +168,7 @@ def plot_err_evolution(
   molecule_label,
   subscript="i",
   err_scale="linear",
+  hline=None,
   max_mom=2
 ):
   os.makedirs(path, exist_ok=True)
@@ -173,6 +188,8 @@ def plot_err_evolution(
         x=t,
         y={f"$r={r}$": err[r]["mean"][m] for r in err.keys()},
         ls="-",
+        hline=hline,
+        legend_loc="lower left",
         labels=[r"$t$ [s]", label],
         scales=["log", err_scale],
         figname=path + f"/mean_m{m}_err",
@@ -184,6 +201,8 @@ def plot_err_evolution(
       x=t,
       y={f"$r={r}$": err[r]["mean"] for r in err.keys()},
       ls="-",
+      hline=hline,
+      legend_loc="lower left",
       labels=[r"$t$ [s]", fr"$w_{subscript}$ error [\%]"],
       scales=["log", err_scale],
       figname=path + "/mean_dist_err",

@@ -136,6 +136,7 @@ if (__name__ == '__main__'):
         max_mom=inputs["plot"].get("max_mom", 2),
         molecule_label=inputs["plot"]["molecule_label"],
         err_scale=inputs["plot"].get("err_scale", "linear"),
+        hline=inputs["plot"].get("hline", None),
         **common_kwargs
       )
       pp.plot_multi_dist_2d(

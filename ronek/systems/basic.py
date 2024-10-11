@@ -363,7 +363,7 @@ class BasicSystem(object):
     index: Optional[int] = None,
     filename: Optional[str] = None,
     eval_err: Optional[str] = None,
-    eps: float = 1e-8
+    eps: float = 1e-7
   ) -> Union[np.ndarray, Tuple[np.ndarray]]:
     # Load test case
     icase = utils.load_case(path=path, index=index, filename=filename)
