@@ -82,7 +82,7 @@ class TAFASystem(TASystem):
     n_a_eq: np.ndarray
   ) -> np.ndarray:
     A1 = self.fom_ops["m-m"]["ed"]
-    A1 = (A1 + np.transpose(A1, axes=(0,2,1))) @ self.gamma
+    A1 = (A1 + np.transpose(A1, axes=(0,2,1))) @ self.mix.gamma
     A2 = self.fom_ops["m-m"]["er"]
     A3 = self.fom_ops["m-a"]["ed"]
     if (n_a_eq == np.inf):
@@ -98,8 +98,8 @@ class TAFASystem(TASystem):
     n_a_eq: np.ndarray
   ) -> np.ndarray:
     return (
-      2 * (self.fom_ops["m-m"]["er"] @ self.gamma) * n_a_eq \
-      + self.fom_ops["m-a"]["ed"] @ self.gamma \
+      2 * (self.fom_ops["m-m"]["er"] @ self.mix.gamma) * n_a_eq \
+      + self.fom_ops["m-a"]["ed"] @ self.mix.gamma \
       + 4 * self.fom_ops["m-m"]["r"] * n_a_eq \
       + 3 * self.fom_ops["m-a"]["r"]
     ) * n_a_eq**2

@@ -130,7 +130,7 @@ if (__name__ == '__main__'):
         path=path_to_saving_i,
         t=t,
         n_m=sols,
-        molecule=system.species["molecule"]
+        molecule=system.mix.species["molecule"]
       )
       pp.plot_mom_evolution(
         max_mom=inputs["plot"].get("max_mom", 2),

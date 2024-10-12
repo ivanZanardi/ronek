@@ -20,6 +20,8 @@ class Species(object):
     # Set properties
     for (k, v) in properties.items():
       setattr(self, k, v)
+    self.M = self.m * const.UNA
+    self.R = const.URG / self.M
     self.lev = {k: np.array(v).reshape(-1) for (k, v) in self.lev.items()}
     # Number of pseudo-species
     self.nb_comp = len(self.lev["e"])
@@ -28,6 +30,39 @@ class Species(object):
     # Control variables
     self.use_factorial = use_factorial
 
+  # Properties
+  # ===================================
+  @property
+  def w(self):
+    return self._w
+
+  @w.setter
+  def w(self, value):
+    self._w = value
+
+  @property
+  def x(self):
+    return self._x
+  @x.setter
+  def x(self, value):
+    self._x = value
+
+  @property
+  def rho(self):
+    return self._rho
+  @rho.setter
+  def rho(self, value):
+    self._rho = value
+
+  @property
+  def n(self):
+    return self._n
+  @n.setter
+  def n(self, value):
+    self._n = value
+
+  # Moments
+  # ===================================
   def compute_mom(self, n, m=0):
     e = self.lev["e"] / const.eV_to_J
     if (n.shape[-1] != self.nb_comp):
@@ -43,7 +78,7 @@ class Species(object):
         mi /= (i+1)
       m.append(mi)
     # return np.vstack(m)
-    return np.vstack(m) / (self.m*const.UNA)
+    return np.vstack(m) / self.M
 
   # Partition functions
   # ===================================

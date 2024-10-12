@@ -50,43 +50,22 @@ class TASystem(BasicSystem):
     max_mom: int = 10
   ) -> Dict[str, np.ndarray]:
     # Equilibrium
-    n_a_eq, n_m_eq = self.compute_eq_comp(rho)
+    n_a_eq, n_m_eq = self.mix.compute_eq_comp(rho)
     n_eq = np.concatenate([n_a_eq, n_m_eq])
-    w_eq = self._get_w(n_eq, rho)
+    w_eq = self.mix.get_w(n_eq, rho)
     # A operator
     A = self._compute_lin_fom_ops_a(n_a_eq)
     b = self._compute_lin_fom_ops_b(n_a_eq)
     A = np.hstack([b.reshape(-1,1), A])
-    a = - self.m_ratio @ A
+    a = - self.mix.m_ratio @ A
     A = np.vstack([a.reshape(1,-1), A])
-    A = self.M @ A @ self.Minv
+    A = self.mix.M @ A @ self.mix.Minv
     # C operator
     C = self._compute_lin_fom_ops_c(max_mom)
     # Initial solutions
     M = self._compute_lin_init_sols(mu, w_eq)
     # Return data
     return {"A": A, "C": C, "M": M, "x_eq": w_eq}
-
-  # def _compute_lin_fom_ops(
-  #   self,
-  #   mu: np.ndarray,
-  #   rho: float,
-  #   max_mom: int = 10
-  # ) -> Dict[str, np.ndarray]:
-  #   n_a_eq, n_m_eq = self.compute_eq_comp(rho)
-  #   n_eq = np.concatenate([n_a_eq.reshape(1), n_m_eq])
-  #   # A operator
-  #   A_m = self._compute_lin_fom_ops_a(n_a_eq)
-  #   b_m = self._compute_lin_fom_ops_b(n_a_eq)
-  #   A_m = np.hstack([b_m.reshape(-1,1), A_m])
-  #   A_a = - self.mass_ratio @ A_m
-  #   A = np.vstack([A_a.reshape(1,-1), A_m])
-  #   # C operator
-  #   C = self._compute_lin_fom_ops_c(max_mom)
-  #   # Initial solutions
-  #   M = self._compute_lin_init_sols(mu, rho, n_eq)
-  #   # Return data
-  #   return {"A": A, "C": C, "M": M, "x_eq": n_eq}
 
   def _compute_lin_fom_ops_a(
     self,
@@ -99,14 +78,14 @@ class TASystem(BasicSystem):
     n_a_eq: np.ndarray
   ) -> np.ndarray:
     return (
-      self.fom_ops["ed"] @ self.gamma \
+      self.fom_ops["ed"] @ self.mix.gamma \
       + 3 * self.fom_ops["r"]
     ) * n_a_eq**2
 
   def _compute_lin_fom_ops_c(self, max_mom):
     if (max_mom > 0):
       C = np.zeros((max_mom,self.nb_eqs))
-      C[:,1:] = self.species["molecule"].compute_mom_basis(max_mom)
+      C[:,1:] = self.mix.species["molecule"].compute_mom_basis(max_mom)
     else:
       C = np.eye(self.nb_eqs)
       C[0,0] = 0.0
@@ -121,27 +100,10 @@ class TASystem(BasicSystem):
   ) -> np.ndarray:
     M = []
     for mui in mu:
-      w0 = self.get_init_sol(*mui, noise=noise, sigma=sigma)
+      w0 = self.mix.get_init_sol(*mui, noise=noise, sigma=sigma)
       M.append(w0 - w_eq)
     M = np.vstack(M).T
     return M
-
-  # def _compute_lin_init_sols(
-  #   self,
-  #   mu: np.ndarray,
-  #   rho: float,
-  #   n_eq: np.ndarray,
-  #   noise: bool = True,
-  #   eps: float = 1e-2
-  # ) -> Tuple[np.ndarray, np.ndarray]:
-  #   M = []
-  #   for mui in mu:
-  #     n0 = self._get_init_sol_from_rho(
-  #       T=mui[0], X_a=mui[1], rho=rho, noise=noise, eps=eps
-  #     )
-  #     M.append(n0 - n_eq)
-  #   M = np.vstack(M).T
-  #   return M
 
   # ROM
   # -----------------------------------

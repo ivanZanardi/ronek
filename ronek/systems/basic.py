@@ -6,7 +6,7 @@ from pyDOE import lhs
 
 from .. import const
 from .. import utils
-from .species import Species
+from .mixture import Mixture
 from .kinetics import Kinetics
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -26,20 +26,11 @@ class BasicSystem(object):
     # Thermochemistry database
     # -------------
     self.T = float(T)
-    # > Species
-    self.nb_eqs = 0
-    self.species = {}
-    for k in ("atom", "molecule"):
-      if (k not in species):
-        raise ValueError(
-          "The 'species' input parameter should be a " \
-          "dictionary with 'atom' and 'molecule' as keys."
-        )
-      self.species[k] = Species(species[k], use_factorial)
-      self.nb_eqs += self.species[k].nb_comp
-    self._set_eq_ratio()
+    # Mixture
+    self.mix = Mixture(species, use_factorial)
+    self.nb_eqs = self.mix.nb_eqs
     # > Kinetics
-    self.kinetics = Kinetics(rates, self.species)
+    self.kin = Kinetics(rates, self.mix.species)
     # FOM
     # -------------
     # Solving
@@ -54,10 +45,6 @@ class BasicSystem(object):
     # Bases
     self.phi = None
     self.psi = None
-
-  def _set_eq_ratio(self) -> None:
-    q_a, q_m = [self.species[k].q_tot(self.T) for k in ("atom", "molecule")]
-    self.gamma = q_m / q_a**2
 
   def _check_rom_ops(self) -> None:
     if (self.rom_ops is None):
@@ -75,30 +62,16 @@ class BasicSystem(object):
   # FOM
   # -----------------------------------
   def update_fom_ops(self) -> None:
-    # Update species
-    for sp in self.species.values():
-      sp.update(self.T)
+    # Update mixture
+    self.mix.update(self.T)
     # Update kinetics
-    self.kinetics.update(self.T)
+    self.kin.update(self.T)
     # Compose operators
-    self._set_mass_matrix()
-    self._set_mass_ratio()
     if self.use_einsum:
-      self.fom_ops = self.kinetics.rates
+      self.fom_ops = self.kin.rates
     else:
-      self.fom_ops = self._update_fom_ops(self.kinetics.rates)
-    self.fom_ops["m_ratio"] = self.m_ratio
-
-  def _set_mass_matrix(self) -> None:
-    # Compose mass matrix
-    m = np.full(self.nb_eqs, self.species["molecule"].m)
-    m[0] = self.species["atom"].m
-    self.M = np.diag(m)
-    self.Minv = np.diag(1.0/m)
-
-  def _set_mass_ratio(self) -> None:
-    self.m_ratio = self.species["molecule"].m / self.species["atom"].m
-    self.m_ratio = np.full(self.nb_eqs-1, self.m_ratio).reshape(1,-1)
+      self.fom_ops = self._update_fom_ops(self.kin.rates)
+    self.fom_ops["m_ratio"] = self.mix.m_ratio
 
   @abc.abstractmethod
   def _update_fom_ops(self, rates: dict) -> dict:
@@ -136,7 +109,7 @@ class BasicSystem(object):
     self._set_basis(phi, psi)
     # Compose operators
     self.rom_ops = self._update_rom_ops()
-    self.rom_ops["m_ratio"] = self.m_ratio @ self.phi
+    self.rom_ops["m_ratio"] = self.mix.m_ratio @ self.phi
 
   def _set_basis(
     self,
@@ -155,101 +128,6 @@ class BasicSystem(object):
   @abc.abstractmethod
   def _update_rom_ops(self) -> None:
     pass
-
-  # Physics
-  # ===================================
-  def compute_eq_comp(
-    self,
-    rho: float
-  ) -> Tuple[np.ndarray]:
-    # Solve this system of equations:
-    # 1) rho_a + sum(rho_m) = rho
-    # 2) n_m = gamma * n_a^2
-    a = np.sum(self.gamma) * self.species["molecule"].m
-    b = self.species["atom"].m
-    c = -rho
-    n_a = (-b+np.sqrt(b**2-4*a*c))/(2*a)
-    n_m = self.gamma*n_a**2
-    return n_a.reshape(-1), n_m.reshape(-1)
-
-  # Solving
-  # ===================================
-  # def get_init_sol(self, T=None, p=None, x_a=None, rho=None):
-  #   if (p is None):
-  #     return self._get_init_sol_from_rho(T, x_a, rho)
-  #   else:
-  #     return self._get_init_sol_from_p(T, x_a, p)
-
-  # def _get_init_sol_from_rho(self, T, x_a, rho, noise=False, eps=1e-2):
-  #   # Compute mass fractions
-  #   # > Atom
-  #   if noise:
-  #     x_a = np.clip(x_a + eps * np.random.rand(1), 0, 1)
-  #   norm = x_a * self.species["atom"].m \
-  #        + (1-x_a) * self.species["molecule"].m
-  #   w_a = x_a * self.species["atom"].m / norm
-  #   # > Molecule
-  #   q_m = self.species["molecule"].q_int(T)
-  #   if noise:
-  #     q_m *= (1 + eps * np.random.rand(*q_m.shape))
-  #   w_m = (1-w_a) * (q_m / np.sum(q_m))
-  #   # Compute number densities
-  #   # > Atom
-  #   n_a = rho * w_a / self.species["atom"].m
-  #   n_a = np.array(n_a).reshape(-1)
-  #   # > Molecule
-  #   n_m = rho * w_m / self.species["molecule"].m
-  #   return np.concatenate([n_a, n_m])
-
-  def get_init_sol(
-    self,
-    T: float,
-    w_a: float,
-    rho: Optional[float] = None,
-    noise: bool = False,
-    sigma: float = 1e-2
-  ) -> np.ndarray:
-    # > Atom
-    w_a = np.array(w_a).reshape(1)
-    if noise:
-      w_a = np.clip(w_a + sigma*np.random.rand(1), 0, 1)
-    # > Molecule
-    q_m = self.species["molecule"].q_int(T)
-    if noise:
-      q_m *= (1 + sigma*np.random.rand(*q_m.shape))
-    w_m = (1-w_a)*(q_m / np.sum(q_m))
-    w = np.concatenate([w_a, w_m])
-    # Return mass fractions / number densities
-    return w if (rho is None) else self._get_n(w, rho)
-
-  def _get_w(
-    self,
-    n: np.ndarray,
-    rho: float
-  ) -> np.ndarray:
-    w = (1/rho) * self.M @ n
-    assert np.isclose(np.sum(w), 1.0, rtol=1e-5, atol=1e-8)
-    return w
-
-  def _get_n(
-    self,
-    w: np.ndarray,
-    rho: float
-  ) -> np.ndarray:
-    return rho * self.Minv @ w
-
-  def _get_rho(
-    self,
-    n: np.ndarray
-  ) -> float:
-    return np.diag(self.M) @ n
-
-  # def _get_init_sol_from_p(self, T, x_a, p):
-  #   n = p / (const.UKB * T)
-  #   n_a = np.array([n * x_a]).reshape(-1)
-  #   q_m = self.species["molecule"].q_int(T)
-  #   n_m = n * (1-x_a) * q_m / np.sum(q_m)
-  #   return np.concatenate([n_a, n_m])
 
   # Solving
   # ===================================
@@ -340,13 +218,14 @@ class BasicSystem(object):
     self,
     t: np.ndarray,
     mu: np.ndarray,
+    mu_type: str = "mass",
     path: Optional[str] = None,
     index: Optional[int] = None,
     filename: Optional[str] = None
   ) -> int:
     mui = mu[index] if (index is not None) else mu
     try:
-      n0 = self.get_init_sol(*mui)
+      n0 = self.mix.get_init_sol(*mui, mu_type=mu_type)
       n = self.solve_fom(t, n0)
       data = {"index": index, "mu": mui, "t": t, "n0": n0, "n": n}
       utils.save_case(path=path, index=index, data=data, filename=filename)
@@ -375,8 +254,8 @@ class BasicSystem(object):
       # > Moments
       error = []
       for m in range(2):
-        mom_rom = self.species["molecule"].compute_mom(n=n_rom[1], m=m)
-        mom_fom = self.species["molecule"].compute_mom(n=n_fom[1], m=m)
+        mom_rom = self.mix.species["molecule"].compute_mom(n=n_rom[1], m=m)
+        mom_fom = self.mix.species["molecule"].compute_mom(n=n_fom[1], m=m)
         if (m == 0):
           mom0_fom = mom_fom
           mom0_rom = mom_rom
@@ -387,9 +266,9 @@ class BasicSystem(object):
       return np.vstack(error)
     elif (eval_err == "dist"):
       # > Distribution
-      rho = self._get_rho(n0)
-      y_pred = n_rom[1] * self.species["molecule"].m / rho
-      y_true = n_fom[1] * self.species["molecule"].m / rho
+      rho = self.mix.get_rho(n0)
+      y_pred = n_rom[1] * self.mix.species["molecule"].m / rho
+      y_true = n_fom[1] * self.mix.species["molecule"].m / rho
       return utils.absolute_percentage_error(y_pred, y_true, eps)
     else:
       # > None: return the solution
