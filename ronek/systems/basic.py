@@ -121,11 +121,6 @@ class BasicSystem(object):
     self.phi, self.psi = phi, psi
     # Biorthogonalize
     self.phi = self.phi @ sp.linalg.inv(self.psi.T @ self.phi)
-    # # Check if complex
-    # if np.iscomplexobj(self.phi):
-    #   self.phi = self.phi.real
-    # if np.iscomplexobj(self.psi):
-    #   self.psi = self.psi.real
 
   @abc.abstractmethod
   def _update_rom_ops(self) -> None:
@@ -198,7 +193,7 @@ class BasicSystem(object):
     t = np.insert(t, 0, 0.0)
     return t
 
-  # Data generation
+  # Data generation and testing
   # ===================================
   def construct_design_mat(
     self,
@@ -237,8 +232,6 @@ class BasicSystem(object):
       runtime = None
     return runtime
 
-  # Testing
-  # ===================================
   def compute_rom_sol(
     self,
     path: Optional[str] = None,

@@ -151,11 +151,11 @@ class BalancedTruncation(object):
     # Compute the empirical controllability Gramian
     op = self.ops["M"]
     X, runtime = self.compute_gramian(op)
-    self.runtime["Ws"] = {"time": runtime, "op_shape": op.shape}
+    self.runtime["Ws_mean"] = runtime / op.shape[1]
     # Compute the empirical observability Gramian
     op = self.ops["C"].T
     Y, runtime = self.compute_gramian(op, transpose=True)
-    self.runtime["Wg"] = {"time": runtime, "op_shape": op.shape}
+    self.runtime["Wg_mean"] = runtime / op.shape[1]
     return [bkd.to_numpy(z) for z in (X, Y)]
 
   def compute_gramian(self, op, transpose=False):
