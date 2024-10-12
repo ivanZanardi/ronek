@@ -45,15 +45,16 @@ def to_numpy(x):
     else:
       return x
 
+def to_torch(x):
+  if (x is not None):
+    if torch.is_tensor(x):
+      return x
+    else:
+      return torch.as_tensor(to_numpy(x), dtype=floatx("torch"))
+
 def to_backend(x):
   if (x is not None):
-    if (_BKD == "torch"):
-      if torch.is_tensor(x):
-        return x
-      else:
-        return torch.as_tensor(to_numpy(x), dtype=floatx("torch"))
-    else:
-      return to_numpy(x)
+    return to_torch(x) if (_BKD == "torch") else to_numpy(x)
 
 # Device
 # -------------------------------------
