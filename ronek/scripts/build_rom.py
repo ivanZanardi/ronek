@@ -74,8 +74,8 @@ if (__name__ == '__main__'):
   quad["t"] = {"x": t, "w": np.sqrt(w_t)}
   # > Initial conditions space (mu)
   mu, w_mu = utils.get_gl_quad_2d(
-    x=np.geomspace(**inputs["grids"]["mu"]["Tint"]),
-    y=np.linspace(**inputs["grids"]["mu"]["X_a"]),
+    x=np.geomspace(**inputs["grids"]["mu"]["T0"]),
+    y=np.linspace(**inputs["grids"]["mu"]["w0_a"]),
     deg=2,
     dist_x="loguniform",
     dist_y="uniform"
