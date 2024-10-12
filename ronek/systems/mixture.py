@@ -141,17 +141,17 @@ class Mixture(object):
     M = 0.0
     if (qoi_used == "w"):
       for s in self.species.values():
-        M += np.sum(s.specie.w) / s.specie.M
+        M += np.sum(s.w) / s.M
       M = 1.0/M
     elif (qoi_used == "x"):
       for s in self.species.values():
-        M += np.sum(s.specie.x) * s.specie.M
+        M += np.sum(s.x) * s.M
     return M
 
   def _get_R(self):
     R = 0.0
     for s in self.species.values():
-      R += np.sum(s.specie.w) * s.specie.R
+      R += np.sum(s.w) * s.R
     return R
 
   def _convert_mass_mole(self, M, qoi_used="w"):
@@ -162,8 +162,8 @@ class Mixture(object):
 
   def _set_x_s(self, M):
     for s in self.species.values():
-      s.specie.x = (M/s.specie.M) * s.specie.w
+      s.x = M / s.M * s.w
 
   def _set_w_s(self, M):
     for s in self.species.values():
-      s.specie.w = (s.specie.M/M) * s.specie.x
+      s.w = s.M / M * s.x

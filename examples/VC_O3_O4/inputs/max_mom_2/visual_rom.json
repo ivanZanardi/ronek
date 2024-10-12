@@ -43,7 +43,8 @@
     "markersize": 6,
     "subscript": "v",
     "err_scale": "log",
-    "molecule_label": "\\text{O$_2$}"
+    "molecule_label": "\\text{O$_2$}",
+    "hline": 1.0
   },
-  "rom_range": [4,5]
+  "rom_range": [3,7]
 }

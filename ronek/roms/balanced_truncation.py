@@ -1,4 +1,5 @@
 import os
+import time
 import torch
 import numpy as np
 import scipy as sp
@@ -42,6 +43,7 @@ class BalancedTruncation(object):
     # Properties
     # -------------
     self.eiga = None
+    self.runtime = {}
 
   # Properties
   # ===================================
@@ -58,7 +60,7 @@ class BalancedTruncation(object):
       for (k, op) in value.items():
         if (len(op.shape) == 1):
           op = op.reshape(-1,1)
-        self._ops[k] = bkd.to_backend(op)
+        self._ops[k] = bkd.to_torch(op)
 
   # Quadrature points
   @property
@@ -70,7 +72,7 @@ class BalancedTruncation(object):
     self._quad = None
     if (value is not None):
       self._quad = utils.map_nested_dict(
-        value, lambda x: bkd.to_backend(x.reshape(-1))
+        value, lambda x: bkd.to_torch(x.reshape(-1))
       )
 
   # Eigendecomposition of operator A
@@ -82,7 +84,7 @@ class BalancedTruncation(object):
   def eiga(self, value):
     self._eiga = None
     if (value is not None):
-      self._eiga = {k: bkd.to_backend(x) for (k, x) in value.items()}
+      self._eiga = {k: bkd.to_torch(x) for (k, x) in value.items()}
 
   # Calling
   # ===================================
@@ -91,8 +93,10 @@ class BalancedTruncation(object):
     X=None,
     Y=None,
     xnot=None,
-    compute_modes=True
+    compute_modes=True,
+    runtime={}
   ):
+    self.runtime = runtime
     if ((X is None) or (Y is None)):
       self.compute_eiga()
       if self.verbose:
@@ -124,8 +128,10 @@ class BalancedTruncation(object):
         if self.verbose:
           print("Performing eigendecomposition of A ...")
         a = bkd.to_numpy(self.ops["A"])
+        runtime = time.time()
         l, v = sp.linalg.eig(a)
         vinv = sp.linalg.inv(v)
+        self.runtime["eiga"] = time.time() - runtime
         eiga = {"l": l, "v": v, "vinv": vinv}
         # Save eigendecomposition
         if self.saving:
@@ -143,20 +149,25 @@ class BalancedTruncation(object):
   # -----------------------------------
   def compute_gramians(self):
     # Compute the empirical controllability Gramian
-    X = self.compute_gramian(op=self.ops["M"])
+    op = self.ops["M"]
+    X, runtime = self.compute_gramian(op)
+    self.runtime["Ws"] = {"time": runtime, "op_shape": op.shape}
     # Compute the empirical observability Gramian
-    Y = self.compute_gramian(op=self.ops["C"].t(), transpose=True)
+    op = self.ops["C"].T
+    Y, runtime = self.compute_gramian(op, transpose=True)
+    self.runtime["Wg"] = {"time": runtime, "op_shape": op.shape}
     return [bkd.to_numpy(z) for z in (X, Y)]
 
   def compute_gramian(self, op, transpose=False):
+    runtime = time.time()
     # Allocate Gramian's memory
     shape = [len(self.quad["t"]["x"])] + list(op.shape)
     g = torch.zeros(shape, dtype=bkd.floatx(), device="cpu")
     # Compute tensor
-    x = self.eiga["v"].t() @ op if transpose else self.eiga["vinv"] @ op
+    x = self.eiga["v"].T @ op if transpose else self.eiga["vinv"] @ op
     for (i, ti) in enumerate(self.quad["t"]["x"]):
       xi = x * torch.exp(ti*self.eiga["l"]).reshape(-1,1)
-      xi = self.eiga["vinv"].t() @ xi if transpose else self.eiga["v"] @ xi
+      xi = self.eiga["vinv"].T @ xi if transpose else self.eiga["v"] @ xi
       if (not transpose):
         # Add steady-state equilibrium solution
         xi += self.ops["x_eq"].reshape(-1,1)
@@ -168,11 +179,13 @@ class BalancedTruncation(object):
     # Manipulate tensor
     g = torch.permute(g, dims=(1,2,0))
     g = torch.reshape(g, (self.nb_eqs,-1))
-    return g
+    runtime = time.time() - runtime
+    return g, runtime
 
   # Balancing modes
   # -----------------------------------
   def compute_balancing_modes(self, X, Y, rank=100, niter=20):
+    runtime = time.time()
     # Perform randomized SVD
     X, Y = [bkd.to_torch(z) for z in (X, Y)]
     U, s, V = torch.svd_lowrank(
@@ -184,6 +197,7 @@ class BalancedTruncation(object):
     sqrt_s = torch.diag(torch.sqrt(1/s))
     phi = X @ V @ sqrt_s
     psi = Y @ U @ sqrt_s
+    self.runtime["modes"] = time.time() - runtime
     # Save balancing modes
     s, phi, psi = [bkd.to_numpy(z) for z in (s, phi, psi)]
     dicttoh5(

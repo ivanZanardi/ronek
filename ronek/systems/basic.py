@@ -1,4 +1,5 @@
 import abc
+import time
 import numpy as np
 import scipy as sp
 
@@ -45,6 +46,7 @@ class BasicSystem(object):
     # Bases
     self.phi = None
     self.psi = None
+    self.runtime = 0.0
 
   def _check_rom_ops(self) -> None:
     if (self.rom_ops is None):
@@ -226,13 +228,14 @@ class BasicSystem(object):
     mui = mu[index] if (index is not None) else mu
     try:
       n0 = self.mix.get_init_sol(*mui, mu_type=mu_type)
+      runtime = time.time()
       n = self.solve_fom(t, n0)
+      runtime = time.time()-runtime
       data = {"index": index, "mu": mui, "t": t, "n0": n0, "n": n}
       utils.save_case(path=path, index=index, data=data, filename=filename)
-      converged = 1
     except:
-      converged = 0
-    return converged
+      runtime = None
+    return runtime
 
   # Testing
   # ===================================
@@ -242,7 +245,7 @@ class BasicSystem(object):
     index: Optional[int] = None,
     filename: Optional[str] = None,
     eval_err: Optional[str] = None,
-    eps: float = 1e-7
+    eps: float = 1e-8
   ) -> Union[np.ndarray, Tuple[np.ndarray]]:
     # Load test case
     icase = utils.load_case(path=path, index=index, filename=filename)

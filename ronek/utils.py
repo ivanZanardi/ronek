@@ -215,13 +215,15 @@ def generate_case_parallel(
     file=sys.stdout
   )
   if (nb_workers > 1):
-    converged = jl.Parallel(nb_workers)(
+    runtime = jl.Parallel(nb_workers)(
       jl.delayed(sol_fun)(index=i, **sol_kwargs) for i in iterable
     )
   else:
-    converged = [sol_fun(index=i, **sol_kwargs) for i in iterable]
+    runtime = [sol_fun(index=i, **sol_kwargs) for i in iterable]
+  runtime = [rt for rt in runtime if (rt is not None)]
   if verbose:
-    print(f"> Total converged cases: {sum(converged)}/{nb_samples}")
+    print(f"> Total converged cases: {len(runtime)}/{nb_samples}")
+  return np.mean(runtime)
 
 # Statistics
 # =====================================

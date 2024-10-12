@@ -121,7 +121,8 @@ if (__name__ == '__main__'):
   btrunc(
     X=np.hstack(X),
     Y=np.hstack(Y),
-    compute_modes=True
+    compute_modes=True,
+    runtime=btrunc.runtime
   )
 
   # Copy input file
@@ -130,6 +131,7 @@ if (__name__ == '__main__'):
   with open(filename, "w") as file:
     json.dump(inputs, file, indent=2)
 
-  runtime = time.time()-runtime
-  with open(path_to_saving + "/runtime.txt", "w") as file:
-    file.write("Execution time: %.2f s" % runtime)
+  btrunc.runtime["tot"] = time.time()-runtime
+  filename = path_to_saving + "/runtime.json"
+  with open(filename, "w") as file:
+    json.dump(btrunc.runtime, file, indent=2)

@@ -68,7 +68,7 @@ if (__name__ == '__main__'):
   # Construct design matrix
   mu = system.construct_design_mat(**inputs["param_space"]["sampled"])
   # Generate data
-  utils.generate_case_parallel(
+  runtime = utils.generate_case_parallel(
     sol_fun=system.compute_fom_sol,
     sol_kwargs=dict(
       t=t,
@@ -82,17 +82,21 @@ if (__name__ == '__main__'):
   # Save parameters
   filename = path_to_saving + "/mu.p"
   pickle.dump(mu, open(filename, "wb"))
+  # Save runtime
+  with open(path_to_saving + "/runtime.txt", "w") as file:
+    file.write("Mean running time: %.8e s" % runtime)
 
   # Defined cases
   # ---------------
-  for (k, mui) in inputs["param_space"]["defined"].items():
-    system.compute_fom_sol(
+  for (k, mui) in inputs["param_space"]["defined"]["cases"].items():
+    runtime = system.compute_fom_sol(
       t=t,
       mu=mui,
-      path=None,
-      index=None,
+      mu_type=inputs["param_space"]["defined"].get("mu_type", "mass"),
       filename=path_to_saving + f"/case_{k}.p"
     )
+    if (runtime is None):
+      print(f"> Case '{k}' not converged!")
 
   # Copy input file
   # ---------------

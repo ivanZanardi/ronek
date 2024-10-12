@@ -29,8 +29,9 @@
   "plot": {
     "style": "/home/zanardi/Workspace/Research/styles/matplotlib/paper_1column.mplstyle",
     "molecule_label": "\\text{O$_2$}",
-    "err_scale": "log"
+    "err_scale": "log",
+    "hline": 1.0
   },
   "rom_range": [3,7],
-  "eval_err_on": "mom"
+  "eval_err": "mom"
 }
