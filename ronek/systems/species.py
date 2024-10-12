@@ -43,6 +43,7 @@ class Species(object):
   @property
   def x(self):
     return self._x
+
   @x.setter
   def x(self, value):
     self._x = value
@@ -50,6 +51,7 @@ class Species(object):
   @property
   def rho(self):
     return self._rho
+
   @rho.setter
   def rho(self, value):
     self._rho = value
@@ -57,6 +59,7 @@ class Species(object):
   @property
   def n(self):
     return self._n
+
   @n.setter
   def n(self, value):
     self._n = value
@@ -77,7 +80,6 @@ class Species(object):
       if self.use_factorial:
         mi /= (i+1)
       m.append(mi)
-    # return np.vstack(m)
     return np.vstack(m) / self.M
 
   # Partition functions

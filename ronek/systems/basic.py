@@ -119,11 +119,11 @@ class BasicSystem(object):
     self.phi, self.psi = phi, psi
     # Biorthogonalize
     self.phi = self.phi @ sp.linalg.inv(self.psi.T @ self.phi)
-    # Check if complex
-    if np.iscomplexobj(self.phi):
-      self.phi = self.phi.real
-    if np.iscomplexobj(self.psi):
-      self.psi = self.psi.real
+    # # Check if complex
+    # if np.iscomplexobj(self.phi):
+    #   self.phi = self.phi.real
+    # if np.iscomplexobj(self.psi):
+    #   self.psi = self.psi.real
 
   @abc.abstractmethod
   def _update_rom_ops(self) -> None:

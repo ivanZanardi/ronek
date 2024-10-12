@@ -50,12 +50,11 @@ class TASystem(BasicSystem):
     max_mom: int = 10
   ) -> Dict[str, np.ndarray]:
     # Equilibrium
-    n_a_eq, n_m_eq = self.mix.compute_eq_comp(rho)
-    n_eq = np.concatenate([n_a_eq, n_m_eq])
+    n_eq = self.mix.compute_eq_comp(rho)
     w_eq = self.mix.get_w(n_eq, rho)
     # A operator
-    A = self._compute_lin_fom_ops_a(n_a_eq)
-    b = self._compute_lin_fom_ops_b(n_a_eq)
+    A = self._compute_lin_fom_ops_a(n_eq[0])
+    b = self._compute_lin_fom_ops_b(n_eq[0])
     A = np.hstack([b.reshape(-1,1), A])
     a = - self.mix.m_ratio @ A
     A = np.vstack([a.reshape(1,-1), A])

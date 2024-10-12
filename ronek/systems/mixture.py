@@ -60,7 +60,7 @@ class Mixture(object):
     c = -rho
     n_a = (-b+np.sqrt(b**2-4*a*c))/(2*a)
     n_m = self.gamma*n_a**2
-    return n_a.reshape(-1), n_m.reshape(-1)
+    return np.concatenate([n_a.reshape(1), n_m])
 
   # Solving
   # ===================================
