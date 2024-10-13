@@ -137,6 +137,7 @@ if (__name__ == '__main__'):
         molecule_label=inputs["plot"]["molecule_label"],
         err_scale=inputs["plot"].get("err_scale", "linear"),
         hline=inputs["plot"].get("hline", None),
+        tlim=inputs["data"]["tlim"][icase],
         **common_kwargs
       )
       pp.plot_multi_dist_2d(

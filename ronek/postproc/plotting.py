@@ -42,6 +42,7 @@ def plot_evolution(
   x,
   y,
   ls=None,
+  xlim=None,
   ylim=None,
   hline=None,
   labels=[r"$t$ [s]", r"$n$ [m$^{-3}$]"],
@@ -55,10 +56,12 @@ def plot_evolution(
   fig = plt.figure()
   ax = fig.add_subplot()
   # x axis
-  xmin, xmax = np.amin(x), np.amax(x)
   ax.set_xlabel(labels[0])
   ax.set_xscale(scales[0])
-  ax.set_xlim([xmin, xmax])
+  if (xlim is None):
+    xlim = (np.amin(x), np.amax(x))
+  ax.set_xlim(xlim)
+  xmin, xmax = xlim
   # y axis
   ax.set_ylabel(labels[1])
   ax.set_yscale(scales[1])
@@ -103,6 +106,7 @@ def plot_mom_evolution(
   n_m,
   molecule,
   molecule_label,
+  tlim=None,
   err_scale="linear",
   hline=None,
   max_mom=2
@@ -133,6 +137,7 @@ def plot_mom_evolution(
     plot_evolution(
       x=t,
       y=moms[m],
+      xlim=tlim[f"m{m}"] if isinstance(tlim, dict) else tlim,
       labels=[r"$t$ [s]", label_sol],
       legend_loc="lower left" if (m == 0) else "upper left",
       scales=["log", yscale],
@@ -152,6 +157,7 @@ def plot_mom_evolution(
     plot_evolution(
       x=t,
       y=moms_err,
+      xlim=tlim[f"m{m}"] if isinstance(tlim, dict) else tlim,
       hline=hline,
       labels=[r"$t$ [s]", label_err],
       legend_loc="lower left",
@@ -166,6 +172,7 @@ def plot_err_evolution(
   err,
   eval_err,
   molecule_label,
+  tlim=None,
   subscript="i",
   err_scale="linear",
   hline=None,
@@ -187,6 +194,7 @@ def plot_err_evolution(
       plot_evolution(
         x=t,
         y={f"$r={r}$": err[r]["mean"][m] for r in err.keys()},
+        xlim=tlim,
         ls="-",
         hline=hline,
         legend_loc="lower left",
@@ -200,6 +208,7 @@ def plot_err_evolution(
     plot_evolution(
       x=t,
       y={f"$r={r}$": err[r]["mean"] for r in err.keys()},
+      xlim=tlim,
       ls="-",
       hline=hline,
       legend_loc="lower left",
