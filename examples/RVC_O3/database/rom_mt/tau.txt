@@ -1,0 +1,2 @@
+- The characteristic internal energy relaxation time is: 1.3569377999569903e-08 atm*s
+- The MW coefficients are [a, b, c]: 40.0, 1.849021788459754, 18.42
