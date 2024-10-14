@@ -37,7 +37,7 @@
       "rho_lim": [1e-5, 1e0],
       "nb_samples": 100
     },
-    "nb_workers": 20
+    "nb_workers": 10
   },
   "paths": {
     "dtb": "./../../database/",

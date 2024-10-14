@@ -20,12 +20,12 @@
       "num": 6
     },
     "mu": {
-      "Tint": {
+      "T0": {
         "start": 2e2,
         "stop": 1e4,
         "num": 11
       },
-      "X_a": {
+      "w0_a": {
         "start": 0.0,
         "stop": 1.0,
         "num": 6
