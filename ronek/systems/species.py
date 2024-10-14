@@ -15,7 +15,7 @@ class Species(object):
   ):
     # Load properties
     if (not isinstance(properties, dict)):
-      with open(properties, 'r') as file:
+      with open(properties, "r") as file:
         properties = json.load(file)
     # Set properties
     for (k, v) in properties.items():
