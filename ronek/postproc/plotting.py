@@ -114,11 +114,24 @@ def plot_mom_evolution(
   path = path + "/moments/"
   os.makedirs(path, exist_ok=True)
   # Compute moments
+  # > Check if MT model is present
+  moms_mt = {}
+  keys = list(n_m.keys())
+  for k in keys:
+    if ("MT" in k):
+      moms_mt[k] = n_m.pop(k)
+  # > Order 0
   moms = [{k: molecule.compute_mom(nk, m=0) for (k, nk) in n_m.items()}]
+  # > Order 1-max_mom
   for m in range(1,max_mom):
     moms.append(
       {k: molecule.compute_mom(nk, m=1)/moms[0][k] for (k, nk) in n_m.items()}
     )
+  # Include MT model
+  if (len(moms_mt) > 0):
+    for k in moms_mt.keys():
+      for m in range(2):
+        moms[m][k] = moms_mt[k][m]
   # Plot moments
   for m in range(max_mom):
     if (m == 0):
@@ -263,6 +276,8 @@ def plot_dist_2d(
       if ("FOM" in k.upper()):
         c = "k"
         ymin = yk.min()
+      elif ("MT" in k.upper()):
+        continue
       else:
         c = COLORS[i]
         i += 1

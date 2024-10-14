@@ -25,7 +25,7 @@ class MultiTemperature(object):
     data = pd.read_csv(filename)
     # Moments
     # > Order 0
-    n = (data[f"X_{self.molecule.name}"] * data[["n"]]).values
+    n = (data[f"X_{self.molecule.name}"] * data["n"]).values
     # > Order 1
     Tr, Tv = [data[k].values for k in ("Th", "Tv")]
     e = self.compute_energy(Tr, Tv)
@@ -34,15 +34,15 @@ class MultiTemperature(object):
     if (teval is not None):
       t = data["t"].values
       x = sp.interpolate.interp1d(t, x, kind="cubic", axis=0)(teval)
-    return x
+    return x.T
 
   def compute_energy(self, Tr, Tv):
     # Rigid-rotor-harmonic oscillator model
     # Rotational energy
     er = self.molecule.R * Tr
     # Vibrational energy
-    r = self.molecule.theta_v / Tv
-    ev = self.molecule.R * Tv * r / (np.exp(r)-1.0)
-    # Total internal energy
+    ratio = self.molecule.theta_v / Tv
+    ev = self.molecule.R * Tv * ratio / (np.exp(ratio)-1.0)
+    # Total internal energy [eV]
     e = (er + ev) * self.molecule.m / const.eV_to_J
     return e

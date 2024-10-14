@@ -68,6 +68,12 @@ if (__name__ == '__main__'):
   # > Balanced truncation (BT)
   bt_bases = h5todict(inputs["paths"]["bases"])
   bt_bases = [bt_bases[k] for k in ("phi", "psi")]
+  # > Multi-temperature (MT)
+  mt_model = inputs.get("mt_model", {"active": False})
+  if mt_model["active"]:
+    mt = roms.MultiTemperature(
+      molecule=path_to_dtb+"/species/molecule.json"
+    )
   # > Coarse graining (CG)
   cg_model = inputs.get(
     "cg_model", {
@@ -105,6 +111,14 @@ if (__name__ == '__main__'):
       system.update_rom_ops(phi=bt_bases[0][:,:r], psi=bt_bases[1][:,:r])
       n_rom_bt = system.solve_rom(t, n0)
       sols["ROM-PG"] = n_rom_bt[1]
+      # > Read ROM-MT
+      if mt_model["active"]:
+        name = "ROM-MT"
+        print(f"> Reading {name} ...")
+        sols[name] = mt(
+          filename=mt_model["cases"][icase],
+          teval=t
+        )
       # > Solve ROM-CG
       if cg_model["0"]["active"]:
         name = "ROM-CG-M0" if cg_active_both else "ROM-CG"
