@@ -152,30 +152,33 @@ class BasicSystem(object):
     self,
     t: np.ndarray,
     n0: np.ndarray
-  ) -> np.ndarray:
+  ) -> Tuple[np.ndarray]:
     """Solve FOM."""
+    runtime = time.time()
     n = self._solve(t=t, n0=n0, ops=self.fom_ops)
-    return n[:1], n[1:]
+    runtime = time.time()-runtime
+    runtime = np.array(runtime).reshape(1)
+    return n[:1], n[1:], runtime
 
   def solve_rom(
     self,
     t: np.ndarray,
     n0: np.ndarray
-  ) -> np.ndarray:
+  ) -> Tuple[np.ndarray]:
     """Solve ROM."""
     self._check_rom_ops()
     self._is_einsum_used("solve_rom")
     # Encode initial condition
     z_m = self._encode(n0[1:])
+    z0 = np.concatenate([n0[:1], z_m])
     # Solve
-    z = self._solve(
-      t=t,
-      n0=np.concatenate([n0[:1], z_m]),
-      ops=self.rom_ops
-    )
+    runtime = time.time()
+    z = self._solve(t=t, n0=z0, ops=self.rom_ops)
+    runtime = time.time()-runtime
+    runtime = np.array(runtime).reshape(1)
     # Decode solution
     n_m = self._decode(z[1:].T).T
-    return z[:1], n_m
+    return z[:1], n_m, runtime
 
   def _encode(self, x: np.ndarray) -> np.ndarray:
     return x @ self.psi
@@ -219,13 +222,11 @@ class BasicSystem(object):
     path: Optional[str] = None,
     index: Optional[int] = None,
     filename: Optional[str] = None
-  ) -> int:
+  ) -> np.ndarray:
     mui = mu[index] if (index is not None) else mu
     try:
       n0 = self.mix.get_init_sol(*mui, mu_type=mu_type)
-      runtime = time.time()
-      n = self.solve_fom(t, n0)
-      runtime = time.time()-runtime
+      *n, runtime = self.solve_fom(t, n0)
       data = {"index": index, "mu": mui, "t": t, "n0": n0, "n": n}
       utils.save_case(path=path, index=index, data=data, filename=filename)
     except:
@@ -239,12 +240,12 @@ class BasicSystem(object):
     filename: Optional[str] = None,
     eval_err: Optional[str] = None,
     eps: float = 1e-8
-  ) -> Union[np.ndarray, Tuple[np.ndarray]]:
+  ) -> Tuple[np.ndarray]:
     # Load test case
     icase = utils.load_case(path=path, index=index, filename=filename)
     n_fom, t, n0 = [icase[k] for k in ("n", "t", "n0")]
     # Solve ROM
-    n_rom = self.solve_rom(t, n0)
+    *n_rom, runtime = self.solve_rom(t, n0)
     # Evaluate error
     if (eval_err == "mom"):
       # > Moments
@@ -259,13 +260,13 @@ class BasicSystem(object):
           mom_fom /= mom0_fom
           mom_rom /= mom0_rom
         error.append(utils.absolute_percentage_error(mom_rom, mom_fom, eps))
-      return np.vstack(error)
+      return np.vstack(error), runtime
     elif (eval_err == "dist"):
       # > Distribution
       rho = self.mix.get_rho(n0)
       y_pred = n_rom[1] * self.mix.species["molecule"].m / rho
       y_true = n_fom[1] * self.mix.species["molecule"].m / rho
-      return utils.absolute_percentage_error(y_pred, y_true, eps)
+      return utils.absolute_percentage_error(y_pred, y_true, eps), runtime
     else:
       # > None: return the solution
-      return t, n_fom, n_rom
+      return t, n_fom, n_rom, runtime

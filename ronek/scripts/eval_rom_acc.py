@@ -83,23 +83,36 @@ if (__name__ == '__main__'):
   # Util functions
   # ---------------
   def compute_err_parallel():
-    err = jl.Parallel(inputs["data"]["nb_workers"])(
-      jl.delayed(system.compute_rom_sol)(
-        path=inputs["data"]["path"],
-        index=i,
-        filename=None,
-        eval_err=inputs["eval_err"]
-      ) for i in tqdm(
-        iterable=range(inputs["data"]["nb_samples"]),
-        ncols=80,
-        desc="  Cases",
-        file=sys.stdout
-      )
+    iterable = tqdm(
+      iterable=range(inputs["data"]["nb_samples"]),
+      ncols=80,
+      desc="  Cases",
+      file=sys.stdout
     )
-    if (inputs["eval_err"] == "mom"):
-      return np.stack(err, axis=0)
+    nb_workers = inputs["data"]["nb_workers"]
+    if (nb_workers > 1):
+      sol = jl.Parallel(inputs["data"]["nb_workers"])(
+        jl.delayed(system.compute_rom_sol)(
+          path=inputs["data"]["path"],
+          index=i,
+          filename=None,
+          eval_err=inputs["eval_err"]
+        ) for i in iterable
+      )
     else:
-      return np.vstack(err)
+      sol = [
+        system.compute_rom_sol(
+          path=inputs["data"]["path"],
+          index=i,
+          filename=None,
+          eval_err=inputs["eval_err"]
+        ) for i in iterable
+      ]
+    err, runtime = list(zip(*sol))
+    if (inputs["eval_err"] == "mom"):
+      return np.stack(err, axis=0), runtime
+    else:
+      return np.vstack(err), runtime
 
   def compute_err_stats(err):
     return {
@@ -108,29 +121,44 @@ if (__name__ == '__main__'):
       "std": np.std(err, axis=0)
     }
 
+  def compute_runtime_stats(runtime):
+    return {
+      "mean": np.mean(runtime),
+      "std": np.std(runtime)
+    }
+
   def save_err_stats(model, stats):
     dicttoh5(
       treedict=stats,
-      h5file=path_to_saving + f"/{model}_rom.hdf5",
+      h5file=path_to_saving + f"/{model}_err.hdf5",
       overwrite_data=True
     )
 
+  def save_runtime_stats(model, stats):
+    filename = path_to_saving + f"/{model}_runtime.json"
+    with open(filename, "w") as file:
+      json.dump(stats, file, indent=2)
+
   # Loop over ROM dimensions
   # ---------------
-  bt_err, cg_err = {}, {}
+  bt_err, bt_runtime = {}, {}
+  cg_err, cg_runtime = {}, {}
   for r in range(*inputs["rom_range"]):
+    r_str = str(r)
     # Solve PG ROM
     print(f"\n> Solving PG ROM with {r} dimensions ...")
     system.update_rom_ops(phi=bt_bases[0][:,:r], psi=bt_bases[1][:,:r])
-    errors = compute_err_parallel()
-    bt_err[str(r)] = compute_err_stats(errors)
+    errors, runtime = compute_err_parallel()
+    bt_err[r_str] = compute_err_stats(errors)
+    bt_runtime[r_str] = compute_runtime_stats(runtime)
     # Solve CG ROM
     if cg_model["active"]:
       print(f"> Solving CG ROM with {r} dimensions ...")
       cg_m0.build(nb_bins=r)
       system.update_rom_ops(cg_m0.phi, cg_m0.psi)
-      errors = compute_err_parallel()
-      cg_err[str(r)] = compute_err_stats(errors)
+      errors, runtime = compute_err_parallel()
+      cg_err[r_str] = compute_err_stats(errors)
+      cg_runtime[r_str] = compute_runtime_stats(runtime)
   # Save/plot error statistics
   common_kwargs = dict(
     eval_err=inputs["eval_err"],
@@ -157,6 +185,11 @@ if (__name__ == '__main__'):
       err=cg_err,
       **common_kwargs
     )
+
+  # Save running times
+  save_runtime_stats("bt", bt_runtime)
+  if cg_model["active"]:
+    save_runtime_stats("cg", cg_runtime)
 
   # Copy input file
   # ---------------

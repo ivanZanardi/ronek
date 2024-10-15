@@ -125,13 +125,13 @@ if (__name__ == '__main__'):
     runtime=btrunc.runtime
   )
 
+  btrunc.runtime["tot"] = time.time()-runtime
+  filename = path_to_saving + "/runtime.json"
+  with open(filename, "w") as file:
+    json.dump(btrunc.runtime, file, indent=2)
+
   # Copy input file
   # ---------------
   filename = path_to_saving + "/inputs.json"
   with open(filename, "w") as file:
     json.dump(inputs, file, indent=2)
-
-  btrunc.runtime["tot"] = time.time()-runtime
-  filename = path_to_saving + "/runtime.json"
-  with open(filename, "w") as file:
-    json.dump(btrunc.runtime, file, indent=2)
