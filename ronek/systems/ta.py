@@ -2,7 +2,7 @@ import numpy as np
 
 from .. import const
 from .basic import BasicSystem
-from typing import Dict
+from typing import Dict, Optional
 
 
 class TASystem(BasicSystem):
@@ -63,14 +63,23 @@ class TASystem(BasicSystem):
 
   def _compute_lin_fom_ops_a_full(
     self,
-    n_a_eq: np.ndarray
+    n_a_eq: np.ndarray,
+    phi: Optional[np.ndarray] = None,
+    psi: Optional[np.ndarray] = None,
+    by_mass: bool = True
   ) -> np.ndarray:
     A = self._compute_lin_fom_ops_a(n_a_eq)
     b = self._compute_lin_fom_ops_b(n_a_eq)
+    m = self.mix.m_ratio
+    if (phi is not None):
+      A = psi.T @ A @ phi
+      b = psi.T @ b
+      m = self.mix.m_ratio @ phi
     A = np.hstack([b.reshape(-1,1), A])
-    a = - self.mix.m_ratio @ A
+    a = - m @ A
     A = np.vstack([a.reshape(1,-1), A])
-    A = self.mix.M @ A @ self.mix.Minv
+    if by_mass:
+      A = self.mix.M @ A @ self.mix.Minv
     return A
 
   def _compute_lin_fom_ops_a(
