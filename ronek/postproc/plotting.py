@@ -267,7 +267,8 @@ def plot_dist_2d(
   # Plotting
   style = dict(
     linestyle="",
-    marker="o"
+    marker="o",
+    rasterized=True
   )
   if isinstance(y, dict):
     i = 0

@@ -53,18 +53,25 @@ class TASystem(BasicSystem):
     n_eq = self.mix.compute_eq_comp(rho)
     w_eq = self.mix.get_w(n_eq, rho)
     # A operator
-    A = self._compute_lin_fom_ops_a(n_eq[0])
-    b = self._compute_lin_fom_ops_b(n_eq[0])
-    A = np.hstack([b.reshape(-1,1), A])
-    a = - self.mix.m_ratio @ A
-    A = np.vstack([a.reshape(1,-1), A])
-    A = self.mix.M @ A @ self.mix.Minv
+    A = self._compute_lin_fom_ops_a_full(n_eq[0])
     # C operator
     C = self._compute_lin_fom_ops_c(max_mom)
     # Initial solutions
     M = self._compute_lin_init_sols(mu, w_eq)
     # Return data
     return {"A": A, "C": C, "M": M, "x_eq": w_eq}
+
+  def _compute_lin_fom_ops_a_full(
+    self,
+    n_a_eq: np.ndarray
+  ) -> np.ndarray:
+    A = self._compute_lin_fom_ops_a(n_a_eq)
+    b = self._compute_lin_fom_ops_b(n_a_eq)
+    A = np.hstack([b.reshape(-1,1), A])
+    a = - self.mix.m_ratio @ A
+    A = np.vstack([a.reshape(1,-1), A])
+    A = self.mix.M @ A @ self.mix.Minv
+    return A
 
   def _compute_lin_fom_ops_a(
     self,

@@ -20,21 +20,24 @@
     "kwargs": {
       "T": 1e4,
       "use_einsum": false,
-      "use_factorial": false
+      "use_factorial": true
     }
   },
   "param_space": {
     "defined": {
-      "cold": [5e2, 1e3, 0.05],
-      "hot":  [4e3, 1e3, 0.05]
+      "cases": {
+        "cold": [5e2, 0.05, 1e3],
+        "hot":  [4e3, 0.05, 1e3]
+      },
+      "mu_type": "mole"
     },
     "sampled": {
       "T_lim": [5e2, 1e4],
-      "p_lim": [5e2, 5e4],
-      "X_a_lim": [0.05, 0.95],
+      "w_a_lim": [0.01, 0.99],
+      "rho_lim": [1e-5, 1e0],
       "nb_samples": 100
     },
-    "nb_workers": 20
+    "nb_workers": 10
   },
   "paths": {
     "dtb": "./../../database/",

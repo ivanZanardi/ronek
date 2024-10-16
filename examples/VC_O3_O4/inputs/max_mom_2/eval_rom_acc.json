@@ -23,7 +23,7 @@
   },
   "data": {
     "nb_samples": 100,
-    "nb_workers": 20,
+    "nb_workers": 1,
     "path": "./../../test/data/"
   },
   "plot": {

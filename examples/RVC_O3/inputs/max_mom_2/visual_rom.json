@@ -16,17 +16,24 @@
       "use_factorial": false
     }
   },
+  "mt_model": {
+    "active": true,
+    "cases": {
+      "cold": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/rom_mt/testcases/cold.csv",
+      "hot":  "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/rom_mt/testcases/hot.csv"
+    }
+  },
   "cg_model": {
     "0": {
       "active": false
     },
     "1": {
       "active": true,
-      "nb_bins": 5,
-      "mapping": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/testcases/RVE5/mapping.csv",
+      "nb_bins": 4,
+      "mapping": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/rom_cg/testcases/ADA4/mapping.csv",
       "cases": {
-        "cold": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/testcases/RVE5/cold.csv",
-        "hot":  "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/testcases/RVE5/hot.csv"
+        "cold": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/rom_cg/testcases/ADA4/cold.csv",
+        "hot":  "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/rom_cg/testcases/ADA4/hot.csv"
       }
     }
   },
@@ -41,6 +48,10 @@
       "cold": [1e-8, 1e-7, 7e-7, 3e-6, 1e-4],
       "hot":  [1e-7, 1e-6, 4e-6, 2e-5, 1e-3]
     },
+    "tlim": {
+      "cold": {"m0": [3e-7, 2e-5], "m1": [1e-8, 2e-5]},
+      "hot":  {"m0": [1e-9, 1e-3], "m1": [1e-9, 1e-3]}
+    },
     "path": "./../../test/data/"
   },
   "plot": {
@@ -49,7 +60,8 @@
     "markersize": 1,
     "subscript": "i",
     "err_scale": "log",
-    "molecule_label": "\\text{O$_2$}"
+    "molecule_label": "\\text{O$_2$}",
+    "hline": 1.0
   },
-  "rom_range": [10,11]
+  "rom_range": [8,9]
 }

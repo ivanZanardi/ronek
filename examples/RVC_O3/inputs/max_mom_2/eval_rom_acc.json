@@ -28,10 +28,10 @@
   },
   "plot": {
     "style": "/home/zanardi/Workspace/Research/styles/matplotlib/paper_1column.mplstyle",
-    "scales": ["log", "linear"],
     "molecule_label": "\\text{O$_2$}",
-    "err_scale": "log"
+    "err_scale": "log",
+    "hline": 1.0
   },
-  "rom_range": [6,13,2],
-  "eval_err_on": "mom"
+  "rom_range": [4,11,2],
+  "eval_err": "mom"
 }

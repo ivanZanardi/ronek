@@ -22,11 +22,11 @@
     },
     "1": {
       "active": true,
-      "nb_bins": 15,
-      "mapping": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/testcases/RVE15/mapping.csv",
+      "nb_bins": 8,
+      "mapping": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/rom_cg/ADA8/mapping.csv",
       "cases": {
-        "cold": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/testcases/RVE15/cold.csv",
-        "hot":  "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/testcases/RVE15/hot.csv"
+        "cold": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/rom_cg/ADA8/cold.csv",
+        "hot":  "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/rom_cg/ADA8/hot.csv"
       }
     }
   },
@@ -49,7 +49,8 @@
     "markersize": 1,
     "subscript": "i",
     "err_scale": "log",
+    "hline": 5.0,
     "molecule_label": "\\text{O$_2$}"
   },
-  "rom_range": [30,31]
+  "rom_range": [16,17]
 }
