@@ -2,7 +2,6 @@ import numpy as np
 
 from .. import const
 from .basic import BasicSystem
-from typing import Dict, Optional
 
 
 class TASystem(BasicSystem):
@@ -43,45 +42,6 @@ class TASystem(BasicSystem):
 
   # Linearized FOM
   # -----------------------------------
-  def _compute_lin_fom_ops(
-    self,
-    mu: np.ndarray,
-    rho: float,
-    max_mom: int = 10
-  ) -> Dict[str, np.ndarray]:
-    # Equilibrium
-    n_eq = self.mix.compute_eq_comp(rho)
-    w_eq = self.mix.get_w(n_eq, rho)
-    # A operator
-    A = self._compute_lin_fom_ops_a_full(n_eq[0])
-    # C operator
-    C = self._compute_lin_fom_ops_c(max_mom)
-    # Initial solutions
-    M = self._compute_lin_init_sols(mu, w_eq)
-    # Return data
-    return {"A": A, "C": C, "M": M, "x_eq": w_eq}
-
-  def _compute_lin_fom_ops_a_full(
-    self,
-    n_a_eq: np.ndarray,
-    phi: Optional[np.ndarray] = None,
-    psi: Optional[np.ndarray] = None,
-    by_mass: bool = True
-  ) -> np.ndarray:
-    A = self._compute_lin_fom_ops_a(n_a_eq)
-    b = self._compute_lin_fom_ops_b(n_a_eq)
-    m = self.mix.m_ratio
-    if (phi is not None):
-      A = psi.T @ A @ phi
-      b = psi.T @ b
-      m = self.mix.m_ratio @ phi
-    A = np.hstack([b.reshape(-1,1), A])
-    a = - m @ A
-    A = np.vstack([a.reshape(1,-1), A])
-    if by_mass:
-      A = self.mix.M @ A @ self.mix.Minv
-    return A
-
   def _compute_lin_fom_ops_a(
     self,
     n_a_eq: np.ndarray
@@ -96,29 +56,6 @@ class TASystem(BasicSystem):
       self.fom_ops["ed"] @ self.mix.gamma \
       + 3 * self.fom_ops["r"]
     ) * n_a_eq**2
-
-  def _compute_lin_fom_ops_c(self, max_mom):
-    if (max_mom > 0):
-      C = np.zeros((max_mom,self.nb_eqs))
-      C[:,1:] = self.mix.species["molecule"].compute_mom_basis(max_mom)
-    else:
-      C = np.eye(self.nb_eqs)
-      C[0,0] = 0.0
-    return C
-
-  def _compute_lin_init_sols(
-    self,
-    mu: np.ndarray,
-    w_eq: np.ndarray,
-    noise: bool = True,
-    sigma: float = 1e-2
-  ) -> np.ndarray:
-    M = []
-    for mui in mu:
-      w0 = self.mix.get_init_sol(*mui, noise=noise, sigma=sigma)
-      M.append(w0 - w_eq)
-    M = np.vstack(M).T
-    return M
 
   # ROM
   # -----------------------------------

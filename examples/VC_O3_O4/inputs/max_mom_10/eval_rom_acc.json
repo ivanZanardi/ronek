@@ -4,7 +4,7 @@
     "backend": "numpy",
     "device": "cpu",
     "device_idx": 0,
-    "nb_threads": 8,
+    "nb_threads": 4,
     "epsilon": 1e-10,
     "floatx": "float64"
   },
@@ -23,7 +23,7 @@
   },
   "data": {
     "nb_samples": 100,
-    "nb_workers": 1,
+    "nb_workers": 10,
     "path": "./../../test/data/"
   },
   "plot": {
@@ -31,7 +31,7 @@
     "molecule_label": "\\text{O$_2$}",
     "subscript": "v",
     "err_scale": "log",
-    "hline": 5.0
+    "hline": 10.0
   },
   "rom_range": [6,13,2],
   "eval_err": "dist"

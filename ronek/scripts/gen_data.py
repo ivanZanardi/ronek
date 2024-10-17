@@ -96,7 +96,7 @@ if (__name__ == '__main__'):
       filename=path_to_saving + f"/case_{k}.p"
     )
     if (runtime is None):
-      print(f"> Case '{k}' not converged!")
+      print(f"Case '{k}' not converged!")
 
   # Copy input file
   # ---------------

@@ -162,7 +162,7 @@ def load_case_parallel(
   iterable = tqdm(
     iterable=range(*ranges),
     ncols=80,
-    desc="> Cases",
+    desc="Cases",
     file=sys.stdout
   )
   if (nb_workers > 1):
@@ -222,7 +222,7 @@ def generate_case_parallel(
     runtime = [sol_fun(index=i, **sol_kwargs) for i in iterable]
   runtime = [rt for rt in runtime if (rt is not None)]
   if verbose:
-    print(f"> Total converged cases: {len(runtime)}/{nb_samples}")
+    print(f"Total converged cases: {len(runtime)}/{nb_samples}")
   return np.mean(runtime)
 
 # Statistics

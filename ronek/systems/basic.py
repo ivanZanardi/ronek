@@ -9,7 +9,7 @@ from .. import const
 from .. import utils
 from .mixture import Mixture
 from .kinetics import Kinetics
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 
 class BasicSystem(object):
@@ -88,16 +88,78 @@ class BasicSystem(object):
     max_mom: int = 10
   ) -> Dict[str, np.ndarray]:
     self._is_einsum_used("compute_lin_fom_ops")
-    return self._compute_lin_fom_ops(mu, rho, max_mom)
+    # Equilibrium
+    n_eq = self.mix.compute_eq_comp(rho)
+    w_eq = self.mix.get_w(n_eq, rho)
+    # A operator
+    A = self._compute_lin_fom_ops_a_full(n_eq[0])
+    # C operator
+    C = self._compute_lin_fom_ops_c(max_mom)
+    # Initial solutions
+    M = self._compute_lin_init_sols(mu, w_eq)
+    # Return data
+    return {"A": A, "C": C, "M": M, "x_eq": w_eq}
+
+  def _compute_lin_fom_ops_a_full(
+    self,
+    n_a_eq: np.ndarray,
+    phi: Optional[np.ndarray] = None,
+    psi: Optional[np.ndarray] = None,
+    by_mass: bool = True
+  ) -> np.ndarray:
+    A = self._compute_lin_fom_ops_a(n_a_eq)
+    b = self._compute_lin_fom_ops_b(n_a_eq)
+    m = self.mix.m_ratio
+    if (phi is not None):
+      A = psi.T @ A @ phi
+      b = psi.T @ b
+      m = self.mix.m_ratio @ phi
+    A = np.hstack([b.reshape(-1,1), A])
+    a = - m @ A
+    A = np.vstack([a.reshape(1,-1), A])
+    if by_mass:
+      A = self.mix.M @ A @ self.mix.Minv
+    return A
 
   @abc.abstractmethod
-  def _compute_lin_fom_ops(
+  def _compute_lin_fom_ops_a(
+    self,
+    n_a_eq: np.ndarray
+  ) -> np.ndarray:
+    pass
+
+  @abc.abstractmethod
+  def _compute_lin_fom_ops_b(
+    self,
+    n_a_eq: np.ndarray
+  ) -> np.ndarray:
+    pass
+
+  def _compute_lin_fom_ops_c(
+    self,
+    max_mom: int
+  ) -> np.ndarray:
+    if (max_mom > 0):
+      C = np.zeros((max_mom,self.nb_eqs))
+      C[:,1:] = self.mix.species["molecule"].compute_mom_basis(max_mom)
+    else:
+      C = np.eye(self.nb_eqs)
+      C[0,0] = 0.0
+    return C
+
+  def _compute_lin_init_sols(
     self,
     mu: np.ndarray,
-    rho: float,
-    max_mom: int = 10
-  ) -> Dict[str, np.ndarray]:
-    pass
+    w_eq: np.ndarray,
+    noise: bool = True,
+    sigma: float = 1e-2
+  ) -> np.ndarray:
+    M = []
+    for mui in mu:
+      w0 = self.mix.get_init_sol(*mui, noise=noise, sigma=sigma)
+      M.append(w0 - w_eq)
+    M = np.vstack(M).T
+    return M
 
   # ROM
   # -----------------------------------
@@ -160,6 +222,26 @@ class BasicSystem(object):
     runtime = np.array(runtime).reshape(1)
     return n[:1], n[1:], runtime
 
+  def solve_lin_fom(
+    self,
+    t: np.ndarray,
+    n0: np.ndarray,
+    A: Optional[np.ndarray] = None
+  ) -> Tuple[np.ndarray]:
+    # Equilibrium composition
+    rho = self.mix.get_rho(n0)
+    n_eq = self.mix.compute_eq_comp(rho)
+    # Linear operator
+    if (A is None):
+      A = self._compute_lin_fom_ops_a_full(n_eq[0], by_mass=False)
+    # Eigendecomposition
+    l, v = [x.real for x in sp.linalg.eig(A)]
+    # Solution
+    n = sp.linalg.solve(v, n0-n_eq)
+    n = [n_eq + v @ (np.exp(l*ti) * n) for ti in t]
+    n = np.vstack(n).T
+    return n[:1], n[1:]
+
   def solve_rom(
     self,
     t: np.ndarray,
@@ -203,16 +285,21 @@ class BasicSystem(object):
     T_lim: List[float],
     w_a_lim: List[float],
     rho_lim: List[float],
-    nb_samples: int
+    nb_samples: int,
+    ilog: List[int] = [0,2],
+    eps: float = 1e-7
   ) -> np.ndarray:
     design_space = [np.sort(T_lim), np.sort(w_a_lim), np.sort(rho_lim)]
-    design_space = np.array(design_space).T
+    design_space = np.array(design_space).T + eps
+    design_space[:,ilog] = np.log(design_space[:,ilog])
     # Construct
     ddim = design_space.shape[1]
     dmat = lhs(ddim, int(nb_samples))
     # Rescale
     amin, amax = design_space
-    return dmat * (amax - amin) + amin
+    dmat = dmat * (amax - amin) + amin
+    dmat[:,ilog] = np.exp(dmat[:,ilog])
+    return dmat
 
   def compute_fom_sol(
     self,
@@ -239,7 +326,7 @@ class BasicSystem(object):
     index: Optional[int] = None,
     filename: Optional[str] = None,
     eval_err: Optional[str] = None,
-    eps: float = 1e-8
+    eps: float = 1e-7
   ) -> Tuple[np.ndarray]:
     # Load test case
     icase = utils.load_case(path=path, index=index, filename=filename)

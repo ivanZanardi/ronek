@@ -4,7 +4,7 @@
     "backend": "numpy",
     "device": "cpu",
     "device_idx": 0,
-    "nb_threads": 8,
+    "nb_threads": 4,
     "epsilon": 1e-10,
     "floatx": "float64"
   },
@@ -13,7 +13,7 @@
     "kwargs": {
       "T": 1e4,
       "use_einsum": false,
-      "use_factorial": false
+      "use_factorial": true
     }
   },
   "paths": {
@@ -23,7 +23,7 @@
   },
   "data": {
     "nb_samples": 100,
-    "nb_workers": 1,
+    "nb_workers": 10,
     "path": "./../../test/data/"
   },
   "plot": {

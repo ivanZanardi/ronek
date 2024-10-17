@@ -15,7 +15,7 @@
       "num": 51
     },
     "rho": {
-      "start": 1e-5,
+      "start": 1e-4,
       "stop": 1e0,
       "num": 6
     },
@@ -26,8 +26,8 @@
         "num": 11
       },
       "w0_a": {
-        "start": 0.0,
-        "stop": 1.0,
+        "start": 0.01,
+        "stop": 0.99,
         "num": 6
       }
     }
