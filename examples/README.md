@@ -12,7 +12,7 @@ The available examples include:
 
 Running the examples:
 
-1. Navigate to the main folder of the corresponding example (e.g., `RVC_O3`).
+1. Navigate to the inputs folder of the corresponding example (e.g., `RVC_O3/inputs`).
 2. Modify the input files (.json) in each subfolder as needed:
    - `gen_data`: Generates the data for testing.
    - `max_mom_2`: Constructs the Petrov-Galerkin model considering only the first 2 moments of the O$_2$ distribution function.
