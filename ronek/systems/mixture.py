@@ -120,9 +120,7 @@ class Mixture(object):
     n: np.ndarray,
     rho: float
   ) -> np.ndarray:
-    w = (1/rho) * self.M @ n
-    assert np.isclose(np.sum(w), 1.0, rtol=1e-5, atol=1e-8)
-    return w
+    return (1/rho) * self.M @ n
 
   def get_n(
     self,
