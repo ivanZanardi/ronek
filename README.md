@@ -4,7 +4,7 @@
 
 ---
 
-RONEK is a Python library designed to perform model reduction for non-equilibrium kinetics, based on balanced truncation techniques. It currently supports mixtures consisting of two species: one atom and one molecule, with a single chemical component. For instance, it can manage mixtures like $\mathcal{S}=\left[\text{N},\text{N}_2\right]$ or $\mathcal{S}=\left[\text{O},\text{O}_2\right]$.
+RONEK is a Python library designed to perform model reduction for non-equilibrium kinetics, based on balanced truncation techniques. It currently supports mixtures consisting of two species: one atom and one molecule, with a single chemical component. For instance, it can manage mixtures like $\mathcal{S}=\left[\text{N},\text{N}2\right]$ or $\mathcal{S}=\left[\text{O},\text{O}2\right]$.
 
 It leverages PyTorch for GPU acceleration. This implementation excels in performance, making it well-suited for high-dimensional problems.
 
