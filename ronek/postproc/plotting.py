@@ -180,6 +180,65 @@ def plot_mom_evolution(
       show=False
     )
 
+def plot_err_ci_evolution(
+  x,
+  mean,
+  sem,
+  size,
+  alpha=0.95,
+  xlim=None,
+  ylim=None,
+  hline=None,
+  labels=[r"$t$ [s]", r"$n$ [m$^{-3}$]"],
+  scales=["log", "linear"],
+  legend_loc="best",
+  figname=None,
+  save=False,
+  show=False
+):
+  # Initialize figures
+  fig = plt.figure()
+  ax = fig.add_subplot()
+  # x axis
+  ax.set_xlabel(labels[0])
+  ax.set_xscale(scales[0])
+  if (xlim is None):
+    xlim = (np.amin(x), np.amax(x))
+  ax.set_xlim(xlim)
+  xmin, xmax = xlim
+  # y axis
+  ax.set_ylabel(labels[1])
+  ax.set_yscale(scales[1])
+  if (ylim is not None):
+    ax.set_ylim(ylim)
+  # Plotting
+  y1, y2 = sp.stats.t.interval(
+    alpha=alpha,
+    df=size-1,
+    loc=mean,
+    scale=sem
+  )
+  ci_lbl = "${}\\%$ CI".format(int(100*alpha))
+  ax.fill_between(x=x, y1=y1, y2=y2, alpha=0.2, label=ci_lbl)
+  if (hline is not None):
+    ax.text(
+      0.99, hline,
+      r"{:0.1f} \%".format(hline),
+      va="bottom", ha="right",
+      transform=ax.get_yaxis_transform(),
+      fontsize=20
+    )
+    ax.hlines(hline, xmin, xmax, colors="grey", lw=1.0)
+  ax.plot(x, mean)
+  ax.legend(loc=legend_loc)
+  # Tight layout
+  plt.tight_layout()
+  if save:
+    plt.savefig(figname)
+  if show:
+    plt.show()
+  plt.close()
+
 def plot_err_evolution(
   path,
   err,
