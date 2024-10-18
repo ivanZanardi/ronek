@@ -4,13 +4,13 @@
 
 ---
 
-## Examples
+### Examples
 
 The available examples include:
 - `RVC_O3`: Rovibrational collisional model for the O$`_2`$ + O system at T = 10,000 K.
 - `VC_O3_O4`: Vibrational collisional model for the O$`_2`$ + O and O$`_2`$ + O$`_2`$ systems at T = 10,000 K.
 
-### Running the Examples
+Running the examples:
 
 1. Navigate to the main folder of the corresponding example (e.g., `RVC_O3`).
 2. Modify the input files (.json) in each subfolder as needed:
