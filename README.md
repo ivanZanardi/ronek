@@ -10,22 +10,33 @@ It leverages PyTorch for GPU acceleration. This implementation excels in perform
 
 ## Installation
 
-Install RONEK using the following command:
+To install RONEK, follow these steps:
+
+1. Clone the repository:
 
 ```bash
+git clone https://github.com/ivanZanardi/ronek.git
+cd ronek
+```
+
+2. Create a Conda environment:
+
+```bash
+conda env create -f conda/env.yml
+```
+
+3. Install the package:
+
+```bash
+conda activate ronek
 pip install ronek
 ```
 
-RONEK has the following dependencies:
+4. Activate the Conda environment whenever using RONEK:
 
-- absl
-- ipython
-- matplotlib
-- numpy
-- scipy
-- silx
-- torch
-- tqdm
+```bash
+conda activate ronek
+```
 
 ## Explore
 
