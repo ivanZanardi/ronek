@@ -23,12 +23,12 @@ cd ronek
 
 ```bash
 conda env create -f conda/env.yml
+conda activate ronek
 ```
 
 3. Install the package:
 
 ```bash
-conda activate ronek
 pip install ronek
 ```
 
