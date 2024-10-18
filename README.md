@@ -38,6 +38,18 @@ pip install ronek
 conda activate ronek
 ```
 
+## Citation
+
+If you use this code or find this work useful in your research, please cite us:
+
+```bibtex
+@article{Zanardi_Ronek_2024,
+  author    = {Zanardi, Ivan and Padovan, Alberto and Bodony, Daniel Joseph and Panesi, Marco},
+  title     = {Petrov-Galerkin model reduction for thermochemical nonequilibrium gas mixtures},
+  year      = {2024}
+}
+```
+
 ## Explore
 
 Check out the [examples](https://github.com/ivanZanardi/ronek/tree/main/examples) provided in the repository to see RONEK in action.
