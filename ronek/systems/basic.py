@@ -336,24 +336,41 @@ class BasicSystem(object):
     # Evaluate error
     if (eval_err == "mom"):
       # > Moments
-      error = []
-      for m in range(2):
-        mom_rom = self.mix.species["molecule"].compute_mom(n=n_rom[1], m=m)
-        mom_fom = self.mix.species["molecule"].compute_mom(n=n_fom[1], m=m)
-        if (m == 0):
-          mom0_fom = mom_fom
-          mom0_rom = mom_rom
-        else:
-          mom_fom /= mom0_fom
-          mom_rom /= mom0_rom
-        error.append(utils.absolute_percentage_error(mom_rom, mom_fom, eps))
-      return np.vstack(error), runtime
+      return self.compute_mom_err(n_fom[1], n_rom[1], eps), runtime
     elif (eval_err == "dist"):
       # > Distribution
       rho = self.mix.get_rho(n0)
-      y_pred = n_rom[1] * self.mix.species["molecule"].m / rho
-      y_true = n_fom[1] * self.mix.species["molecule"].m / rho
-      return utils.absolute_percentage_error(y_pred, y_true, eps), runtime
+      return self.compute_dist_err(n_fom[1], n_rom[1], rho, eps), runtime
     else:
       # > None: return the solution
       return t, n_fom, n_rom, runtime
+
+  def compute_mom_err(
+    self,
+    n_true: np.ndarray,
+    n_pred: np.ndarray,
+    eps: float = 1e-7
+  ) -> np.ndarray:
+    error = []
+    for m in range(2):
+      m_true = self.mix.species["molecule"].compute_mom(n=n_true, m=m)
+      m_pred = self.mix.species["molecule"].compute_mom(n=n_pred, m=m)
+      if (m == 0):
+        m0_true = m_true
+        m0_pred = m_pred
+      else:
+        m_true /= m0_true
+        m_pred /= m0_pred
+      error.append(utils.absolute_percentage_error(m_true, m_pred, eps))
+    return np.vstack(error)
+
+  def compute_dist_err(
+    self,
+    n_true: np.ndarray,
+    n_pred: np.ndarray,
+    rho: float,
+    eps: float = 1e-7
+  ) -> np.ndarray:
+    y_true = n_true * self.mix.species["molecule"].m / rho
+    y_pred = n_pred * self.mix.species["molecule"].m / rho
+    return utils.absolute_percentage_error(y_true, y_pred, eps)

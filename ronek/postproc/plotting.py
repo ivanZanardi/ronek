@@ -80,7 +80,7 @@ def plot_evolution(
   if isinstance(y, dict):
     i = 0
     for (k, yk) in y.items():
-      if ("FOM" in k.upper()):
+      if (k.upper() == "FOM"):
         _c = "k"
         _ls = "-" if (ls is None) else ls
       else:
@@ -107,6 +107,7 @@ def plot_mom_evolution(
   molecule,
   molecule_label,
   tlim=None,
+  ylim_err=None,
   err_scale="linear",
   hline=None,
   max_mom=2
@@ -160,17 +161,18 @@ def plot_mom_evolution(
     )
     # > Moment error
     for (k, momk) in moms[m].items():
-      if ("FOM" in k.upper()):
+      if (k.upper() == "FOM"):
         mom_fom = momk
         break
     moms_err = {}
     for (k, momk) in moms[m].items():
-      if ("FOM" not in k.upper()):
-        moms_err[k] = utils.absolute_percentage_error(momk, mom_fom)
+      if (k.upper() != "FOM"):
+        moms_err[k] = utils.absolute_percentage_error(mom_fom, momk)
     plot_evolution(
       x=t,
       y=moms_err,
       xlim=tlim[f"m{m}"] if isinstance(tlim, dict) else tlim,
+      ylim=ylim_err,
       hline=hline,
       labels=[r"$t$ [s]", label_err],
       legend_loc="lower left",
@@ -245,6 +247,7 @@ def plot_err_evolution(
   eval_err,
   molecule_label,
   tlim=None,
+  ylim_err=None,
   subscript="i",
   err_scale="linear",
   hline=None,
@@ -267,6 +270,7 @@ def plot_err_evolution(
         x=t,
         y={f"$r={r}$": err[r]["mean"][m] for r in err.keys()},
         xlim=tlim,
+        ylim=ylim_err,
         ls="-",
         hline=hline,
         legend_loc="lower left",
@@ -281,6 +285,7 @@ def plot_err_evolution(
       x=t,
       y={f"$r={r}$": err[r]["mean"] for r in err.keys()},
       xlim=tlim,
+      ylim=ylim_err,
       ls="-",
       hline=hline,
       legend_loc="lower left",
@@ -333,7 +338,7 @@ def plot_dist_2d(
     i = 0
     lines = []
     for (k, yk) in y.items():
-      if ("FOM" in k.upper()):
+      if (k.upper() == "FOM"):
         c = "k"
         ymin = yk.min()
       elif ("MT" in k.upper()):
