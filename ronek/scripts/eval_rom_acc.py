@@ -165,6 +165,7 @@ if (__name__ == '__main__'):
     hline=inputs["plot"].get("hline", None),
     err_scale=inputs["plot"].get("err_scale", "linear"),
     molecule_label=inputs["plot"]["molecule_label"],
+    ylim_err=inputs["plot"].get("ylim_err", None),
     subscript=inputs["plot"].get("subscript", "i"),
     max_mom=inputs["plot"].get("max_mom", 2)
   )

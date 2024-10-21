@@ -227,10 +227,10 @@ def generate_case_parallel(
 
 # Statistics
 # =====================================
-def absolute_percentage_error(y_true, y_pred, eps=1e-8):
+def absolute_percentage_error(y_true, y_pred, eps=1e-7):
   return 100*np.abs(y_true-y_pred)/(np.abs(y_true)+eps)
 
-def l2_relative_error(y_true, y_pred, axis=-1, eps=1e-8):
+def l2_relative_error(y_true, y_pred, axis=-1, eps=1e-7):
   err = np.linalg.norm(y_true-y_pred, axis=axis)
   err /= (np.linalg.norm(y_true, axis=axis) + eps)
   return err
