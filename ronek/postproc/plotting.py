@@ -220,7 +220,7 @@ def plot_err_ci_evolution(
     loc=mean,
     scale=sem
   )
-  y1, y2 = [np.clip(z, 0, None) for z in (y1, y2)]
+  # y1, y2 = [np.clip(z, 0, None) for z in (y1, y2)]
   ci_lbl = "${}\\%$ CI".format(int(100*alpha))
   ax.fill_between(x=x, y1=y1, y2=y2, alpha=0.2, label=ci_lbl)
   if (hline is not None):
