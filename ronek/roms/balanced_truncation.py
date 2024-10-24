@@ -92,23 +92,20 @@ class BalancedTruncation(object):
     self,
     X=None,
     Y=None,
+    pod=False,
     xnot=None,
-    compute_modes=True,
+    modes=True,
     runtime={}
   ):
     self.runtime = runtime
     if ((X is None) or (Y is None)):
       self.compute_eiga()
-      if self.verbose:
-        print("Computing Gramians ...")
-      X, Y = self.compute_gramians()
+      X, Y = self.compute_cov_mats()
     if (xnot is not None):
       mask = self.make_mask(xnot)
       X, Y = X[mask], Y[mask]
-    if compute_modes:
-      if self.verbose:
-        print("Computing balancing modes ...")
-      self.compute_balancing_modes(X, Y)
+    if modes:
+      self.compute_modes(X, Y, pod)
     else:
       return X, Y
 
@@ -119,19 +116,18 @@ class BalancedTruncation(object):
     return mask.astype(bool)
 
   def compute_eiga(self, real_only=True):
-    """Eigendecomposition of operator A"""
     if (self.eiga is None):
       filename = self.path_to_saving + "/eiga.hdf5"
       if os.path.exists(filename):
         eiga = h5todict(filename)
       else:
         if self.verbose:
-          print("Performing eigendecomposition of A ...")
+          print("Performing eigendecomposition of matrix A ...")
         a = bkd.to_numpy(self.ops["A"])
         runtime = time.time()
         l, v = sp.linalg.eig(a)
         vinv = sp.linalg.inv(v)
-        self.runtime["eiga"] = time.time() - runtime
+        self.runtime["eiga"] = time.time()-runtime
         eiga = {"l": l, "v": v, "vinv": vinv}
         # Save eigendecomposition
         if self.saving:
@@ -145,20 +141,22 @@ class BalancedTruncation(object):
         eiga = {k: x.real for (k, x) in eiga.items()}
       self.eiga = eiga
 
-  # Gramians computation
+  # Covariance matrices computation
   # -----------------------------------
-  def compute_gramians(self):
+  def compute_cov_mats(self):
+    if self.verbose:
+      print("Computing covariance matrices ...")
     # Compute the empirical controllability Gramian
     op = self.ops["M"]
-    X, runtime = self.compute_gramian(op)
+    X, runtime = self.compute_cov_mat(op)
     self.runtime["Ws_mean"] = runtime / op.shape[1]
     # Compute the empirical observability Gramian
     op = self.ops["C"].T
-    Y, runtime = self.compute_gramian(op, transpose=True)
+    Y, runtime = self.compute_cov_mat(op, transpose=True)
     self.runtime["Wg_mean"] = runtime / op.shape[1]
     return [bkd.to_numpy(z) for z in (X, Y)]
 
-  def compute_gramian(self, op, transpose=False):
+  def compute_cov_mat(self, op, transpose=False):
     runtime = time.time()
     # Allocate Gramian's memory
     shape = [len(self.quad["t"]["x"])] + list(op.shape)
@@ -179,12 +177,14 @@ class BalancedTruncation(object):
     # Manipulate tensor
     g = torch.permute(g, dims=(1,2,0))
     g = torch.reshape(g, (self.nb_eqs,-1))
-    runtime = time.time() - runtime
+    runtime = time.time()-runtime
     return g, runtime
 
   # Balancing modes
   # -----------------------------------
-  def compute_balancing_modes(self, X, Y, rank=100, niter=20):
+  def compute_modes(self, X, Y, pod=False, rank=100, niter=20):
+    if self.verbose:
+      print("Computing balanced CoBRAS modes ...")
     runtime = time.time()
     # Perform randomized SVD
     X, Y = [bkd.to_torch(z) for z in (X, Y)]
@@ -197,11 +197,25 @@ class BalancedTruncation(object):
     sqrt_s = torch.diag(torch.sqrt(1/s))
     phi = X @ V @ sqrt_s
     psi = Y @ U @ sqrt_s
-    self.runtime["modes"] = time.time() - runtime
+    self.runtime["modes"] = time.time()-runtime
     # Save balancing modes
     s, phi, psi = [bkd.to_numpy(z) for z in (s, phi, psi)]
     dicttoh5(
       treedict={"s": s, "phi": phi, "psi": psi},
-      h5file=self.path_to_saving+"/bases.hdf5",
+      h5file=self.path_to_saving+"/bases_cobras.hdf5",
       overwrite_data=True
     )
+    if pod:
+      if self.verbose:
+        print("Computing POD modes ...")
+      U, s, _ = torch.svd_lowrank(
+        A=X,
+        q=min(rank, X.shape[0]),
+        niter=niter
+      )
+      s, phi = [bkd.to_numpy(z) for z in (s, U)]
+      dicttoh5(
+        treedict={"s": s, "phi": phi, "psi": phi},
+        h5file=self.path_to_saving+"/bases_pod.hdf5",
+        overwrite_data=True
+      )

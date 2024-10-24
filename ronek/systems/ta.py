@@ -11,14 +11,13 @@ class TASystem(BasicSystem):
   # ===================================
   def __init__(
     self,
-    T,
     rates,
     species,
     use_einsum=False,
     use_factorial=False
   ):
     super(TASystem, self).__init__(
-      T, rates, species, use_einsum, use_factorial
+      rates, species, use_einsum, use_factorial
     )
     # Solving
     # -------------

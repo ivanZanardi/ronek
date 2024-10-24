@@ -81,65 +81,54 @@ if (__name__ == '__main__'):
     dist_y="uniform"
   )
   quad["mu"] = {"x": mu, "w": np.sqrt(w_mu)}
-  # > Equilibrium parameters space (theta)
-  theta, w_theta = utils.get_gl_quad_2d(
-    x=np.geomspace(**inputs["grids"]["theta"]["T"]),
-    y=np.geomspace(**inputs["grids"]["theta"]["rho"]),
+  # > Density space (lambda)
+  rho, w_rho = utils.get_gl_quad_1d(
+    x=np.geomspace(**inputs["grids"]["rho"]),
     deg=2,
-    dist_x="uniform",
-    dist_y="uniform",
-    joint=False
+    dist="uniform"
   )
-  quad["theta"] = {}
-  for (i, k) in enumerate(("T", "rho")):
-    quad["theta"][k] = {"x": theta[i], "w": np.sqrt(w_theta[i])}
+  quad["rho"] = {"x": rho, "w": np.sqrt(w_rho)}
 
   # Model reduction
   # ---------------
   X, Y = [], []
-  for (i, Ti) in enumerate(quad["theta"]["T"]["x"]):
-    print("Temperature: {%.4e} K" % Ti)
-    # > FOM operators
-    system.update_fom_ops(Ti)
-    for (j, rhoj) in enumerate(
-      tqdm(quad["theta"]["rho"]["x"], ncols=80, desc="Densities")
-    ):
-      # > Linear operators
-      lin_ops = system.compute_lin_fom_ops(
-        mu=quad["mu"]["x"],
-        rho=rhoj,
-        max_mom=int(inputs["max_mom"])
-      )
-      cobras = BalancedTruncation(
-        operators=lin_ops,
-        quadrature=quad,
-        path_to_saving=path_to_saving,
-        saving=False,
-        verbose=False
-      )
-      # > Covariance matrices
-      Xij, Yij = cobras(
-        xnot=[0],
-        compute_modes=False
-      )
-      wij = quad["theta"]["T"]["w"][i] * quad["theta"]["rho"]["w"][j]
-      X.append(wij*Xij)
-      Y.append(wij*Yij)
+  for (i, rhoi) in enumerate(
+    tqdm(quad["rho"]["x"], ncols=80, desc="Densities")
+  ):
+    # > Linear operators
+    lin_ops = system.compute_lin_fom_ops(
+      mu=quad["mu"]["x"],
+      rho=rhoi,
+      max_mom=int(inputs["max_mom"])
+    )
+    btrunc = BalancedTruncation(
+      operators=lin_ops,
+      quadrature=quad,
+      path_to_saving=path_to_saving,
+      saving=False,
+      verbose=False
+    )
+    # > Gramians
+    Xi, Yi = btrunc(
+      xnot=[0],
+      compute_modes=False
+    )
+    wi = quad["rho"]["w"][i]
+    X.append(wi*Xi), Y.append(wi*Yi)
 
   # > Compute balancing modes
-  cobras.verbose = True
-  cobras(
+  btrunc.verbose = True
+  btrunc(
     X=np.hstack(X),
     Y=np.hstack(Y),
-    pod=True,
-    modes=True,
-    runtime=cobras.runtime
+    compute_modes=True,
+    runtime=btrunc.runtime
   )
 
-  cobras.runtime["tot"] = time.time()-runtime
+  btrunc.runtime["tot"] = time.time()-runtime
   filename = path_to_saving + "/runtime.json"
   with open(filename, "w") as file:
-    json.dump(cobras.runtime, file, indent=2)
+    json.dump(btrunc.runtime, file, indent=2)
 
   # Copy input file
   # ---------------

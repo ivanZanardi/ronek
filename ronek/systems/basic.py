@@ -18,7 +18,6 @@ class BasicSystem(object):
   # ===================================
   def __init__(
     self,
-    T: float,
     rates: str,
     species: Dict[str, str],
     use_einsum: bool = False,
@@ -26,7 +25,7 @@ class BasicSystem(object):
   ) -> None:
     # Thermochemistry database
     # -------------
-    self.T = float(T)
+    self.T = None
     # Mixture
     self.mix = Mixture(species, use_factorial)
     self.nb_eqs = self.mix.nb_eqs
@@ -38,8 +37,6 @@ class BasicSystem(object):
     self.use_einsum = use_einsum
     self.fun = None
     self.jac = None
-    # Operators
-    self.update_fom_ops()
     # ROM
     # -------------
     self.rom_ops = None
@@ -63,7 +60,8 @@ class BasicSystem(object):
   # ===================================
   # FOM
   # -----------------------------------
-  def update_fom_ops(self) -> None:
+  def update_fom_ops(self, T) -> None:
+    self.T = float(T)
     # Update mixture
     self.mix.update(self.T)
     # Update kinetics

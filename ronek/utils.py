@@ -288,35 +288,37 @@ def get_gl_quad_1d(
   :return: Tuple of arrays containing quadrature points and weights.
   :rtype: Tuple[np.ndarray, np.ndarray]
   """
-  if (len(x) < 2):
-    raise ValueError("The input must be at least of length 2.")
-  # Limits
-  a, b = np.amin(x), np.amax(x)
-  # Compute Gauss-Legendre quadrature points
-  # and weights for reference interval [-1, 1]
-  xlg, wlg = np.polynomial.legendre.leggauss(deg)
-  _x, _w = [], []
-  # Loop over each interval in x
-  for i in range(len(x) - 1):
-    # Scaling and shifting from the reference
-    # interval to the current interval
-    a = 0.5 * (x[i+1] - x[i])
-    b = 0.5 * (x[i+1] + x[i])
-    _x.append(a * xlg + b)
-    _w.append(a * wlg)
-  # Concatenate all points and weights
-  x = np.concatenate(_x).squeeze()
-  w = np.concatenate(_w).squeeze()
-  f = compute_dist(x, a, b, dist)
-  return x, w*f
+  if (len(x) == 1):
+    return x, np.ones(1)
+  else:
+    # Limits
+    a, b = np.amin(x), np.amax(x)
+    # Compute Gauss-Legendre quadrature points
+    # and weights for reference interval [-1, 1]
+    xlg, wlg = np.polynomial.legendre.leggauss(deg)
+    _x, _w = [], []
+    # Loop over each interval in x
+    for i in range(len(x) - 1):
+      # Scaling and shifting from the reference
+      # interval to the current interval
+      a = 0.5 * (x[i+1] - x[i])
+      b = 0.5 * (x[i+1] + x[i])
+      _x.append(a * xlg + b)
+      _w.append(a * wlg)
+    # Concatenate all points and weights
+    x = np.concatenate(_x).squeeze()
+    w = np.concatenate(_w).squeeze()
+    f = compute_dist(x, a, b, dist)
+    return x, w*f
 
 def get_gl_quad_2d(
   x: np.ndarray,
   y: np.ndarray,
   deg: int = 3,
   dist_x: str = "uniform",
-  dist_y: str = "uniform"
-) -> Tuple[np.ndarray, np.ndarray]:
+  dist_y: str = "uniform",
+  joint: bool = True
+) -> Tuple[np.ndarray]:
   """
   Compute 2D Gauss-Legendre quadrature points and weights over the domain
   defined by `x` and `y`.
@@ -339,18 +341,21 @@ def get_gl_quad_2d(
            - `xy`: (N, 2) array of quadrature points where N is
              the number of points.
            - `w`: Array of quadrature weights.
-  :rtype: Tuple[np.ndarray, np.ndarray]
+  :rtype: Tuple[np.ndarray]
   """
   # Get 1D quadrature points and weights for x and y axes
   x, wx = get_gl_quad_1d(x, deg, dist_x)
   y, wy = get_gl_quad_1d(y, deg, dist_y)
-  # Create 2D grid of points using meshgrid and reshape them into (N, 2)
-  xy = [z.reshape(-1) for z in np.meshgrid(x, y)]
-  xy = np.vstack(xy).T
-  # Compute 2D quadrature weights by the product of the 1D weights
-  w = [z.reshape(-1) for z in np.meshgrid(wx, wy)]
-  w = np.prod(w, axis=0)
-  return xy, w
+  if joint:
+    # Create 2D grid of points using meshgrid and reshape them into (N, 2)
+    xy = [z.reshape(-1) for z in np.meshgrid(x, y)]
+    xy = np.vstack(xy).T
+    # Compute 2D quadrature weights by the product of the 1D weights
+    w = [z.reshape(-1) for z in np.meshgrid(wx, wy)]
+    w = np.prod(w, axis=0)
+    return xy, w
+  else:
+    return (x, y), (wx, wy)
 
 def compute_dist(
   x: np.ndarray,
