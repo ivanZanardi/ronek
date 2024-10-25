@@ -34,16 +34,16 @@ import numpy as np
 
 from tqdm import tqdm
 from ronek import utils
+from ronek.roms import LinCoBRAS
 from ronek import systems as sys_mod
-from ronek.roms import BalancedTruncation
 
 # Main
 # =====================================
 if (__name__ == '__main__'):
 
-  runtime = time.time()
+  print("Initialization ...")
 
-  print("\nInitialization ...")
+  runtime = time.time()
 
   # Isothermal master equation system
   # -----------------------------------
@@ -99,7 +99,7 @@ if (__name__ == '__main__'):
   # Model reduction
   # ---------------
   X, Y = [], []
-  print("Looping over temperature grid:")
+  print("Looping over temperatures:")
   for (i, Ti) in enumerate(quad["theta"]["T"]["x"]):
     print("> T = %.4e K" % Ti)
     # > FOM operators
@@ -113,7 +113,7 @@ if (__name__ == '__main__'):
         rho=rhoj,
         max_mom=int(inputs["max_mom"])
       )
-      cobras = BalancedTruncation(
+      cobras = LinCoBRAS(
         operators=lin_ops,
         quadrature=quad,
         path_to_saving=path_to_saving,
@@ -134,8 +134,8 @@ if (__name__ == '__main__'):
   cobras(
     X=np.hstack(X),
     Y=np.hstack(Y),
-    pod=True,
     modes=True,
+    pod=True,
     runtime=cobras.runtime
   )
 
@@ -150,4 +150,4 @@ if (__name__ == '__main__'):
   with open(filename, "w") as file:
     json.dump(inputs, file, indent=2)
 
-  print("Done!\n")
+  print("Done!")

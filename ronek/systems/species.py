@@ -23,10 +23,11 @@ class Species(object):
     self.M = self.m * const.UNA
     self.R = const.URG / self.M
     self.lev = {k: np.array(v).reshape(-1) for (k, v) in self.lev.items()}
+    self.lev["e"] -= np.amin(self.lev["e"])
     # Number of pseudo-species
     self.nb_comp = len(self.lev["e"])
     # Thermo
-    self.q = None
+    self.q = 1.0
     # Control variables
     self.use_factorial = use_factorial
 
@@ -88,14 +89,14 @@ class Species(object):
     self.q = self.q_tot(T)
 
   def q_tot(self, T):
-    return self.q_tra(T) * self.q_che(T) * self.q_int(T)
+    return self.q_zero(T) * self.q_tra(T) * self.q_int(T)
+
+  def q_zero(self, T):
+    return np.exp(-self.e_f/(const.UKB*T))
 
   def q_tra(self, T):
     base = 2.0 * np.pi * self.m * const.UKB / (const.UH**2)
     return np.power(base*T, 1.5)
-
-  def q_che(self, T):
-    return np.exp(-self.e_f/(const.UKB*T))
 
   def q_int(self, T):
     return self.lev["g"] * np.exp(-self.lev["e"]/(const.UKB*T))

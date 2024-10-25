@@ -32,7 +32,7 @@ class CoarseGrainingM0(object):
     mapping=None,
     nb_bins=1
   ):
-    return self.build(mapping, nb_bins)
+    self.build(mapping, nb_bins)
 
   def build(
     self,

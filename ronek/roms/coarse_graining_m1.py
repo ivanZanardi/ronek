@@ -22,6 +22,17 @@ class CoarseGrainingM1(CoarseGrainingM0):
 
   # Calling
   # ===================================
+  def __call__(
+    self,
+    filename,
+    teval=None,
+    mapping=None,
+    nb_bins=1
+  ):
+    self.build(mapping, nb_bins)
+    x = self.read_sol(filename, teval)
+    return self.decode(x)
+
   def build(
     self,
     mapping=None,

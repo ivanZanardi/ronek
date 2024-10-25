@@ -9,10 +9,10 @@ from .. import backend as bkd
 from silx.io.dictdump import dicttoh5, h5todict
 
 
-class BalancedTruncation(object):
+class LinCoBRAS(object):
   """
-  Model Reduction for Nonlinear Systems by Balanced Truncation of State
-  and Gradient Covariance (CoBRAS)
+  Model Reduction for Nonlinear Systems by Balanced
+  Truncation of State and Gradient Covariance (CoBRAS) - Linearized
 
   See:
     https://doi.org/10.1137/22M1513228
@@ -92,9 +92,9 @@ class BalancedTruncation(object):
     self,
     X=None,
     Y=None,
-    pod=False,
     xnot=None,
     modes=True,
+    pod=False,
     runtime={}
   ):
     self.runtime = runtime

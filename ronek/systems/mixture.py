@@ -42,10 +42,10 @@ class Mixture(object):
   def update(self, T) -> None:
     for sp in self.species.values():
       sp.update(T)
-    self._set_gamma(T)
+    self._set_gamma()
 
-  def _set_gamma(self, T: float) -> None:
-    q_a, q_m = [self.species[k].q_tot(T) for k in ("atom", "molecule")]
+  def _set_gamma(self) -> None:
+    q_m, q_a = [self.species[k].q for k in ("molecule", "atom")]
     self.gamma = q_m / q_a**2
 
   def compute_eq_comp(

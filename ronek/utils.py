@@ -136,7 +136,7 @@ def load_case(
 
 def load_case_parallel(
   path: str,
-  ranges: List[int],
+  range: List[int],
   key: Union[str, None] = None,
   nb_workers: int = 1
 ) -> List[Any]:
@@ -149,8 +149,8 @@ def load_case_parallel(
 
   :param path: Path to the data source.
   :type path: str
-  :param ranges: Range of indices for the cases to be loaded.
-  :type ranges: List[int]
+  :param range: Range of indices for the cases to be loaded.
+  :type range: List[int]
   :param key: Optional key to pass to the `load_case` function.
   :type key: Union[str, None]
   :param nb_workers: Number of parallel workers to use. Default is 1.
@@ -159,9 +159,9 @@ def load_case_parallel(
   :return: A list of loaded cases.
   :rtype: List[Any]
   """
-  ranges = np.sort(ranges)
+  range = np.sort(range)
   iterable = tqdm(
-    iterable=range(*ranges),
+    iterable=range(*range),
     ncols=80,
     desc="Cases",
     file=sys.stdout
@@ -175,7 +175,7 @@ def load_case_parallel(
 
 def generate_case_parallel(
   sol_fun: callable,
-  ranges: List[int],
+  range: List[int],
   sol_kwargs: Dict[str, Any] = {},
   nb_workers: int = 1,
   desc: str = "Cases",
@@ -210,9 +210,9 @@ def generate_case_parallel(
   indices and collects convergence results. If `verbose` is True, it prints
   the total number of converged cases.
   """
-  ranges = np.sort(ranges)
+  range = np.sort(range)
   iterable = tqdm(
-    iterable=range(*ranges),
+    iterable=range(*range),
     ncols=80,
     desc=delimiter+desc,
     file=sys.stdout
@@ -225,7 +225,7 @@ def generate_case_parallel(
     runtime = [sol_fun(index=i, **sol_kwargs) for i in iterable]
   runtime = [rt for rt in runtime if (rt is not None)]
   if verbose:
-    nb_samples = ranges[1]-ranges[0]
+    nb_samples = range[1]-range[0]
     print(delimiter + f"Total converged cases: {len(runtime)}/{nb_samples}")
   return np.mean(runtime)
 

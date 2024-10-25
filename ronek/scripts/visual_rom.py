@@ -118,22 +118,23 @@ if (__name__ == '__main__'):
           )
           sols[model["name"]] = system.solve_rom(t, n0)[1]
         elif ((name == "cg") and (2*int(model["nb_bins"]) == r)):
-          pdata = (model["name"], int(r/2))
-          print("> Reading ROM '%s' solution with %i bins ..." % pdata)
-          model["class"].build(mapping=model["mapping"])
-          sols[model["name"]] = model["class"].decode(
-            x=model["class"].read_sol(
+          if (model["cases"].get(icase, None) is not None):
+            pdata = (model["name"], int(r/2))
+            print("> Reading ROM '%s' solution with %i bins ..." % pdata)
+            sols[model["name"]] = model["class"](
+              filename=model["cases"][icase],
+              teval=t,
+              mapping=model["mapping"],
+              nb_bins=int(model["nb_bins"])
+            )
+        elif (name == "mt"):
+          if (model["cases"].get(icase, None) is not None):
+            pdata = (model["name"], 2)
+            print("> Reading ROM '%s' solution with %i dimensions ..." % pdata)
+            sols[model["name"]] = model["class"](
               filename=model["cases"][icase],
               teval=t
             )
-          )
-        elif (name == "mt"):
-          pdata = (model["name"], 2)
-          print("> Reading ROM '%s' solution with %i dimensions ..." % pdata)
-          sols[model["name"]] = model["class"](
-            filename=model["cases"][icase],
-            teval=t
-          )
       # > Postprocessing
       print(f"> Postprocessing with {r} dimensions ...")
       common_kwargs = dict(

@@ -23,7 +23,7 @@ class Kinetics(object):
   # ===================================
   def update(self, T):
     # Get partition functions
-    q = [self.species[k].q for k in ("atom", "molecule")]
+    q = [self.species[k].q for k in ("molecule", "atom")]
     # Compute fwd reaction rates
     rates = self.compute_fwd_rates(T)
     # Compute bwd reaction rates
@@ -31,7 +31,7 @@ class Kinetics(object):
 
   def compute_fwd_rates(self, T):
     rates = {}
-    # Loop over collisions
+    # Loop over types of collision
     for c in self.param.keys():
       rates[c] = {}
       # Loop over processes
@@ -45,8 +45,8 @@ class Kinetics(object):
   def arrhenius(self, T, A, beta, Ta):
     return A * np.exp(beta*np.log(T) - Ta/T)
 
-  def compute_bwd_rates(self, rates, q_a, q_m):
-    # Loop over collisions
+  def compute_bwd_rates(self, rates, q_m, q_a):
+    # Loop over types of collision
     for c in self.param.keys():
       # Loop over processes
       for p in self.param[c].keys():

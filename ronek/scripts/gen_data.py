@@ -80,7 +80,7 @@ if (__name__ == '__main__'):
     system.update_fom_ops(Ti)
     runtime += utils.generate_case_parallel(
       sol_fun=system.compute_fom_sol,
-      ranges=[si,ei],
+      range=[si,ei],
       sol_kwargs=dict(
         T=Ti,
         t=t,
@@ -104,7 +104,7 @@ if (__name__ == '__main__'):
       index=True
     )
   # Save runtime
-  runtime /= float(nb_samples_temp)
+  runtime /= nb_samples_temp
   with open(path_to_saving + "/runtime.txt", "w") as file:
     file.write("Mean running time: %.8e s" % runtime)
 

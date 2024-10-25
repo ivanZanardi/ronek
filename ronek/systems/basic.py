@@ -26,7 +26,7 @@ class BasicSystem(object):
   ) -> None:
     # Thermochemistry database
     # -------------
-    self.T = None
+    self.T = 1.0
     # Mixture
     self.mix = Mixture(species, use_factorial)
     self.nb_eqs = self.mix.nb_eqs
@@ -285,7 +285,7 @@ class BasicSystem(object):
     limits: Dict[str, List[float]],
     nb_samples: int,
     nb_samples_temp: int = 1,
-    log_vars: List[str] = ["T0","rho"],
+    log_vars: List[str] = ["T0", "rho"],
     eps: float = 1e-7
   ) -> Tuple[pd.DataFrame]:
     _mu_keys = ("T0", "w0_a", "rho")

@@ -48,6 +48,8 @@ _VALID_MODELS = ("cobras", "pod")
 # =====================================
 if (__name__ == '__main__'):
 
+  print("Initialization ...")
+
   # Isothermal master equation model
   # -----------------------------------
   path_to_dtb = inputs["paths"]["dtb"]
@@ -89,7 +91,7 @@ if (__name__ == '__main__'):
   # ---------------
   def compute_err_parallel():
     iterable = tqdm(
-      iterable=range(inputs["data"]["nb_samples"]),
+      iterable=range(*inputs["data"]["range"]),
       ncols=80,
       desc="  Cases",
       file=sys.stdout
@@ -109,9 +111,12 @@ if (__name__ == '__main__'):
       sol = [system.compute_rom_sol(index=i, **kwargs) for i in iterable]
     err, runtime = list(zip(*sol))
     if (inputs["eval_err"] == "mom"):
-      return np.stack(err, axis=0), runtime
+      err, runtime = np.stack(err, axis=0), runtime
     else:
-      return np.vstack(err), runtime
+      err, runtime = np.vstack(err), runtime
+    err = compute_err_stats(err)
+    runtime = compute_runtime_stats(runtime)
+    return err, runtime
 
   def compute_err_stats(err):
     return {
@@ -138,61 +143,45 @@ if (__name__ == '__main__'):
     with open(filename, "w") as file:
       json.dump(stats, file, indent=2)
 
-  # Loop over ROM dimensions
+  # Loop over models
   # ---------------
-  bt_err, bt_runtime = {}, {}
-  cg_err, cg_runtime = {}, {}
-  for r in range(*inputs["rom_range"]):
-    r_str = str(r)
-    # Solve PG ROM
-    print(f"\n> Solving PG ROM with {r} dimensions ...")
-    system.set_basis(phi=bt_bases[0][:,:r], psi=bt_bases[1][:,:r])
-    errors, runtime = compute_err_parallel()
-    bt_err[r_str] = compute_err_stats(errors)
-    bt_runtime[r_str] = compute_runtime_stats(runtime)
-    # Solve CG ROM
-    if cg_model["active"]:
-      print(f"> Solving CG ROM with {r} dimensions ...")
-      cg_m0.build(nb_bins=r)
-      system.update_rom_ops(cg_m0.phi, cg_m0.psi)
-      errors, runtime = compute_err_parallel()
-      cg_err[r_str] = compute_err_stats(errors)
-      cg_runtime[r_str] = compute_runtime_stats(runtime)
-  # Save/plot error statistics
-  common_kwargs = dict(
-    eval_err=inputs["eval_err"],
-    hline=inputs["plot"].get("hline", None),
-    err_scale=inputs["plot"].get("err_scale", "linear"),
-    molecule_label=inputs["plot"]["molecule_label"],
-    ylim_err=inputs["plot"].get("ylim_err", None),
-    subscript=inputs["plot"].get("subscript", "i"),
-    max_mom=inputs["plot"].get("max_mom", 2)
-  )
-  print("\n> Saving PG ROM error evolution ...")
-  save_err_stats("bt", bt_err)
-  print("\n> Plotting PG ROM error evolution ...")
-  pp.plot_err_evolution(
-    path=path_to_saving+"/bt/",
-    err=bt_err,
-    **common_kwargs
-  )
-  if cg_model["active"]:
-    print("\n> Saving CG ROM error evolution ...")
-    save_err_stats("cg", bt_err)
-    print("\n> Plotting CG ROM error evolution ...")
+  for (name, model) in models.items():
+    print("Evaluating accuracy of ROM '%s' ..." % model["name"])
+    err, runtime = {}, {}
+    # Loop over dimensions
+    for r in range(*inputs["rom_range"]):
+      print("> Solving with %i dimensions ..." % r)
+      system.set_basis(
+        phi=model["bases"]["phi"][:,:r],
+        psi=model["bases"]["psi"][:,:r]
+      )
+      r_str = str(r)
+      err[r_str], runtime[r_str] = compute_err_parallel()
+    # Save error statistics
+    print("> Saving statistics ...")
+    save_err_stats(name, err)
+    save_runtime_stats(name, runtime)
+    # Plot error statistics
+    print("> Plotting error evolution ...")
+    common_kwargs = dict(
+      eval_err=inputs["eval_err"],
+      hline=inputs["plot"].get("hline", None),
+      err_scale=inputs["plot"].get("err_scale", "linear"),
+      molecule_label=inputs["plot"]["molecule_label"],
+      ylim_err=inputs["plot"].get("ylim_err", None),
+      subscript=inputs["plot"].get("subscript", "i"),
+      max_mom=inputs["plot"].get("max_mom", 2)
+    )
     pp.plot_err_evolution(
-      path=path_to_saving+"/cg/",
-      err=cg_err,
+      path=path_to_saving+"/bt/",
+      err=err,
       **common_kwargs
     )
-
-  # Save running times
-  save_runtime_stats("bt", bt_runtime)
-  if cg_model["active"]:
-    save_runtime_stats("cg", cg_runtime)
 
   # Copy input file
   # ---------------
   filename = path_to_saving + "/inputs.json"
   with open(filename, "w") as file:
     json.dump(inputs, file, indent=2)
+
+  print("Done!")
