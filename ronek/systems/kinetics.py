@@ -9,13 +9,13 @@ class Kinetics(object):
   # ===================================
   def __init__(
     self,
-    rates,
+    param,
     species
   ):
-    # Load rates
-    self.rates = rates
-    if (not isinstance(self.rates, dict)):
-      self.rates = h5todict(self.rates)
+    # Load rates parameters
+    self.param = param
+    if (not isinstance(self.param, dict)):
+      self.param = h5todict(self.param)
     # Set species
     self.species = species
 
@@ -32,12 +32,12 @@ class Kinetics(object):
   def compute_fwd_rates(self, T):
     rates = {}
     # Loop over collisions
-    for c in self.rates.keys():
+    for c in self.param.keys():
       rates[c] = {}
       # Loop over processes
-      for p in self.rates[c].keys():
+      for p in self.param[c].keys():
         # Extract Arrhenius law parameters
-        param = [self.rates[c][p][k] for k in ("A", "beta", "Ta")]
+        param = [self.param[c][p][k] for k in ("A", "beta", "Ta")]
         # Apply Arrhenius law
         rates[c][p] = {"fwd": self.arrhenius(T, *param)}
     return rates
@@ -47,9 +47,9 @@ class Kinetics(object):
 
   def compute_bwd_rates(self, rates, q_a, q_m):
     # Loop over collisions
-    for c in self.rates.keys():
+    for c in self.param.keys():
       # Loop over processes
-      for p in self.rates[c].keys():
+      for p in self.param[c].keys():
         # Initialize 'bwd' rates
         i_rates = rates[c][p]["fwd"]
         # Set shapes

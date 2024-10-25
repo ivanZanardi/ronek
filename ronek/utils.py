@@ -99,7 +99,7 @@ def save_case(
   :rtype: None
   """
   if (filename is None):
-    filename = path + f"/case_{str(index+1).zfill(4)}.p"
+    filename = path + f"/case_{str(index).zfill(4)}.p"
   pickle.dump(data, open(filename, "wb"))
 
 def load_case(
@@ -126,7 +126,7 @@ def load_case(
   :rtype: Any
   """
   if (filename is None):
-    filename = path + f"/case_{str(index+1).zfill(4)}.p"
+    filename = path + f"/case_{str(index).zfill(4)}.p"
   if os.path.exists(filename):
     data = pickle.load(open(filename, "rb"))
     if (key is None):
@@ -159,6 +159,7 @@ def load_case_parallel(
   :return: A list of loaded cases.
   :rtype: List[Any]
   """
+  ranges = np.sort(ranges)
   iterable = tqdm(
     iterable=range(*ranges),
     ncols=80,
@@ -174,11 +175,12 @@ def load_case_parallel(
 
 def generate_case_parallel(
   sol_fun: callable,
-  nb_samples: int,
+  ranges: List[int],
   sol_kwargs: Dict[str, Any] = {},
   nb_workers: int = 1,
-  desc: str = "> Cases",
-  verbose: bool = True
+  desc: str = "Cases",
+  verbose: bool = True,
+  delimiter: str = "  "
 ) -> None:
   """
   Generate cases in parallel and check solver convergence.
@@ -208,10 +210,11 @@ def generate_case_parallel(
   indices and collects convergence results. If `verbose` is True, it prints
   the total number of converged cases.
   """
+  ranges = np.sort(ranges)
   iterable = tqdm(
-    iterable=range(nb_samples),
+    iterable=range(*ranges),
     ncols=80,
-    desc=desc,
+    desc=delimiter+desc,
     file=sys.stdout
   )
   if (nb_workers > 1):
@@ -222,7 +225,8 @@ def generate_case_parallel(
     runtime = [sol_fun(index=i, **sol_kwargs) for i in iterable]
   runtime = [rt for rt in runtime if (rt is not None)]
   if verbose:
-    print(f"Total converged cases: {len(runtime)}/{nb_samples}")
+    nb_samples = ranges[1]-ranges[0]
+    print(delimiter + f"Total converged cases: {len(runtime)}/{nb_samples}")
   return np.mean(runtime)
 
 # Statistics

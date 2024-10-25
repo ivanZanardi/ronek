@@ -30,7 +30,6 @@ env.set(**inputs["env"])
 # Libraries
 # =====================================
 import numpy as np
-import dill as pickle
 
 from ronek import utils
 from ronek import systems as sys_mod
@@ -38,6 +37,8 @@ from ronek import systems as sys_mod
 # Main
 # =====================================
 if (__name__ == '__main__'):
+
+  print("Initialization ...")
 
   # Isothermal master equation model
   # -----------------------------------
@@ -66,33 +67,56 @@ if (__name__ == '__main__'):
   # Sampled cases
   # ---------------
   # Construct design matrix
-  mu = system.construct_design_mat(**inputs["param_space"]["sampled"])
+  T, mu = system.construct_design_mat(**inputs["param_space"]["sampled"])
+  nb_samples_mu = len(mu)
+  nb_samples_temp = len(T)
   # Generate data
-  runtime = utils.generate_case_parallel(
-    sol_fun=system.compute_fom_sol,
-    sol_kwargs=dict(
-      t=t,
-      mu=mu,
-      path=path_to_saving,
-      filename=None
-    ),
-    nb_samples=inputs["param_space"]["sampled"]["nb_samples"],
-    nb_workers=inputs["param_space"]["nb_workers"]
-  )
+  si = 0
+  ei = nb_samples_mu
+  runtime = 0.0
+  print("Looping over sampled temperatures:")
+  for Ti in T.values.reshape(-1):
+    print("> T = %.4e K" % Ti)
+    system.update_fom_ops(Ti)
+    runtime += utils.generate_case_parallel(
+      sol_fun=system.compute_fom_sol,
+      ranges=[si,ei],
+      sol_kwargs=dict(
+        T=Ti,
+        t=t,
+        mu=mu.values,
+        update=False,
+        path=path_to_saving,
+        filename=None
+      ),
+      nb_workers=inputs["param_space"]["nb_workers"]
+    )
+    si += nb_samples_mu
+    ei += nb_samples_mu
   # Save parameters
-  filename = path_to_saving + "/mu.p"
-  pickle.dump(mu, open(filename, "wb"))
+  for (name, df) in (
+    ("mu", mu),
+    ("T", T)
+  ):
+    df.to_csv(
+      path_to_saving + f"/samples_{name}.csv",
+      float_format="%.8e",
+      index=True
+    )
   # Save runtime
+  runtime /= float(nb_samples_temp)
   with open(path_to_saving + "/runtime.txt", "w") as file:
     file.write("Mean running time: %.8e s" % runtime)
 
   # Defined cases
   # ---------------
-  for (k, mui) in inputs["param_space"]["defined"]["cases"].items():
+  for (k, param) in inputs["param_space"]["defined"]["cases"].items():
     runtime = system.compute_fom_sol(
+      T=float(param["T"]),
       t=t,
-      mu=mui,
+      mu=param["mu"],
       mu_type=inputs["param_space"]["defined"].get("mu_type", "mass"),
+      update=True,
       filename=path_to_saving + f"/case_{k}.p"
     )
     if (runtime is None):
@@ -103,3 +127,5 @@ if (__name__ == '__main__'):
   filename = path_to_saving + "/inputs.json"
   with open(filename, "w") as file:
     json.dump(inputs, file, indent=2)
+
+  print("Done!")

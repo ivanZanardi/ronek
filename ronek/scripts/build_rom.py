@@ -43,6 +43,8 @@ if (__name__ == '__main__'):
 
   runtime = time.time()
 
+  print("\nInitialization ...")
+
   # Isothermal master equation system
   # -----------------------------------
   path_to_dtb = inputs["paths"]["dtb"]
@@ -83,7 +85,7 @@ if (__name__ == '__main__'):
   quad["mu"] = {"x": mu, "w": np.sqrt(w_mu)}
   # > Equilibrium parameters space (theta)
   theta, w_theta = utils.get_gl_quad_2d(
-    x=np.geomspace(**inputs["grids"]["theta"]["T"]),
+    x=np.linspace(**inputs["grids"]["theta"]["T"]),
     y=np.geomspace(**inputs["grids"]["theta"]["rho"]),
     deg=2,
     dist_x="uniform",
@@ -97,12 +99,13 @@ if (__name__ == '__main__'):
   # Model reduction
   # ---------------
   X, Y = [], []
+  print("Looping over temperature grid:")
   for (i, Ti) in enumerate(quad["theta"]["T"]["x"]):
-    print("Temperature: {%.4e} K" % Ti)
+    print("> T = %.4e K" % Ti)
     # > FOM operators
     system.update_fom_ops(Ti)
     for (j, rhoj) in enumerate(
-      tqdm(quad["theta"]["rho"]["x"], ncols=80, desc="Densities")
+      tqdm(quad["theta"]["rho"]["x"], ncols=80, desc="  Densities")
     ):
       # > Linear operators
       lin_ops = system.compute_lin_fom_ops(
@@ -120,7 +123,7 @@ if (__name__ == '__main__'):
       # > Covariance matrices
       Xij, Yij = cobras(
         xnot=[0],
-        compute_modes=False
+        modes=False
       )
       wij = quad["theta"]["T"]["w"][i] * quad["theta"]["rho"]["w"][j]
       X.append(wij*Xij)
@@ -146,3 +149,5 @@ if (__name__ == '__main__'):
   filename = path_to_saving + "/inputs.json"
   with open(filename, "w") as file:
     json.dump(inputs, file, indent=2)
+
+  print("Done!\n")

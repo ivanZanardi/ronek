@@ -2,6 +2,7 @@ import abc
 import time
 import numpy as np
 import scipy as sp
+import pandas as pd
 
 from pyDOE import lhs
 
@@ -163,17 +164,18 @@ class BasicSystem(object):
   # -----------------------------------
   def update_rom_ops(
     self,
-    phi: np.ndarray,
-    psi: np.ndarray
+    phi: Optional[np.ndarray] = None,
+    psi: Optional[np.ndarray] = None,
   ) -> None:
     self._is_einsum_used("update_rom_ops")
     # Set basis
-    self._set_basis(phi, psi)
+    if (phi is not None):
+      self.set_basis(phi, psi)
     # Compose operators
     self.rom_ops = self._update_rom_ops()
     self.rom_ops["m_ratio"] = self.mix.m_ratio @ self.phi
 
-  def _set_basis(
+  def set_basis(
     self,
     phi: np.ndarray,
     psi: np.ndarray
@@ -280,39 +282,52 @@ class BasicSystem(object):
   # ===================================
   def construct_design_mat(
     self,
-    T_lim: List[float],
-    w_a_lim: List[float],
-    rho_lim: List[float],
+    limits: Dict[str, List[float]],
     nb_samples: int,
-    ilog: List[int] = [0,2],
+    nb_samples_temp: int = 1,
+    log_vars: List[str] = ["T0","rho"],
     eps: float = 1e-7
-  ) -> np.ndarray:
-    design_space = [np.sort(T_lim), np.sort(w_a_lim), np.sort(rho_lim)]
-    design_space = np.array(design_space).T + eps
-    design_space[:,ilog] = np.log(design_space[:,ilog])
+  ) -> Tuple[pd.DataFrame]:
+    _mu_keys = ("T0", "w0_a", "rho")
+    # Sample temperature alone
+    sample_fun = np.geomspace if ("T" in log_vars) else np.linspace
+    T = sample_fun(*np.sort(limits["T"]), nb_samples_temp)
+    # Sample remaining parameters
+    design_space = [np.sort(limits[k]) for k in _mu_keys]
+    design_space = np.array(design_space).T
+    # Log-scale
+    ilog = [i for (i, k) in enumerate(_mu_keys) if (k in log_vars)]
+    design_space[:,ilog] = np.log(design_space[:,ilog] + eps)
     # Construct
     ddim = design_space.shape[1]
-    dmat = lhs(ddim, int(nb_samples))
+    dmat = lhs(ddim, int(nb_samples/nb_samples_temp))
     # Rescale
     amin, amax = design_space
-    dmat = dmat * (amax - amin) + amin
-    dmat[:,ilog] = np.exp(dmat[:,ilog])
-    return dmat
+    mu = dmat * (amax - amin) + amin
+    mu[:,ilog] = np.exp(mu[:,ilog]) - eps
+    # Convert to dataframe
+    T = pd.DataFrame(data=T, columns=["T"])
+    mu = pd.DataFrame(data=mu, columns=_mu_keys)
+    return T, mu
 
   def compute_fom_sol(
     self,
+    T: float,
     t: np.ndarray,
     mu: np.ndarray,
     mu_type: str = "mass",
+    update: bool = False,
     path: Optional[str] = None,
     index: Optional[int] = None,
     filename: Optional[str] = None
   ) -> np.ndarray:
-    mui = mu[index] if (index is not None) else mu
     try:
+      if update:
+        self.update_fom_ops(T)
+      mui = mu[index] if (index is not None) else mu
       n0 = self.mix.get_init_sol(*mui, mu_type=mu_type)
       *n, runtime = self.solve_fom(t, n0)
-      data = {"index": index, "mu": mui, "t": t, "n0": n0, "n": n}
+      data = {"index": index, "mu": mui, "T": T, "t": t, "n0": n0, "n": n}
       utils.save_case(path=path, index=index, data=data, filename=filename)
     except:
       runtime = None
@@ -320,6 +335,7 @@ class BasicSystem(object):
 
   def compute_rom_sol(
     self,
+    update: bool = False,
     path: Optional[str] = None,
     index: Optional[int] = None,
     filename: Optional[str] = None,
@@ -328,7 +344,10 @@ class BasicSystem(object):
   ) -> Tuple[np.ndarray]:
     # Load test case
     icase = utils.load_case(path=path, index=index, filename=filename)
-    n_fom, t, n0 = [icase[k] for k in ("n", "t", "n0")]
+    T, t, n0, n_fom = [icase[k] for k in ("T", "t", "n0", "n")]
+    if update:
+      self.update_fom_ops(T)
+      self.update_rom_ops()
     # Solve ROM
     *n_rom, runtime = self.solve_rom(t, n0)
     # Evaluate error

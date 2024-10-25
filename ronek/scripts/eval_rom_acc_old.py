@@ -4,7 +4,6 @@ Evaluate accuracy of ROM model.
 
 import os
 import sys
-import copy
 import json
 import argparse
 import importlib
@@ -73,6 +72,17 @@ if (__name__ == '__main__'):
   t = utils.load_case(path=inputs["data"]["path"], index=0, key="t")
 
   # ROM models
+  # > Balanced truncation (BT) / Petrov-Galerkin (PG)
+  bt_bases = h5todict(inputs["paths"]["bases"])
+  bt_bases = [bt_bases[k] for k in ("phi", "psi")]
+  # > Coarse graining (CG)
+  cg_model = inputs.get("cg_model", {"active": False})
+  if cg_model["active"]:
+    cg_m0 = CoarseGrainingM0(
+      molecule=path_to_dtb+"/species/molecule.json", T=system.T
+    )
+
+  # ROM models
   models = {}
   for (name, model) in inputs["models"].items():
     if model.get("active", False):
@@ -94,19 +104,25 @@ if (__name__ == '__main__'):
       desc="  Cases",
       file=sys.stdout
     )
-    kwargs = dict(
-      update=True,
-      path=inputs["data"]["path"],
-      filename=None,
-      eval_err=inputs["eval_err"]
-    )
     nb_workers = inputs["data"]["nb_workers"]
     if (nb_workers > 1):
       sol = jl.Parallel(inputs["data"]["nb_workers"])(
-        jl.delayed(system.compute_rom_sol)(index=i, **kwargs) for i in iterable
+        jl.delayed(system.compute_rom_sol)(
+          path=inputs["data"]["path"],
+          index=i,
+          filename=None,
+          eval_err=inputs["eval_err"]
+        ) for i in iterable
       )
     else:
-      sol = [system.compute_rom_sol(index=i, **kwargs) for i in iterable]
+      sol = [
+        system.compute_rom_sol(
+          path=inputs["data"]["path"],
+          index=i,
+          filename=None,
+          eval_err=inputs["eval_err"]
+        ) for i in iterable
+      ]
     err, runtime = list(zip(*sol))
     if (inputs["eval_err"] == "mom"):
       return np.stack(err, axis=0), runtime
@@ -146,7 +162,7 @@ if (__name__ == '__main__'):
     r_str = str(r)
     # Solve PG ROM
     print(f"\n> Solving PG ROM with {r} dimensions ...")
-    system.set_basis(phi=bt_bases[0][:,:r], psi=bt_bases[1][:,:r])
+    system.update_rom_ops(phi=bt_bases[0][:,:r], psi=bt_bases[1][:,:r])
     errors, runtime = compute_err_parallel()
     bt_err[r_str] = compute_err_stats(errors)
     bt_runtime[r_str] = compute_runtime_stats(runtime)

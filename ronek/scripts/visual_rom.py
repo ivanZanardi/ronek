@@ -4,6 +4,7 @@ Visualize ROM vs FOM trajectories.
 
 import os
 import sys
+import copy
 import json
 import argparse
 import importlib
@@ -38,9 +39,13 @@ from ronek import postproc as pp
 from ronek import systems as sys_mod
 from silx.io.dictdump import h5todict
 
+_VALID_MODELS = ("cobras", "pod", "cg", "mt")
+
 # Main
 # =====================================
 if (__name__ == '__main__'):
+
+  print("Initialization ...")
 
   # Isothermal master equation model
   # -----------------------------------
@@ -65,79 +70,70 @@ if (__name__ == '__main__'):
   os.makedirs(path_to_saving, exist_ok=True)
 
   # ROM models
-  # > Balanced truncation (BT)
-  bt_bases = h5todict(inputs["paths"]["bases"])
-  bt_bases = [bt_bases[k] for k in ("phi", "psi")]
-  # > Multi-temperature (MT)
-  mt_model = inputs.get("mt_model", {"active": False})
-  if mt_model["active"]:
-    mt = roms.MultiTemperature(
-      molecule=path_to_dtb+"/species/molecule.json"
-    )
-  # > Coarse graining (CG)
-  cg_model = inputs.get(
-    "cg_model", {
-      "0": {"active": False},
-      "1": {"active": False}
-    }
-  )
-  if cg_model["0"]["active"]:
-    cg_m0 = roms.CoarseGrainingM0(
-      molecule=path_to_dtb+"/species/molecule.json", T=system.T
-    )
-  if cg_model["1"]["active"]:
-    cg_m1 = roms.CoarseGrainingM1(
-      molecule=path_to_dtb+"/species/molecule.json"
-    )
-  cg_active_both = (cg_model["1"]["active"] + cg_model["0"]["active"] == 2)
+  models = {}
+  for (name, model) in inputs["models"].items():
+    if model.get("active", False):
+      model = copy.deepcopy(model)
+      if (name in ("cobras", "pod")):
+        model["bases"] = h5todict(model["bases"])
+      elif (name == "cg"):
+        model["class"] = roms.CoarseGrainingM1(
+          molecule=path_to_dtb+"/species/molecule.json"
+        )
+      elif (name == "mt"):
+        model["class"] = roms.MultiTemperature(
+          molecule=path_to_dtb+"/species/molecule.json"
+        )
+      else:
+        raise ValueError(
+          f"Name '{name}' not valid! Valid ROM models are {_VALID_MODELS}."
+        )
+      models[name] = model
 
   # Loop over test cases
   # ---------------
   for icase in inputs["data"]["cases"]:
-    print(f"\nSolving case '{icase}' ...")
+    print(f"Solving case '{icase}' ...")
     # > Load test case
     filename = inputs["data"]["path"]+f"/case_{icase}.p"
     data = utils.load_case(filename=filename)
-    n_fom, t, n0 = [data[k] for k in ("n", "t", "n0")]
+    T, t, n0, n_fom = [data[k] for k in ("T", "t", "n0", "n")]
     # > Solutions container
     sols = {"FOM": n_fom[1]}
+    # > Update FOM operators
+    system.update_fom_ops(T)
     # > Loop over ROM dimensions
     for r in range(*inputs["rom_range"]):
       # > Saving folder
       path_to_saving_i = path_to_saving + f"/case_{icase}/r{r}/"
       os.makedirs(path_to_saving_i, exist_ok=True)
-      # > Solve ROM-PG
-      print(f"> Solving ROM-PG with {r} dimensions ...")
-      system.update_rom_ops(phi=bt_bases[0][:,:r], psi=bt_bases[1][:,:r])
-      n_rom_bt = system.solve_rom(t, n0)[:2]
-      sols["ROM-PG"] = n_rom_bt[1]
-      # > Read ROM-MT
-      if mt_model["active"]:
-        name = "ROM-MT"
-        print(f"> Reading {name} ...")
-        sols[name] = mt(
-          filename=mt_model["cases"][icase],
-          teval=t
-        )
-      # > Solve ROM-CG
-      if cg_model["0"]["active"]:
-        name = "ROM-CG-M0" if cg_active_both else "ROM-CG"
-        print(f"> Solving {name} with {r} bins ...")
-        cg_m0.build(nb_bins=r)
-        system.update_rom_ops(cg_m0.phi, cg_m0.psi)
-        n_rom_cg = system.solve_rom(t, n0)[:2]
-        name = "ROM-CG-M0" if cg_active_both else "ROM-CG"
-        sols[name] = n_rom_cg[1]
-      if (cg_model["1"]["active"] and (2*cg_model["1"]["nb_bins"] == r)):
-        name = "ROM-CG-M1" if cg_active_both else "ROM-CG"
-        print(f"> Reading {name} with {int(r/2)} bins ...")
-        cg_m1.build(mapping=cg_model["1"]["mapping"])
-        sols[name] = cg_m1.decode(
-          x=cg_m1.read_sol(
-            filename=cg_model["1"]["cases"][icase],
+      # > Loop over ROM models
+      for (name, model) in models.items():
+        if (name in ("cobras", "pod")):
+          pdata = (model["name"], r)
+          print("> Solving ROM '%s' with %i dimensions ..." % pdata)
+          system.update_rom_ops(
+            phi=model["bases"]["phi"][:,:r],
+            psi=model["bases"]["psi"][:,:r]
+          )
+          sols[model["name"]] = system.solve_rom(t, n0)[1]
+        elif ((name == "cg") and (2*int(model["nb_bins"]) == r)):
+          pdata = (model["name"], int(r/2))
+          print("> Reading ROM '%s' solution with %i bins ..." % pdata)
+          model["class"].build(mapping=model["mapping"])
+          sols[model["name"]] = model["class"].decode(
+            x=model["class"].read_sol(
+              filename=model["cases"][icase],
+              teval=t
+            )
+          )
+        elif (name == "mt"):
+          pdata = (model["name"], 2)
+          print("> Reading ROM '%s' solution with %i dimensions ..." % pdata)
+          sols[model["name"]] = model["class"](
+            filename=model["cases"][icase],
             teval=t
           )
-        )
       # > Postprocessing
       print(f"> Postprocessing with {r} dimensions ...")
       common_kwargs = dict(
@@ -171,3 +167,5 @@ if (__name__ == '__main__'):
   filename = path_to_saving + "/inputs.json"
   with open(filename, "w") as file:
     json.dump(inputs, file, indent=2)
+
+  print("Done!")
