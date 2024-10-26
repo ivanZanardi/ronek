@@ -6,6 +6,7 @@ import scipy as sp
 
 from .. import utils
 from .. import backend as bkd
+from .lowrank import svd_lowrank
 from silx.io.dictdump import dicttoh5, h5todict
 
 
@@ -188,8 +189,14 @@ class LinCoBRAS(object):
     runtime = time.time()
     # Perform randomized SVD
     X, Y = [bkd.to_torch(z) for z in (X, Y)]
-    U, s, V = torch.svd_lowrank(
-      A=Y.T@X,
+    # U, s, V = torch.svd_lowrank(
+    #   A=Y.T@X,
+    #   q=min(rank, X.shape[0]),
+    #   niter=niter
+    # )
+    U, s, V = svd_lowrank(
+      X=X,
+      Y=Y,
       q=min(rank, X.shape[0]),
       niter=niter
     )
