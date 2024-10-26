@@ -12,13 +12,12 @@
     "t": {
       "start": 1e-9,
       "stop": 1e-3,
-      "num": 500
+      "num": 200
     }
   },
   "system": {
     "name": "TAFASystem",
     "kwargs": {
-      "T": 1e4,
       "use_einsum": false,
       "use_factorial": true
     }
@@ -26,21 +25,27 @@
   "param_space": {
     "defined": {
       "cases": {
-        "cold": [5e2, 0.05, 1e3],
-        "hot":  [4e3, 0.05, 1e3]
+        "cold": {"mu": [5e2, 0.05, 1e3], "T": 1e4},
+        "hot": {"mu": [4e3, 0.05, 1e3], "T": 1e4}
       },
       "mu_type": "mole"
     },
     "sampled": {
-      "T_lim": [5e2, 1e4],
-      "w_a_lim": [0.01, 0.99],
-      "rho_lim": [1e-4, 1e0],
-      "nb_samples": 1000
+      "limits": {
+        "T0": [5e2, 1e4],
+        "w0_a": [0.0, 1.0],
+        "rho": [1e-4, 1e0],
+        "T": [1e4, 1e4]
+      },
+      "nb_samples": 1000,
+      "nb_samples_temp": 1,
+      "log_vars": ["T0", "rho"],
+      "eps": 1e-7
     },
     "nb_workers": 10
   },
   "paths": {
-    "dtb": "./../../database/",
+    "dtb": "/home/zanardi/Codes/ML/RONEK/ronek/examples/VC_O3_O4/database/",
     "saving": "./../../test/data/"
   }
 }

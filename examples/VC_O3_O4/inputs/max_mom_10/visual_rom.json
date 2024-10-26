@@ -11,22 +11,32 @@
   "system": {
     "name": "TAFASystem",
     "kwargs": {
-      "T": 1e4,
       "use_einsum": false,
-      "use_factorial": false
+      "use_factorial": true
     }
   },
-  "cg_model": {
-    "0": {
-      "active": false
+  "models": {
+    "cobras": {
+      "active": true,
+      "name": "CoBRAS",
+      "bases": "./../../test/max_mom_10/cobras_bases.hdf5"
     },
-    "1": {
-      "active": false
+    "pod": {
+      "active": true,
+      "name": "POD",
+      "bases": "./../../test/max_mom_10/pod_bases.hdf5"
+    },
+    "cg": {
+      "active": false,
+      "name": "CG"
+    },
+    "mt": {
+      "active": false,
+      "name": "MT"
     }
   },
   "paths": {
-    "dtb": "./../../database/",
-    "bases": "./../../test/max_mom_10/bases.hdf5",
+    "dtb": "/home/zanardi/Codes/ML/RONEK/ronek/examples/VC_O3_O4/database/",
     "saving": "./../../test/max_mom_10/"
   },
   "data": {
