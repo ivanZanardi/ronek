@@ -319,6 +319,7 @@ class BasicSystem(object):
     update: bool = False,
     path: Optional[str] = None,
     index: Optional[int] = None,
+    shift: int = 0,
     filename: Optional[str] = None
   ) -> np.ndarray:
     try:
@@ -328,6 +329,8 @@ class BasicSystem(object):
       n0 = self.mix.get_init_sol(*mui, mu_type=mu_type)
       *n, runtime = self.solve_fom(t, n0)
       data = {"index": index, "mu": mui, "T": T, "t": t, "n0": n0, "n": n}
+      if (index is not None):
+        index += shift
       utils.save_case(path=path, index=index, data=data, filename=filename)
     except:
       runtime = None

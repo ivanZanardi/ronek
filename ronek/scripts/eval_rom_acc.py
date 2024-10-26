@@ -81,6 +81,10 @@ if (__name__ == '__main__'):
       model = copy.deepcopy(model)
       if (name in ("cobras", "pod")):
         model["bases"] = h5todict(model["bases"])
+        if (model.get("error", None) is not None):
+          model["error"] = h5todict(model["error"])
+        else:
+          model["error"] = None
       else:
         raise ValueError(
           f"Name '{name}' not valid! Valid ROM models are {_VALID_MODELS}."
@@ -147,20 +151,26 @@ if (__name__ == '__main__'):
   # ---------------
   for (name, model) in models.items():
     print("Evaluating accuracy of ROM '%s' ..." % model["name"])
-    err, runtime = {}, {}
-    # Loop over dimensions
-    for r in range(*inputs["rom_range"]):
-      print("> Solving with %i dimensions ..." % r)
-      system.set_basis(
-        phi=model["bases"]["phi"][:,:r],
-        psi=model["bases"]["psi"][:,:r]
-      )
-      r_str = str(r)
-      err[r_str], runtime[r_str] = compute_err_parallel()
-    # Save error statistics
-    print("> Saving statistics ...")
-    save_err_stats(name, err)
-    save_runtime_stats(name, runtime)
+    if (model["error"] is None):
+      err, runtime = {}, {}
+      # Loop over dimensions
+      for r in range(*inputs["rom_range"]):
+        print("> Solving with %i dimensions ..." % r)
+        system.set_basis(
+          phi=model["bases"]["phi"][:,:r],
+          psi=model["bases"]["psi"][:,:r]
+        )
+        r = str(r)
+        err[r], runtime[r] = compute_err_parallel()
+      # Save error statistics
+      print("> Saving statistics ...")
+      save_err_stats(name, err)
+      save_runtime_stats(name, runtime)
+    else:
+      err = {}
+      for r in range(*inputs["rom_range"]):
+        r = str(r)
+        err[r] = model["error"][r]
     # Plot error statistics
     print("> Plotting error evolution ...")
     common_kwargs = dict(
@@ -173,7 +183,7 @@ if (__name__ == '__main__'):
       max_mom=inputs["plot"].get("max_mom", 2)
     )
     pp.plot_err_evolution(
-      path=path_to_saving+"/bt/",
+      path=path_to_saving+f"/{name}/",
       err=err,
       **common_kwargs
     )

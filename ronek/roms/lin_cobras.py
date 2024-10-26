@@ -202,7 +202,7 @@ class LinCoBRAS(object):
     s, phi, psi = [bkd.to_numpy(z) for z in (s, phi, psi)]
     dicttoh5(
       treedict={"s": s, "phi": phi, "psi": psi},
-      h5file=self.path_to_saving+"/bases_cobras.hdf5",
+      h5file=self.path_to_saving+"/cobras_bases.hdf5",
       overwrite_data=True
     )
     if pod:
@@ -216,6 +216,6 @@ class LinCoBRAS(object):
       s, phi = [bkd.to_numpy(z) for z in (s, U)]
       dicttoh5(
         treedict={"s": s, "phi": phi, "psi": phi},
-        h5file=self.path_to_saving+"/bases_pod.hdf5",
+        h5file=self.path_to_saving+"/pod_bases.hdf5",
         overwrite_data=True
       )

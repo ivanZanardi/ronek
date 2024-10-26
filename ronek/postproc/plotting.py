@@ -68,15 +68,6 @@ def plot_evolution(
   if (ylim is not None):
     ax.set_ylim(ylim)
   # Plotting
-  if (hline is not None):
-    ax.text(
-      0.99, hline,
-      r"{:0.1f} \%".format(hline),
-      va="bottom", ha="right",
-      transform=ax.get_yaxis_transform(),
-      fontsize=20
-    )
-    ax.hlines(hline, xmin, xmax, colors="grey", lw=1.0)
   if isinstance(y, dict):
     i = 0
     for (k, yk) in y.items():
@@ -91,6 +82,15 @@ def plot_evolution(
     ax.legend(loc=legend_loc, fancybox=True, framealpha=0.9)
   else:
     ax.plot(x, y, "-", c="k")
+  if (hline is not None):
+    ax.text(
+      0.99, hline,
+      r"{:0.1f} \%".format(hline),
+      va="bottom", ha="right",
+      transform=ax.get_yaxis_transform(),
+      fontsize=20
+    )
+    ax.hlines(hline, xmin, xmax, colors="grey", lw=1.0)
   # Tight layout
   plt.tight_layout()
   if save:
@@ -223,6 +223,7 @@ def plot_err_ci_evolution(
   # y1, y2 = [np.clip(z, 0, None) for z in (y1, y2)]
   ci_lbl = "${}\\%$ CI".format(int(100*alpha))
   ax.fill_between(x=x, y1=y1, y2=y2, alpha=0.2, label=ci_lbl)
+  ax.plot(x, mean)
   if (hline is not None):
     ax.text(
       0.99, hline,
@@ -232,7 +233,6 @@ def plot_err_ci_evolution(
       fontsize=20
     )
     ax.hlines(hline, xmin, xmax, colors="grey", lw=1.0)
-  ax.plot(x, mean)
   ax.legend(loc=legend_loc)
   # Tight layout
   plt.tight_layout()

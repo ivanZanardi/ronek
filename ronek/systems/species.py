@@ -23,7 +23,6 @@ class Species(object):
     self.M = self.m * const.UNA
     self.R = const.URG / self.M
     self.lev = {k: np.array(v).reshape(-1) for (k, v) in self.lev.items()}
-    self.lev["e"] -= np.amin(self.lev["e"])
     # Number of pseudo-species
     self.nb_comp = len(self.lev["e"])
     # Thermo

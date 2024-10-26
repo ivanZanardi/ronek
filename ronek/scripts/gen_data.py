@@ -71,28 +71,25 @@ if (__name__ == '__main__'):
   nb_samples_mu = len(mu)
   nb_samples_temp = len(T)
   # Generate data
-  si = 0
-  ei = nb_samples_mu
-  runtime = 0.0
   print("Looping over sampled temperatures:")
-  for Ti in T.values.reshape(-1):
+  runtime = 0.0
+  for (i, Ti) in enumerate(T.values.reshape(-1)):
     print("> T = %.4e K" % Ti)
     system.update_fom_ops(Ti)
     runtime += utils.generate_case_parallel(
       sol_fun=system.compute_fom_sol,
-      range=[si,ei],
+      irange=[0,nb_samples_mu],
       sol_kwargs=dict(
         T=Ti,
         t=t,
         mu=mu.values,
         update=False,
         path=path_to_saving,
+        shift=nb_samples_mu*i,
         filename=None
       ),
       nb_workers=inputs["param_space"]["nb_workers"]
     )
-    si += nb_samples_mu
-    ei += nb_samples_mu
   # Save parameters
   for (name, df) in (
     ("mu", mu),

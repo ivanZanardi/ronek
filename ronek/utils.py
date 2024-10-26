@@ -175,7 +175,7 @@ def load_case_parallel(
 
 def generate_case_parallel(
   sol_fun: callable,
-  range: List[int],
+  irange: List[int],
   sol_kwargs: Dict[str, Any] = {},
   nb_workers: int = 1,
   desc: str = "Cases",
@@ -210,9 +210,9 @@ def generate_case_parallel(
   indices and collects convergence results. If `verbose` is True, it prints
   the total number of converged cases.
   """
-  range = np.sort(range)
+  irange = np.sort(irange)
   iterable = tqdm(
-    iterable=range(*range),
+    iterable=range(*irange),
     ncols=80,
     desc=delimiter+desc,
     file=sys.stdout
@@ -225,7 +225,7 @@ def generate_case_parallel(
     runtime = [sol_fun(index=i, **sol_kwargs) for i in iterable]
   runtime = [rt for rt in runtime if (rt is not None)]
   if verbose:
-    nb_samples = range[1]-range[0]
+    nb_samples = irange[1]-irange[0]
     print(delimiter + f"Total converged cases: {len(runtime)}/{nb_samples}")
   return np.mean(runtime)
 
