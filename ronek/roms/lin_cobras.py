@@ -6,7 +6,7 @@ import scipy as sp
 
 from .. import utils
 from .. import backend as bkd
-from .lowrank import svd_lowrank
+from ronek.ops import svd_lowrank
 from silx.io.dictdump import dicttoh5, h5todict
 
 
@@ -23,8 +23,8 @@ class LinCoBRAS(object):
   # ===================================
   def __init__(
     self,
-    operators,
-    quadrature,
+    operators=None,
+    quadrature=None,
     path_to_saving="./",
     saving=True,
     verbose=True
@@ -35,7 +35,7 @@ class LinCoBRAS(object):
     self.ops = operators
     self.quad = quadrature
     # Nb. of equations
-    self.nb_eqs = self.ops["A"].shape[0]
+    self.nb_eqs = None if (self.ops is None) else self.ops["A"].shape[0]
     # Saving
     # -------------
     self.saving = saving
@@ -183,17 +183,12 @@ class LinCoBRAS(object):
 
   # Balancing modes
   # -----------------------------------
-  def compute_modes(self, X, Y, pod=False, rank=100, niter=20):
+  def compute_modes(self, X, Y, pod=False, rank=100, niter=30):
     if self.verbose:
       print("Computing balanced CoBRAS modes ...")
     runtime = time.time()
     # Perform randomized SVD
     X, Y = [bkd.to_torch(z) for z in (X, Y)]
-    # U, s, V = torch.svd_lowrank(
-    #   A=Y.T@X,
-    #   q=min(rank, X.shape[0]),
-    #   niter=niter
-    # )
     U, s, V = svd_lowrank(
       X=X,
       Y=Y,

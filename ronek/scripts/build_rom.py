@@ -33,13 +33,14 @@ env.set(**inputs["env"])
 import numpy as np
 
 from tqdm import tqdm
+from ronek import ops
 from ronek import utils
 from ronek.roms import LinCoBRAS
 from ronek import systems as sys_mod
 
 # Main
 # =====================================
-if (__name__ == '__main__'):
+if (__name__ == "__main__"):
 
   print("Initialization ...")
 
@@ -52,10 +53,10 @@ if (__name__ == '__main__'):
     modules=[sys_mod],
     name=inputs["system"]["name"]
   )(
-    rates=path_to_dtb + "/kinetics.hdf5",
     species={
       k: path_to_dtb + f"/species/{k}.json" for k in ("atom", "molecule")
     },
+    rates_coeff=path_to_dtb + "/kinetics.hdf5",
     **inputs["system"]["kwargs"]
   )
 
@@ -68,14 +69,15 @@ if (__name__ == '__main__'):
   # Quadrature points
   quad = {}
   # > Time
-  t, w_t = utils.get_gl_quad_1d(
+  t, w_t = ops.get_quad_1d(
     x=system.get_tgrid(**inputs["grids"]["t"]),
+    quad="gl",
     deg=2,
     dist="uniform"
   )
   quad["t"] = {"x": t, "w": np.sqrt(w_t)}
   # > Initial conditions space (mu)
-  mu, w_mu = utils.get_gl_quad_2d(
+  mu, w_mu = ops.get_quad_2d(
     x=np.geomspace(**inputs["grids"]["mu"]["T0"]),
     y=np.linspace(**inputs["grids"]["mu"]["w0_a"]),
     deg=2,
@@ -84,12 +86,14 @@ if (__name__ == '__main__'):
   )
   quad["mu"] = {"x": mu, "w": np.sqrt(w_mu)}
   # > Equilibrium parameters space (theta)
-  theta, w_theta = utils.get_gl_quad_2d(
-    x=np.linspace(**inputs["grids"]["theta"]["T"]),
+  theta, w_theta = ops.get_quad_2d(
+    x=np.array(inputs["grids"]["theta"]["T"]),
     y=np.geomspace(**inputs["grids"]["theta"]["rho"]),
     deg=2,
     dist_x="uniform",
     dist_y="uniform",
+    quad_x="trapz",
+    quad_y="gl",
     joint=False
   )
   quad["theta"] = {}
@@ -98,42 +102,59 @@ if (__name__ == '__main__'):
 
   # Model reduction
   # ---------------
-  X, Y = [], []
-  print("Looping over temperatures:")
-  for (i, Ti) in enumerate(quad["theta"]["T"]["x"]):
-    print("> T = %.4e K" % Ti)
-    # > FOM operators
-    system.update_fom_ops(Ti)
-    for (j, rhoj) in enumerate(
-      tqdm(quad["theta"]["rho"]["x"], ncols=80, desc="  Densities")
-    ):
-      # > Linear operators
-      lin_ops = system.compute_lin_fom_ops(
-        mu=quad["mu"]["x"],
-        rho=rhoj,
-        max_mom=int(inputs["max_mom"])
-      )
-      cobras = LinCoBRAS(
-        operators=lin_ops,
-        quadrature=quad,
-        path_to_saving=path_to_saving,
-        saving=False,
-        verbose=False
-      )
-      # > Covariance matrices
-      Xij, Yij = cobras(
-        xnot=[0],
-        modes=False
-      )
-      wij = quad["theta"]["T"]["w"][i] * quad["theta"]["rho"]["w"][j]
-      X.append(wij*Xij)
-      Y.append(wij*Yij)
+  cov_mats = inputs.get("cov_mats", {"read": False})
+  if (not cov_mats["read"]):
+    X, Y = [], []
+    print("Looping over temperatures:")
+    for (i, Ti) in enumerate(quad["theta"]["T"]["x"]):
+      print("> T = %.4e K" % Ti)
+      # > FOM operators
+      system.update_fom_ops(Ti)
+      for (j, rhoj) in enumerate(
+        tqdm(quad["theta"]["rho"]["x"], ncols=80, desc="  Densities")
+      ):
+        # > Linear operators
+        lin_ops = system.compute_lin_fom_ops(
+          mu=quad["mu"]["x"],
+          rho=rhoj,
+          max_mom=int(inputs["max_mom"])
+        )
+        cobras = LinCoBRAS(
+          operators=lin_ops,
+          quadrature=quad,
+          path_to_saving=path_to_saving,
+          saving=False,
+          verbose=False
+        )
+        # > Covariance matrices
+        Xij, Yij = cobras(
+          xnot=[0],
+          modes=False
+        )
+        wij = quad["theta"]["T"]["w"][i] * quad["theta"]["rho"]["w"][j]
+        X.append(wij*Xij)
+        Y.append(wij*Yij)
+    X = np.hstack(X)
+    Y = np.hstack(Y)
+    np.save(path_to_saving + "/X.npy", X)
+    np.save(path_to_saving + "/Y.npy", Y)
+  else:
+    print("Reading X and Y matrices ...")
+    X = np.load(cov_mats["path_x"])
+    Y = np.load(cov_mats["path_y"])
+    cobras = LinCoBRAS(
+      operators=None,
+      quadrature=None,
+      path_to_saving=path_to_saving,
+      saving=False,
+      verbose=False
+    )
 
   # > Compute balancing modes
   cobras.verbose = True
   cobras(
-    X=np.hstack(X),
-    Y=np.hstack(Y),
+    X=X,
+    Y=Y,
     modes=True,
     pod=True,
     runtime=cobras.runtime

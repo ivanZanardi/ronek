@@ -15,21 +15,21 @@ class CoarseGrainingM1(CoarseGrainingM0):
   # ===================================
   def __init__(
     self,
-    molecule,
-    T=None
+    molecule
   ):
-    super(CoarseGrainingM1, self).__init__(molecule, T)
+    super(CoarseGrainingM1, self).__init__(molecule)
 
   # Calling
   # ===================================
   def __call__(
     self,
+    T,
     filename,
     teval=None,
     mapping=None,
     nb_bins=1
   ):
-    self.build(mapping, nb_bins)
+    super(CoarseGrainingM1, self).__call__(T, mapping, nb_bins)
     x = self.read_sol(filename, teval)
     return self.decode(x)
 

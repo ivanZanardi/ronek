@@ -54,10 +54,10 @@ if (__name__ == '__main__'):
     modules=[sys_mod],
     name=inputs["system"]["name"]
   )(
-    rates=path_to_dtb + "/kinetics.hdf5",
     species={
       k: path_to_dtb + f"/species/{k}.json" for k in ("atom", "molecule")
     },
+    rates_coeff=path_to_dtb + "/kinetics.hdf5",
     **inputs["system"]["kwargs"]
   )
 
@@ -93,7 +93,7 @@ if (__name__ == '__main__'):
   # Loop over test cases
   # ---------------
   for icase in inputs["data"]["cases"]:
-    print(f"Solving case '{icase}' ...")
+    print(f"Evaluating case '{icase}' ...")
     # > Load test case
     filename = inputs["data"]["path"]+f"/case_{icase}.p"
     data = utils.load_case(filename=filename)
@@ -122,6 +122,7 @@ if (__name__ == '__main__'):
             pdata = (model["name"], int(r/2))
             print("> Reading ROM '%s' solution with %i bins ..." % pdata)
             sols[model["name"]] = model["class"](
+              T=T,
               filename=model["cases"][icase],
               teval=t,
               mapping=model["mapping"],

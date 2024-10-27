@@ -2,6 +2,8 @@ import numpy as np
 
 from silx.io.dictdump import h5todict
 
+_ARR_PARAM = ("A", "beta", "Ta")
+
 
 class Kinetics(object):
 
@@ -9,15 +11,17 @@ class Kinetics(object):
   # ===================================
   def __init__(
     self,
-    param,
-    species
+    species,
+    rates_coeff,
+    use_arrhenius=False
   ):
-    # Load rates parameters
-    self.param = param
-    if (not isinstance(self.param, dict)):
-      self.param = h5todict(self.param)
     # Set species
     self.species = species
+    # Load rates parameters
+    self.rates_coeff = rates_coeff
+    if (not isinstance(self.rates_coeff, dict)):
+      self.rates_coeff = h5todict(self.rates_coeff)
+    self.use_arrhenius = use_arrhenius
 
   # Rates
   # ===================================
@@ -32,14 +36,17 @@ class Kinetics(object):
   def compute_fwd_rates(self, T):
     rates = {}
     # Loop over types of collision
-    for c in self.param.keys():
+    for c in self.rates_coeff.keys():
       rates[c] = {}
       # Loop over processes
-      for p in self.param[c].keys():
-        # Extract Arrhenius law parameters
-        param = [self.param[c][p][k] for k in ("A", "beta", "Ta")]
-        # Apply Arrhenius law
-        rates[c][p] = {"fwd": self.arrhenius(T, *param)}
+      for p in self.rates_coeff[c].keys():
+        if self.use_arrhenius:
+          # Extract Arrhenius law parameters
+          rates_coeff = [self.rates_coeff[c][p][k] for k in _ARR_PARAM]
+          # Apply Arrhenius law
+          rates[c][p] = {"fwd": self.arrhenius(T, *rates_coeff)}
+        else:
+          rates[c][p] = {"fwd": self.rates_coeff[c][p][str(int(T))]}
     return rates
 
   def arrhenius(self, T, A, beta, Ta):
@@ -47,9 +54,9 @@ class Kinetics(object):
 
   def compute_bwd_rates(self, rates, q_m, q_a):
     # Loop over types of collision
-    for c in self.param.keys():
+    for c in self.rates_coeff.keys():
       # Loop over processes
-      for p in self.param[c].keys():
+      for p in self.rates_coeff[c].keys():
         # Initialize 'bwd' rates
         i_rates = rates[c][p]["fwd"]
         # Set shapes

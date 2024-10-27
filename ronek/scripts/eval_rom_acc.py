@@ -57,10 +57,10 @@ if (__name__ == '__main__'):
     modules=[sys_mod],
     name=inputs["system"]["name"]
   )(
-    rates=path_to_dtb + "/kinetics.hdf5",
     species={
       k: path_to_dtb + f"/species/{k}.json" for k in ("atom", "molecule")
     },
+    rates_coeff=path_to_dtb + "/kinetics.hdf5",
     **inputs["system"]["kwargs"]
   )
 

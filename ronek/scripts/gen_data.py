@@ -30,6 +30,7 @@ env.set(**inputs["env"])
 # Libraries
 # =====================================
 import numpy as np
+import pandas as pd
 
 from ronek import utils
 from ronek import systems as sys_mod
@@ -47,10 +48,10 @@ if (__name__ == '__main__'):
     modules=[sys_mod],
     name=inputs["system"]["name"]
   )(
-    rates=path_to_dtb + "/kinetics.hdf5",
     species={
       k: path_to_dtb + f"/species/{k}.json" for k in ("atom", "molecule")
     },
+    rates_coeff=path_to_dtb + "/kinetics.hdf5",
     **inputs["system"]["kwargs"]
   )
 
@@ -67,9 +68,13 @@ if (__name__ == '__main__'):
   # Sampled cases
   # ---------------
   # Construct design matrix
-  T, mu = system.construct_design_mat(**inputs["param_space"]["sampled"])
-  nb_samples_mu = len(mu)
+  T, mu = [inputs["param_space"]["sampled"][k] for k in ("T", "mu")]
+  # > Sampled temperatures
+  T = pd.DataFrame(data=np.array(T).reshape(-1), columns=["T"])
   nb_samples_temp = len(T)
+  # > Sampled initial conditions parameters
+  mu = system.construct_design_mat(**mu)
+  nb_samples_mu = len(mu)
   # Generate data
   print("Looping over sampled temperatures:")
   runtime = 0.0
