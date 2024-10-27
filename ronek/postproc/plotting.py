@@ -255,6 +255,7 @@ def plot_err_evolution(
   max_mom=2
 ):
   os.makedirs(path, exist_ok=True)
+  rlist = sorted(list(err.keys()), key=int)
   for r in err.keys():
     t = err[r]["t"]
     break
@@ -269,12 +270,12 @@ def plot_err_evolution(
           label = fr"$\gamma_{m}$ error [\%]"
       plot_evolution(
         x=t,
-        y={f"$r={r}$": err[r]["mean"][m] for r in err.keys()},
+        y={f"$r={r}$": err[r]["mean"][m] for r in rlist},
         xlim=tlim,
         ylim=ylim_err,
         ls="-",
         hline=hline,
-        legend_loc="lower left",
+        legend_loc="best",
         labels=[r"$t$ [s]", label],
         scales=["log", err_scale],
         figname=path + f"/mean_m{m}_err",
@@ -284,12 +285,12 @@ def plot_err_evolution(
   else:
     plot_evolution(
       x=t,
-      y={f"$r={r}$": err[r]["mean"] for r in err.keys()},
+      y={f"$r={r}$": err[r]["mean"] for r in rlist},
       xlim=tlim,
       ylim=ylim_err,
       ls="-",
       hline=hline,
-      legend_loc="lower left",
+      legend_loc="best",
       labels=[r"$t$ [s]", fr"$w_{subscript}$ error [\%]"],
       scales=["log", err_scale],
       figname=path + "/mean_dist_err",

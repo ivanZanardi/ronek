@@ -181,8 +181,9 @@ if (__name__ == '__main__'):
       save_err_stats(name, err)
       save_runtime_stats(name, runtime)
     else:
-      err = model["error"]
-    print(utils.map_nested_dict(err, np.shape))
+      err = {}
+      for k in sorted(model["error"].keys()):
+        err[k] = model["error"][k]
     # Plot error statistics
     print("> Plotting error evolution ...")
     common_kwargs = dict(
