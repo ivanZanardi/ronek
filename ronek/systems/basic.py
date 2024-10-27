@@ -371,25 +371,29 @@ class BasicSystem(object):
     eval_err: Optional[str] = None,
     eps: float = 1e-7
   ) -> Tuple[np.ndarray]:
-    # Load test case
-    icase = utils.load_case(path=path, index=index, filename=filename)
-    T, t, n0, n_fom = [icase[k] for k in ("T", "t", "n0", "n")]
-    if update:
-      self.update_fom_ops(T)
-      self.update_rom_ops()
-    # Solve ROM
-    *n_rom, runtime = self.solve_rom(t, n0)
-    # Evaluate error
-    if (eval_err == "mom"):
-      # > Moments
-      return self.compute_mom_err(n_fom[1], n_rom[1], eps), runtime
-    elif (eval_err == "dist"):
-      # > Distribution
-      rho = self.mix.get_rho(n0)
-      return self.compute_dist_err(n_fom[1], n_rom[1], rho, eps), runtime
-    else:
-      # > None: return the solution
-      return t, n_fom, n_rom, runtime
+    try:
+      # Load test case
+      icase = utils.load_case(path=path, index=index, filename=filename)
+      T, t, n0, n_fom = [icase[k] for k in ("T", "t", "n0", "n")]
+      if update:
+        self.update_fom_ops(T)
+        self.update_rom_ops()
+      # Solve ROM
+      *n_rom, runtime = self.solve_rom(t, n0)
+      # Evaluate error
+      if (eval_err == "mom"):
+        # > Moments
+        return self.compute_mom_err(n_fom[1], n_rom[1], eps), runtime
+      elif (eval_err == "dist"):
+        # > Distribution
+        rho = self.mix.get_rho(n0)
+        return self.compute_dist_err(n_fom[1], n_rom[1], rho, eps), runtime
+      else:
+        # > None: return the solution
+        return t, n_fom, n_rom, runtime
+    except:
+      nb_none = 2 if (eval_err is not None) else 4
+      return [None for _ in range(nb_none)]
 
   def compute_mom_err(
     self,

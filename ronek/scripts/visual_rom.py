@@ -98,12 +98,12 @@ if (__name__ == '__main__'):
     filename = inputs["data"]["path"]+f"/case_{icase}.p"
     data = utils.load_case(filename=filename)
     T, t, n0, n_fom = [data[k] for k in ("T", "t", "n0", "n")]
-    # > Solutions container
-    sols = {"FOM": n_fom[1]}
     # > Update FOM operators
     system.update_fom_ops(T)
     # > Loop over ROM dimensions
     for r in range(*inputs["rom_range"]):
+      # > Solutions container
+      sols = {"FOM": n_fom[1]}
       # > Saving folder
       path_to_saving_i = path_to_saving + f"/case_{icase}/r{r}/"
       os.makedirs(path_to_saving_i, exist_ok=True)

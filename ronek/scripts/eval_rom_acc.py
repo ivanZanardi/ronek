@@ -94,8 +94,10 @@ if (__name__ == '__main__'):
   # Util functions
   # ---------------
   def compute_err_parallel():
+    irange = np.sort(inputs["data"]["range"])
+    nb_samples = irange[1]-irange[0]
     iterable = tqdm(
-      iterable=range(*inputs["data"]["range"]),
+      iterable=range(*irange),
       ncols=80,
       desc="  Cases",
       file=sys.stdout
@@ -113,14 +115,24 @@ if (__name__ == '__main__'):
       )
     else:
       sol = [system.compute_rom_sol(index=i, **kwargs) for i in iterable]
+    # Split error values from running times
     err, runtime = list(zip(*sol))
-    if (inputs["eval_err"] == "mom"):
-      err, runtime = np.stack(err, axis=0), runtime
+    err = [x for x in err if (x is not None)]
+    runtime = [x for x in runtime if (x is not None)]
+    converged = len(runtime)/nb_samples
+    print(f"  Total converged cases: {len(runtime)}/{nb_samples}")
+    if (converged < 0.8):
+      # Stack error values
+      if (inputs["eval_err"] == "mom"):
+        err = np.stack(err, axis=0)
+      else:
+        err = np.vstack(err)
+      # Compute statistics
+      err = compute_err_stats(err)
+      runtime = compute_runtime_stats(runtime)
+      return err, runtime
     else:
-      err, runtime = np.vstack(err), runtime
-    err = compute_err_stats(err)
-    runtime = compute_runtime_stats(runtime)
-    return err, runtime
+      return None, None
 
   def compute_err_stats(err):
     return {
@@ -160,8 +172,10 @@ if (__name__ == '__main__'):
           phi=model["bases"]["phi"][:,:r],
           psi=model["bases"]["psi"][:,:r]
         )
-        r = str(r)
-        err[r], runtime[r] = compute_err_parallel()
+        result = compute_err_parallel()
+        if (None not in result):
+          r = str(r)
+          err[r], runtime[r] = result
       # Save error statistics
       print("> Saving statistics ...")
       save_err_stats(name, err)
