@@ -19,10 +19,11 @@ class BasicSystem(object):
   # ===================================
   def __init__(
     self,
-    rates: str,
     species: Dict[str, str],
+    rates_coeff: str,
     use_einsum: bool = False,
-    use_factorial: bool = False
+    use_factorial: bool = False,
+    use_arrhenius: bool = False
   ) -> None:
     # Thermochemistry database
     # -------------
@@ -31,7 +32,7 @@ class BasicSystem(object):
     self.mix = Mixture(species, use_factorial)
     self.nb_eqs = self.mix.nb_eqs
     # > Kinetics
-    self.kin = Kinetics(rates, self.mix.species)
+    self.kin = Kinetics(self.mix.species, rates_coeff, use_arrhenius)
     # FOM
     # -------------
     # Solving
@@ -284,14 +285,10 @@ class BasicSystem(object):
     self,
     limits: Dict[str, List[float]],
     nb_samples: int,
-    nb_samples_temp: int = 1,
     log_vars: List[str] = ["T0", "rho"],
     eps: float = 1e-7
   ) -> Tuple[pd.DataFrame]:
     _mu_keys = ("T0", "w0_a", "rho")
-    # Sample temperature alone
-    sample_fun = np.geomspace if ("T" in log_vars) else np.linspace
-    T = sample_fun(*np.sort(limits["T"]), nb_samples_temp)
     # Sample remaining parameters
     design_space = [np.sort(limits[k]) for k in _mu_keys]
     design_space = np.array(design_space).T
@@ -300,15 +297,44 @@ class BasicSystem(object):
     design_space[:,ilog] = np.log(design_space[:,ilog] + eps)
     # Construct
     ddim = design_space.shape[1]
-    dmat = lhs(ddim, int(nb_samples/nb_samples_temp))
+    dmat = lhs(ddim, int(nb_samples))
     # Rescale
     amin, amax = design_space
     mu = dmat * (amax - amin) + amin
     mu[:,ilog] = np.exp(mu[:,ilog]) - eps
     # Convert to dataframe
-    T = pd.DataFrame(data=T, columns=["T"])
     mu = pd.DataFrame(data=mu, columns=_mu_keys)
-    return T, mu
+    return mu
+
+  # def construct_design_mat(
+  #   self,
+  #   limits: Dict[str, List[float]],
+  #   nb_samples: int,
+  #   nb_samples_temp: int = 1,
+  #   log_vars: List[str] = ["T0", "rho"],
+  #   eps: float = 1e-7
+  # ) -> Tuple[pd.DataFrame]:
+  #   _mu_keys = ("T0", "w0_a", "rho")
+  #   # Sample temperature alone
+  #   sample_fun = np.geomspace if ("T" in log_vars) else np.linspace
+  #   T = sample_fun(*np.sort(limits["T"]), nb_samples_temp)
+  #   # Sample remaining parameters
+  #   design_space = [np.sort(limits[k]) for k in _mu_keys]
+  #   design_space = np.array(design_space).T
+  #   # Log-scale
+  #   ilog = [i for (i, k) in enumerate(_mu_keys) if (k in log_vars)]
+  #   design_space[:,ilog] = np.log(design_space[:,ilog] + eps)
+  #   # Construct
+  #   ddim = design_space.shape[1]
+  #   dmat = lhs(ddim, int(nb_samples/nb_samples_temp))
+  #   # Rescale
+  #   amin, amax = design_space
+  #   mu = dmat * (amax - amin) + amin
+  #   mu[:,ilog] = np.exp(mu[:,ilog]) - eps
+  #   # Convert to dataframe
+  #   T = pd.DataFrame(data=T, columns=["T"])
+  #   mu = pd.DataFrame(data=mu, columns=_mu_keys)
+  #   return T, mu
 
   def compute_fom_sol(
     self,

@@ -15,11 +15,7 @@
       "num": 51
     },
     "theta": {
-      "T": {
-        "start": 1e4,
-        "stop": 1e4,
-        "num": 1
-      },
+      "T": [1e4],
       "rho": {
         "start": 1e-4,
         "stop": 1e0,
@@ -43,7 +39,8 @@
     "name": "TAFASystem",
     "kwargs": {
       "use_einsum": false,
-      "use_factorial": true
+      "use_factorial": true,
+      "use_arrhenius": false
     }
   },
   "paths": {

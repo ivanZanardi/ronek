@@ -12,13 +12,14 @@ class TAFASystem(TASystem):
   # ===================================
   def __init__(
     self,
-    rates,
     species,
+    rates_coeff,
     use_einsum=False,
-    use_factorial=False
+    use_factorial=False,
+    use_arrhenius=False
   ):
     super(TAFASystem, self).__init__(
-      rates, species, use_einsum, use_factorial
+      species, rates_coeff, use_einsum, use_factorial, use_arrhenius
     )
 
   # Operators

@@ -14,12 +14,9 @@ class CoarseGrainingM0(object):
   # ===================================
   def __init__(
     self,
-    molecule,
-    T=None
+    molecule
   ):
     self.molecule = Species(molecule)
-    if (T is not None):
-      self.molecule.update(float(T))
     self.P = None
     self.phi = None
     self.psi = None
@@ -29,9 +26,11 @@ class CoarseGrainingM0(object):
   # ===================================
   def __call__(
     self,
+    T,
     mapping=None,
     nb_bins=1
   ):
+    self.molecule.update(float(T))
     self.build(mapping, nb_bins)
 
   def build(

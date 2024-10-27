@@ -12,7 +12,8 @@
     "name": "TAFASystem",
     "kwargs": {
       "use_einsum": false,
-      "use_factorial": true
+      "use_factorial": true,
+      "use_arrhenius": false
     }
   },
   "models": {

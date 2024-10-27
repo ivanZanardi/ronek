@@ -12,12 +12,9 @@ class MultiTemperature(object):
   # ===================================
   def __init__(
     self,
-    molecule,
-    T=None
+    molecule
   ):
     self.molecule = Species(molecule)
-    if (T is not None):
-      self.molecule.update(float(T))
 
   # Calling
   # ===================================

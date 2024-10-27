@@ -12,14 +12,15 @@
     "t": {
       "start": 1e-9,
       "stop": 1e-3,
-      "num": 200
+      "num": 500
     }
   },
   "system": {
     "name": "TAFASystem",
     "kwargs": {
       "use_einsum": false,
-      "use_factorial": true
+      "use_factorial": true,
+      "use_arrhenius": false
     }
   },
   "param_space": {
@@ -31,16 +32,17 @@
       "mu_type": "mole"
     },
     "sampled": {
-      "limits": {
-        "T0": [5e2, 1e4],
-        "w0_a": [0.0, 1.0],
-        "rho": [1e-4, 1e0],
-        "T": [1e4, 1e4]
+      "mu": {
+        "limits": {
+          "T0": [5e2, 1e4],
+          "w0_a": [0.0, 1.0],
+          "rho": [1e-4, 1e0]
+        },
+        "nb_samples": 1000,
+        "log_vars": ["T0", "rho"],
+        "eps": 1e-7
       },
-      "nb_samples": 1000,
-      "nb_samples_temp": 1,
-      "log_vars": ["T0", "rho"],
-      "eps": 1e-7
+      "T": [1e4]
     },
     "nb_workers": 10
   },
