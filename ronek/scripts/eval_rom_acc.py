@@ -115,13 +115,13 @@ if (__name__ == '__main__'):
       )
     else:
       sol = [system.compute_rom_sol(index=i, **kwargs) for i in iterable]
-    # Split error values from running times
+    # Split error values and running times
     err, runtime = list(zip(*sol))
     err = [x for x in err if (x is not None)]
     runtime = [x for x in runtime if (x is not None)]
     converged = len(runtime)/nb_samples
     print(f"  Total converged cases: {len(runtime)}/{nb_samples}")
-    if (converged < 0.8):
+    if (converged >= 0.8):
       # Stack error values
       if (inputs["eval_err"] == "mom"):
         err = np.stack(err, axis=0)
@@ -181,10 +181,8 @@ if (__name__ == '__main__'):
       save_err_stats(name, err)
       save_runtime_stats(name, runtime)
     else:
-      err = {}
-      for r in range(*inputs["rom_range"]):
-        r = str(r)
-        err[r] = model["error"][r]
+      err = model["error"]
+    print(utils.map_nested_dict(err, np.shape))
     # Plot error statistics
     print("> Plotting error evolution ...")
     common_kwargs = dict(

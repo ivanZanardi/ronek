@@ -209,7 +209,12 @@ class BasicSystem(object):
       atol=0.0,
       jac=self.jac
     )
-    return sol.y * const.UNA
+    n = sol.y * const.UNA
+    nb_n = n.shape[1]
+    nb_t = len(t.reshape(-1))
+    if (nb_n != nb_t):
+      raise ValueError("Solution not converged!")
+    return n
 
   def solve_fom(
     self,
