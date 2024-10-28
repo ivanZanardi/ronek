@@ -11,7 +11,7 @@
   "grids": {
     "t": {
       "start": 1e-12,
-      "stop": 1e-3,
+      "stop": 1e-2,
       "num": 51
     },
     "theta": {
@@ -34,11 +34,6 @@
         "num": 6
       }
     }
-  },
-  "cov_mats": {
-    "read": false,
-    "path_x": "./../../test/max_mom_2/X.npy",
-    "path_y": "./../../test/max_mom_2/Y.npy"
   },
   "system": {
     "name": "TAFASystem",

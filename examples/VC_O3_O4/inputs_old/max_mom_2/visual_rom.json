@@ -20,33 +20,46 @@
     "cobras": {
       "active": true,
       "name": "CoBRAS",
-      "bases": "./../../test/max_mom_10/cobras_bases.hdf5",
-      "error": null
+      "bases": "./../../test/max_mom_2/cobras_bases.hdf5"
     },
     "pod": {
       "active": true,
       "name": "POD",
-      "bases": "./../../test/max_mom_10/pod_bases.hdf5",
-      "error": null
+      "bases": "./../../test/max_mom_2/pod_bases.hdf5"
+    },
+    "cg": {
+      "active": false,
+      "name": "CG"
+    },
+    "mt": {
+      "active": false,
+      "name": "MT"
     }
   },
   "paths": {
     "dtb": "/home/zanardi/Codes/ML/RONEK/ronek/examples/VC_O3_O4/database/",
-    "saving": "./../../test/max_mom_10/"
+    "saving": "./../../test/max_mom_2/"
   },
   "data": {
-    "range": [0,1000],
-    "nb_workers": 10,
+    "cases": ["cold", "hot"],
+    "teval": {
+      "cold": [1e-8, 1e-7, 7e-7, 3e-6, 1e-4],
+      "hot":  [1e-7, 1e-6, 4e-6, 2e-5, 1e-3]
+    },
+    "tlim": {
+      "cold": {"m0": [1e-7, 2e-5], "m1": [5e-9, 2e-5]},
+      "hot":  {"m0": [1e-9, 1e-3], "m1": [1e-9, 1e-3]}
+    },
     "path": "./../../test/data/"
   },
   "plot": {
     "style": "/home/zanardi/Workspace/Research/styles/matplotlib/paper_1column.mplstyle",
-    "molecule_label": "\\text{O$_2$}",
-    "ylim_err": [1e-6,3e3],
+    "animate": false,
+    "markersize": 6,
     "subscript": "v",
     "err_scale": "log",
-    "hline": 10.0
+    "molecule_label": "\\text{O$_2$}",
+    "hline": 1.0
   },
-  "rom_range": [6,13,2],
-  "eval_err": "dist"
+  "rom_range": [4,5]
 }

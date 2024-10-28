@@ -20,19 +20,17 @@
     "cobras": {
       "active": true,
       "name": "CoBRAS",
-      "bases": "./../../test/max_mom_10/cobras_bases.hdf5",
-      "error": null
+      "bases": "./../../test/max_mom_2/cobras_bases.hdf5"
     },
     "pod": {
       "active": true,
       "name": "POD",
-      "bases": "./../../test/max_mom_10/pod_bases.hdf5",
-      "error": null
+      "bases": "./../../test/max_mom_2/pod_bases.hdf5"
     }
   },
   "paths": {
     "dtb": "/home/zanardi/Codes/ML/RONEK/ronek/examples/VC_O3_O4/database/",
-    "saving": "./../../test/max_mom_10/"
+    "saving": "./../../test/max_mom_2/"
   },
   "data": {
     "range": [0,1000],
@@ -42,11 +40,10 @@
   "plot": {
     "style": "/home/zanardi/Workspace/Research/styles/matplotlib/paper_1column.mplstyle",
     "molecule_label": "\\text{O$_2$}",
-    "ylim_err": [1e-6,3e3],
-    "subscript": "v",
+    "ylim_err": [1e-8,1e2],
     "err_scale": "log",
-    "hline": 10.0
+    "hline": 1.0
   },
-  "rom_range": [6,13,2],
-  "eval_err": "dist"
+  "rom_range": [3,7],
+  "eval_err": "mom"
 }

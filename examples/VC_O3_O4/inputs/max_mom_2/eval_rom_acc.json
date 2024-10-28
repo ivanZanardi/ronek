@@ -20,12 +20,14 @@
     "cobras": {
       "active": true,
       "name": "CoBRAS",
-      "bases": "./../../test/max_mom_2/cobras_bases.hdf5"
+      "bases": "./../../test/max_mom_2/cobras_bases.hdf5",
+      "error": null
     },
     "pod": {
       "active": true,
       "name": "POD",
-      "bases": "./../../test/max_mom_2/pod_bases.hdf5"
+      "bases": "./../../test/max_mom_2/pod_bases.hdf5",
+      "error": null
     }
   },
   "paths": {
