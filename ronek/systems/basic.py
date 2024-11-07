@@ -286,7 +286,21 @@ class BasicSystem(object):
 
   # Data generation and testing
   # ===================================
-  def construct_design_mat(
+  def construct_design_mat_temp(
+    self,
+    limits: List[float],
+    nb_samples: int
+  ) -> Tuple[pd.DataFrame]:
+    # Construct
+    dmat = lhs(1, int(nb_samples))
+    # Rescale
+    amin, amax = np.sort(limits)
+    T = dmat * (amax - amin) + amin
+    # Convert to dataframe
+    T = pd.DataFrame(data=np.sort(T.reshape(-1)), columns=["T"])
+    return T
+
+  def construct_design_mat_mu(
     self,
     limits: Dict[str, List[float]],
     nb_samples: int,

@@ -70,10 +70,14 @@ if (__name__ == '__main__'):
   # Construct design matrix
   T, mu = [inputs["param_space"]["sampled"][k] for k in ("T", "mu")]
   # > Sampled temperatures
-  T = pd.DataFrame(data=np.array(T).reshape(-1), columns=["T"])
+  if isinstance(T, dict):
+    T = system.construct_design_mat_temp(**T)
+  else:
+    T = np.sort(np.array(T.reshape(-1)))
+    T = pd.DataFrame(data=T, columns=["T"])
   nb_samples_temp = len(T)
   # > Sampled initial conditions parameters
-  mu = system.construct_design_mat(**mu)
+  mu = system.construct_design_mat_mu(**mu)
   nb_samples_mu = len(mu)
   # Generate data
   print("Looping over sampled temperatures:")

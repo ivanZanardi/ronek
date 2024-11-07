@@ -86,8 +86,13 @@ if (__name__ == "__main__"):
   )
   quad["mu"] = {"x": mu, "w": np.sqrt(w_mu)}
   # > Equilibrium parameters space (theta)
+  T_grid = inputs["grids"]["theta"]["T"]
+  if isinstance(T_grid, dict):
+    T = np.linspace(**T_grid)
+  else:
+    T = np.sort(np.array(T_grid).reshape(-1))
   theta, w_theta = ops.get_quad_2d(
-    x=np.array(inputs["grids"]["theta"]["T"]).reshape(-1),
+    x=T,
     y=np.geomspace(**inputs["grids"]["theta"]["rho"]),
     deg=2,
     dist_x="uniform",
