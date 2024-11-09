@@ -1,0 +1,65 @@
+{
+  "path_to_lib": "/home/zanardi/Codes/ML/RONEK/ronek/",
+  "env": {
+    "backend": "numpy",
+    "device": "cpu",
+    "device_idx": 0,
+    "nb_threads": 4,
+    "epsilon": 1e-10,
+    "floatx": "float64"
+  },
+  "system": {
+    "name": "TAFASystem",
+    "kwargs": {
+      "use_einsum": false,
+      "use_factorial": true,
+      "use_arrhenius": false
+    }
+  },
+  "models": {
+    "cobras": {
+      "active": true,
+      "name": "CoBRAS",
+      "bases": "./../../test/max_mom_10/cobras_bases.hdf5"
+    },
+    "pod": {
+      "active": true,
+      "name": "POD",
+      "bases": "./../../test/max_mom_10/pod_bases.hdf5"
+    },
+    "cg": {
+      "active": false,
+      "name": "CG"
+    },
+    "mt": {
+      "active": false,
+      "name": "MT"
+    }
+  },
+  "paths": {
+    "dtb": "/home/zanardi/Codes/ML/RONEK/ronek/examples/VC_O3_O4/database/",
+    "saving": "./../../test/max_mom_10/"
+  },
+  "data": {
+    "cases": ["cold", "hot"],
+    "teval": {
+      "cold": [1e-8, 1e-7, 7e-7, 3e-6, 1e-4],
+      "hot":  [1e-7, 1e-6, 4e-6, 2e-5, 1e-3]
+    },
+    "tlim": {
+      "cold": {"m0": [1e-7, 2e-5], "m1": [5e-9, 2e-5]},
+      "hot":  {"m0": [1e-9, 1e-3], "m1": [1e-9, 1e-3]}
+    },
+    "path": "./../../test/data/"
+  },
+  "plot": {
+    "style": "/home/zanardi/Workspace/Research/styles/matplotlib/paper_1column.mplstyle",
+    "animate": false,
+    "markersize": 6,
+    "subscript": "v",
+    "err_scale": "log",
+    "molecule_label": "\\text{O$_2$}",
+    "hline": 1.0
+  },
+  "rom_range": [8,9]
+}

@@ -104,6 +104,11 @@ if (__name__ == "__main__"):
   quad["theta"] = {}
   for (i, k) in enumerate(("T", "rho")):
     quad["theta"][k] = {"x": theta[i], "w": np.sqrt(w_theta[i])}
+  # > Save quadrature points
+  filename = path_to_saving + "/quad_theta.json"
+  quad_theta = utils.map_nested_dict(quad["theta"], lambda x: x.tolist())
+  with open(filename, "w") as file:
+    json.dump(quad_theta, file, indent=2)
 
   # Model reduction
   # ---------------
@@ -141,8 +146,9 @@ if (__name__ == "__main__"):
         Y.append(wij*Yij)
     X = np.hstack(X)
     Y = np.hstack(Y)
-    np.save(path_to_saving + "/X.npy", X)
-    np.save(path_to_saving + "/Y.npy", Y)
+    if cov_mats.get("save", True):
+      np.save(path_to_saving + "/X.npy", X)
+      np.save(path_to_saving + "/Y.npy", Y)
   else:
     print("Reading X and Y matrices ...")
     X = np.load(cov_mats["path_x"])

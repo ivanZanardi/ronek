@@ -1,0 +1,53 @@
+{
+  "path_to_lib": "/home/zanardi/Codes/ML/RONEK/ronek/",
+  "env": {
+    "backend": "numpy",
+    "device": "cpu",
+    "device_idx": 0,
+    "nb_threads": 4,
+    "epsilon": 1e-10,
+    "floatx": "float64"
+  },
+  "grids": {
+    "t": {
+      "start": 1e-9,
+      "stop": 1e-3,
+      "num": 500
+    }
+  },
+  "system": {
+    "name": "TAFASystem",
+    "kwargs": {
+      "use_einsum": false,
+      "use_factorial": true,
+      "use_arrhenius": false
+    }
+  },
+  "param_space": {
+    "defined": {
+      "cases": {
+        "cold": {"mu": [5e2, 0.05, 1e3], "T": 1e4},
+        "hot": {"mu": [4e3, 0.05, 1e3], "T": 1e4}
+      },
+      "mu_type": "mole"
+    },
+    "sampled": {
+      "mu": {
+        "limits": {
+          "T0": [5e2, 1e4],
+          "w0_a": [0.0, 1.0],
+          "rho": [1e-4, 1e0]
+        },
+        "nb_samples": 1000,
+        "log_vars": ["T0", "rho"],
+        "eps": 1e-7
+      },
+      "T": [1e4]
+    },
+    "nb_workers": 10
+  },
+  "paths": {
+    "dtb": "/home/zanardi/Codes/ML/RONEK/ronek/examples/VC_O3_O4/database/",
+    "saving": "./../../test/data/"
+  }
+}
