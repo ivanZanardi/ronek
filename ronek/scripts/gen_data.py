@@ -65,54 +65,54 @@ if (__name__ == '__main__'):
   # Time grid
   t = np.geomspace(**inputs["grids"]["t"])
 
-  # # Sampled cases
-  # # ---------------
-  # # Construct design matrix
-  # T, mu = [inputs["param_space"]["sampled"][k] for k in ("T", "mu")]
-  # # > Sampled temperatures
-  # if isinstance(T, dict):
-  #   T = system.construct_design_mat_temp(**T)
-  # else:
-  #   T = np.sort(np.array(T.reshape(-1)))
-  #   T = pd.DataFrame(data=T, columns=["T"])
-  # nb_samples_temp = len(T)
-  # # > Sampled initial conditions parameters
-  # mu = system.construct_design_mat_mu(**mu)
-  # nb_samples_mu = len(mu)
-  # # Generate data
-  # print("Looping over sampled temperatures:")
-  # runtime = 0.0
-  # for (i, Ti) in enumerate(T.values.reshape(-1)):
-  #   print("> T = %.4e K" % Ti)
-  #   system.update_fom_ops(Ti)
-  #   runtime += utils.generate_case_parallel(
-  #     sol_fun=system.compute_fom_sol,
-  #     irange=[0,nb_samples_mu],
-  #     sol_kwargs=dict(
-  #       T=Ti,
-  #       t=t,
-  #       mu=mu.values,
-  #       update=False,
-  #       path=path_to_saving,
-  #       shift=nb_samples_mu*i,
-  #       filename=None
-  #     ),
-  #     nb_workers=inputs["param_space"]["nb_workers"]
-  #   )
-  # # Save parameters
-  # for (name, df) in (
-  #   ("mu", mu),
-  #   ("T", T)
-  # ):
-  #   df.to_csv(
-  #     path_to_saving + f"/samples_{name}.csv",
-  #     float_format="%.8e",
-  #     index=True
-  #   )
-  # # Save runtime
-  # runtime /= nb_samples_temp
-  # with open(path_to_saving + "/runtime.txt", "w") as file:
-  #   file.write("Mean running time: %.8e s" % runtime)
+  # Sampled cases
+  # ---------------
+  # Construct design matrix
+  T, mu = [inputs["param_space"]["sampled"][k] for k in ("T", "mu")]
+  # > Sampled temperatures
+  if isinstance(T, dict):
+    T = system.construct_design_mat_temp(**T)
+  else:
+    T = np.sort(np.array(T.reshape(-1)))
+    T = pd.DataFrame(data=T, columns=["T"])
+  nb_samples_temp = len(T)
+  # > Sampled initial conditions parameters
+  mu = system.construct_design_mat_mu(**mu)
+  nb_samples_mu = len(mu)
+  # Generate data
+  print("Looping over sampled temperatures:")
+  runtime = 0.0
+  for (i, Ti) in enumerate(T.values.reshape(-1)):
+    print("> T = %.4e K" % Ti)
+    system.update_fom_ops(Ti)
+    runtime += utils.generate_case_parallel(
+      sol_fun=system.compute_fom_sol,
+      irange=[0,nb_samples_mu],
+      sol_kwargs=dict(
+        T=Ti,
+        t=t,
+        mu=mu.values,
+        update=False,
+        path=path_to_saving,
+        shift=nb_samples_mu*i,
+        filename=None
+      ),
+      nb_workers=inputs["param_space"]["nb_workers"]
+    )
+  # Save parameters
+  for (name, df) in (
+    ("mu", mu),
+    ("T", T)
+  ):
+    df.to_csv(
+      path_to_saving + f"/samples_{name}.csv",
+      float_format="%.8e",
+      index=True
+    )
+  # Save runtime
+  runtime /= nb_samples_temp
+  with open(path_to_saving + "/runtime.txt", "w") as file:
+    file.write("Mean running time: %.8e s" % runtime)
 
   # Defined cases
   # ---------------
