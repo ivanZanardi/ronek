@@ -4,35 +4,48 @@
     "backend": "numpy",
     "device": "cpu",
     "device_idx": 0,
-    "nb_threads": 8,
+    "nb_threads": 4,
     "epsilon": 1e-10,
     "floatx": "float64"
   },
   "system": {
     "name": "TASystem",
     "kwargs": {
-      "T": 1e4,
       "use_einsum": false,
-      "use_factorial": false
+      "use_factorial": true,
+      "use_arrhenius": true
+    }
+  },
+  "models": {
+    "cobras": {
+      "active": true,
+      "name": "CoBRAS",
+      "bases": "./../../test/max_mom_10/cobras_bases.hdf5",
+      "error": null
+    },
+    "pod": {
+      "active": true,
+      "name": "POD",
+      "bases": "./../../test/max_mom_10/pod_bases.hdf5",
+      "error": null
     }
   },
   "paths": {
-    "dtb": "./../../database/",
-    "bases": "./../../test/max_mom_10/bases.hdf5",
+    "dtb": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/",
     "saving": "./../../test/max_mom_10/"
   },
   "data": {
-    "nb_samples": 100,
-    "nb_workers": 20,
+    "range": [0,1000],
+    "nb_workers": 32,
     "path": "./../../test/data/"
   },
   "plot": {
     "style": "/home/zanardi/Workspace/Research/styles/matplotlib/paper_1column.mplstyle",
     "molecule_label": "\\text{O$_2$}",
-    "subscript": "i",
+    "ylim_err": [1e-5,1e3],
     "err_scale": "log",
-    "hline": 5.0
+    "hline": 10.0
   },
-  "rom_range": [12,25,4],
+  "rom_range": [16,33,4],
   "eval_err": "dist"
 }

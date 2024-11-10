@@ -4,42 +4,68 @@
     "backend": "numpy",
     "device": "cpu",
     "device_idx": 0,
-    "nb_threads": 8,
+    "nb_threads": 4,
     "epsilon": 1e-10,
     "floatx": "float64"
   },
   "system": {
     "name": "TASystem",
     "kwargs": {
-      "T": 1e4,
       "use_einsum": false,
-      "use_factorial": false
+      "use_factorial": true,
+      "use_arrhenius": true
     }
   },
-  "cg_model": {
-    "0": {
-      "active": false
-    },
-    "1": {
+  "models": {
+    "cobras": {
       "active": true,
-      "nb_bins": 8,
-      "mapping": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/rom_cg/ADA8/mapping.csv",
+      "name": "CoBRAS",
+      "bases": "./../../test/max_mom_10/cobras_bases.hdf5"
+    },
+    "pod": {
+      "active": true,
+      "name": "POD",
+      "bases": "./../../test/max_mom_10/pod_bases.hdf5"
+    },
+    "cg": {
+      "active": true,
+      "name": "CG",
+      "nb_bins": 12,
+      "mapping": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/rom_cg/testcases/ADA12/mapping.csv",
       "cases": {
-        "cold": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/rom_cg/ADA8/cold.csv",
-        "hot":  "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/rom_cg/ADA8/hot.csv"
+        "cold_T10000": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/rom_cg/testcases/ADA12/cold_T10000.csv"
       }
+    },
+    "mt": {
+      "active": false,
+      "name": "MT"
     }
   },
   "paths": {
-    "dtb": "./../../database/",
-    "bases": "./../../test/max_mom_10/bases.hdf5",
+    "dtb": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/",
     "saving": "./../../test/max_mom_10/"
   },
   "data": {
-    "cases": ["cold", "hot"],
+    "cases": [
+      "cold_T6000",
+      "cold_T8000",
+      "cold_T10000",
+      "cold_T12000",
+      "cold_T14000"
+    ],
     "teval": {
-      "cold": [1e-8, 1e-7, 7e-7, 3e-6, 1e-4],
-      "hot":  [1e-7, 1e-6, 4e-6, 2e-5, 1e-3]
+      "cold_T6000": [1e-7, 1e-6, 5e-6, 3e-5, 1e-2],
+      "cold_T8000": [1e-8, 5e-7, 3e-6, 1e-5, 1e-4],
+      "cold_T10000": [1e-8, 2e-7, 7e-7, 3e-6, 1e-4],
+      "cold_T12000": [1e-8, 2e-7, 7e-7, 2e-6, 1e-4],
+      "cold_T14000": [1e-8, 2e-7, 5e-7, 1e-6, 1e-4]
+    },
+    "tlim": {
+      "cold_T6000": {"m0": [1e-6, 1e-3], "m1": [1e-9, 1e-3]},
+      "cold_T8000": {"m0": [5e-7, 1e-4], "m1": [1e-8, 1e-4]},
+      "cold_T10000": {"m0": [3e-7, 2e-5], "m1": [1e-8, 2e-5]},
+      "cold_T12000": {"m0": [2e-7, 1e-5], "m1": [1e-8, 1e-5]},
+      "cold_T14000": {"m0": [5e-8, 1e-5], "m1": [1e-8, 1e-5]}
     },
     "path": "./../../test/data/"
   },
@@ -49,8 +75,8 @@
     "markersize": 1,
     "subscript": "i",
     "err_scale": "log",
-    "hline": 5.0,
-    "molecule_label": "\\text{O$_2$}"
+    "molecule_label": "\\text{O$_2$}",
+    "hline": 1.0
   },
-  "rom_range": [16,17]
+  "rom_range": [24,25,1]
 }

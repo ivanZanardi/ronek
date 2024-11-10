@@ -2,8 +2,8 @@
   "path_to_lib": "/home/zanardi/Codes/ML/RONEK/ronek/",
   "env": {
     "backend": "torch",
-    "device": "cuda",
-    "device_idx": 1,
+    "device": "cpu",
+    "device_idx": 0,
     "nb_threads": 8,
     "epsilon": 1e-10,
     "floatx": "float64"
@@ -14,34 +14,47 @@
       "stop": 1e-2,
       "num": 51
     },
-    "rho": {
-      "start": 1e-5,
-      "stop": 1e0,
-      "num": 6
+    "theta": {
+      "T":  {
+        "start": 5e3,
+        "stop": 1.5e4,
+        "num": 10
+      },
+      "rho": {
+        "start": 1e-4,
+        "stop": 1e0,
+        "num": 6
+      }
     },
     "mu": {
       "T0": {
         "start": 3e2,
-        "stop": 1e4,
+        "stop": 5e3,
         "num": 11
       },
       "w0_a": {
         "start": 0.01,
-        "stop": 0.99,
+        "stop": 1.0,
         "num": 6
       }
     }
   },
+  "cov_mats": {
+    "read": false,
+    "save": false,
+    "path_x": "./../../test/max_mom_10/X.npy",
+    "path_y": "./../../test/max_mom_10/Y.npy"
+  },
   "system": {
     "name": "TASystem",
     "kwargs": {
-      "T": 1e4,
       "use_einsum": false,
-      "use_factorial": true
+      "use_factorial": true,
+      "use_arrhenius": true
     }
   },
   "paths": {
-    "dtb": "./../../database/",
+    "dtb": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/",
     "saving": "./../../test/max_mom_10/"
   },
   "max_mom": 10
