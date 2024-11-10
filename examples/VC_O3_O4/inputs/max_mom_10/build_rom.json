@@ -16,10 +16,10 @@
     },
     "theta": {
       "T": [1e4],
-    "rho": {
-      "start": 1e-4,
-      "stop": 1e0,
-      "num": 6
+      "rho": {
+        "start": 1e-4,
+        "stop": 1e0,
+        "num": 6
       }
     },
     "mu": {

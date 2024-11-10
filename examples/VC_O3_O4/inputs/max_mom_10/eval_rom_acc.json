@@ -21,13 +21,13 @@
       "active": true,
       "name": "CoBRAS",
       "bases": "./../../test/max_mom_10/cobras_bases.hdf5",
-      "error": null
+      "error": "./../../test/max_mom_10/error/dist/cobras_err.hdf5"
     },
     "pod": {
       "active": true,
       "name": "POD",
       "bases": "./../../test/max_mom_10/pod_bases.hdf5",
-      "error": null
+      "error": "./../../test/max_mom_10/error/dist/pod_err.hdf5"
     }
   },
   "paths": {
