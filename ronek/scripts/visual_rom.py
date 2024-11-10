@@ -117,9 +117,10 @@ if (__name__ == '__main__'):
             psi=model["bases"]["psi"][:,:r]
           )
           sols[model["name"]] = system.solve_rom(t, n0)[1]
-        elif ((name == "cg") and (2*int(model["nb_bins"]) == r)):
+        # elif ((name == "cg") and (2*int(model["nb_bins"]) == r)):
+        elif (name == "cg"):
           if (model["cases"].get(icase, None) is not None):
-            pdata = (model["name"], int(r/2))
+            pdata = (model["name"], int(model["nb_bins"]))
             print("> Reading ROM '%s' solution with %i bins ..." % pdata)
             sols[model["name"]] = model["class"](
               T=T,
@@ -147,6 +148,7 @@ if (__name__ == '__main__'):
       pp.plot_mom_evolution(
         max_mom=inputs["plot"].get("max_mom", 2),
         molecule_label=inputs["plot"]["molecule_label"],
+        ylim_err=inputs["plot"].get("ylim_err", None),
         err_scale=inputs["plot"].get("err_scale", "linear"),
         hline=inputs["plot"].get("hline", None),
         tlim=inputs["data"]["tlim"][icase],
