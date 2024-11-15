@@ -153,27 +153,26 @@ class LinCoBRAS(object):
     self.runtime["Ws_mean"] = runtime / op.shape[1]
     # Compute the empirical observability Gramian
     op = self.ops["C"].T
-    Y, runtime = self.compute_cov_mat(op, transpose=True)
+    Y, runtime = self.compute_cov_mat(op, adjoint=True)
     self.runtime["Wg_mean"] = runtime / op.shape[1]
     return [bkd.to_numpy(z) for z in (X, Y)]
 
-  def compute_cov_mat(self, op, transpose=False):
+  def compute_cov_mat(self, op, adjoint=False):
     runtime = time.time()
     # Allocate Gramian's memory
     shape = [len(self.quad["t"]["x"])] + list(op.shape)
     g = torch.zeros(shape, dtype=bkd.floatx(), device="cpu")
     # Compute tensor
-    x = self.eiga["v"].T @ op if transpose else self.eiga["vinv"] @ op
+    x = self.eiga["v"].T @ op if adjoint else self.eiga["vinv"] @ op
     for (i, ti) in enumerate(self.quad["t"]["x"]):
       xi = x * torch.exp(ti*self.eiga["l"]).reshape(-1,1)
-      xi = self.eiga["vinv"].T @ xi if transpose else self.eiga["v"] @ xi
-      if (not transpose):
+      xi = self.eiga["vinv"].T @ xi if adjoint else self.eiga["v"] @ xi
+      if (not adjoint):
         # Add steady-state equilibrium solution
         xi += self.ops["x_eq"].reshape(-1,1)
-        # Scale by quadrature weights - mu
-        xi *= self.quad["mu"]["w"].reshape(1,-1)
-      # Scale by quadrature weights - t
-      xi *= self.quad["t"]["w"][i]
+        # Scale by quadrature weights
+        wi = self.quad["mu"]["w"] * self.quad["t"]["w"][i]
+        xi *= wi.reshape(1,-1)
       g[i] = xi.cpu()
     # Manipulate tensor
     g = torch.permute(g, dims=(1,2,0))
