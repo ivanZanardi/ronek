@@ -182,8 +182,10 @@ if (__name__ == '__main__'):
       save_runtime_stats(name, runtime)
     else:
       err = {}
-      for k in sorted(model["error"].keys()):
-        err[k] = model["error"][k]
+      for r in range(*inputs["rom_range"]):
+        k = str(r)
+        if (k in model["error"]):
+          err[k] = model["error"][k]
     # Plot error statistics
     print("> Plotting error evolution ...")
     common_kwargs = dict(

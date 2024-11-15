@@ -175,7 +175,7 @@ def plot_mom_evolution(
       ylim=ylim_err,
       hline=hline,
       labels=[r"$t$ [s]", label_err],
-      # legend_loc="lower left",
+      # legend_loc="lower center",
       legend_loc="best",
       scales=["log", err_scale],
       figname=path + f"/m{m}_err",

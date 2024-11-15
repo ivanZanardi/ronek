@@ -21,13 +21,13 @@
       "active": true,
       "name": "CoBRAS",
       "bases": "./../../test/max_mom_2/cobras_bases.hdf5",
-      "error": null
+      "error": "./../../test/max_mom_2/error/mom/cobras_err.hdf5"
     },
     "pod": {
       "active": true,
       "name": "POD",
       "bases": "./../../test/max_mom_2/pod_bases.hdf5",
-      "error": null
+      "error": "./../../test/max_mom_2/error/mom/pod_err.hdf5"
     }
   },
   "paths": {
@@ -46,6 +46,6 @@
     "err_scale": "log",
     "hline": 1.0
   },
-  "rom_range": [6,11],
+  "rom_range": [7,11],
   "eval_err": "mom"
 }

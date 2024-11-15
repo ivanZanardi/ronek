@@ -79,6 +79,7 @@
     "subscript": "i",
     "err_scale": "log",
     "molecule_label": "\\text{O$_2$}",
+    "ylim_err": [1e-5,1e3],
     "hline": 1.0
   },
   "rom_range": [8,9]
