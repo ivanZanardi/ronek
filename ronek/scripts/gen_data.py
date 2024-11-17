@@ -80,39 +80,40 @@ if (__name__ == '__main__'):
   mu = system.construct_design_mat_mu(**mu)
   nb_samples_mu = len(mu)
   # Generate data
-  print("Looping over sampled temperatures:")
-  runtime = 0.0
-  for (i, Ti) in enumerate(T.values.reshape(-1)):
-    print("> T = %.4e K" % Ti)
-    system.update_fom_ops(Ti)
-    runtime += utils.generate_case_parallel(
-      sol_fun=system.compute_fom_sol,
-      irange=[0,nb_samples_mu],
-      sol_kwargs=dict(
-        T=Ti,
-        t=t,
-        mu=mu.values,
-        update=False,
-        path=path_to_saving,
-        shift=nb_samples_mu*i,
-        filename=None
-      ),
-      nb_workers=inputs["param_space"]["nb_workers"]
-    )
-  # Save parameters
-  for (name, df) in (
-    ("mu", mu),
-    ("T", T)
-  ):
-    df.to_csv(
-      path_to_saving + f"/samples_{name}.csv",
-      float_format="%.8e",
-      index=True
-    )
-  # Save runtime
-  runtime /= nb_samples_temp
-  with open(path_to_saving + "/runtime.txt", "w") as file:
-    file.write("Mean running time: %.8e s" % runtime)
+  if ((nb_samples_temp > 0) and (nb_samples_mu > 0)):
+    print("Looping over sampled temperatures:")
+    runtime = 0.0
+    for (i, Ti) in enumerate(T.values.reshape(-1)):
+      print("> T = %.4e K" % Ti)
+      system.update_fom_ops(Ti)
+      runtime += utils.generate_case_parallel(
+        sol_fun=system.compute_fom_sol,
+        irange=[0,nb_samples_mu],
+        sol_kwargs=dict(
+          T=Ti,
+          t=t,
+          mu=mu.values,
+          update=False,
+          path=path_to_saving,
+          shift=nb_samples_mu*i,
+          filename=None
+        ),
+        nb_workers=inputs["param_space"]["nb_workers"]
+      )
+    # Save parameters
+    for (name, df) in (
+      ("mu", mu),
+      ("T", T)
+    ):
+      df.to_csv(
+        path_to_saving + f"/samples_{name}.csv",
+        float_format="%.8e",
+        index=True
+      )
+    # Save runtime
+    runtime /= nb_samples_temp
+    with open(path_to_saving + "/runtime.txt", "w") as file:
+      file.write("Mean running time: %.8e s" % runtime)
 
   # Defined cases
   # ---------------

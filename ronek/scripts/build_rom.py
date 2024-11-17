@@ -146,7 +146,7 @@ if (__name__ == "__main__"):
         Y.append(wij*Yij)
     X = np.hstack(X)
     Y = np.hstack(Y)
-    if cov_mats.get("save", True):
+    if cov_mats.get("save", False):
       np.save(path_to_saving + "/X.npy", X)
       np.save(path_to_saving + "/Y.npy", Y)
   else:
