@@ -24,7 +24,7 @@
       "error": "./../../test/max_mom_2/error/mom/cobras_err.hdf5"
     },
     "pod": {
-      "active": true,
+      "active": false,
       "name": "POD",
       "bases": "./../../test/max_mom_2/pod_bases.hdf5",
       "error": "./../../test/max_mom_2/error/mom/pod_err.hdf5"

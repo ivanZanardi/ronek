@@ -16,9 +16,9 @@
     },
     "theta": {
       "T":  {
-        "start": 5e3,
-        "stop": 1.5e4,
-        "num": 10
+        "start": 7e3,
+        "stop": 2e4,
+        "num": 13
       },
       "rho": {
         "start": 1e-4,
@@ -54,7 +54,7 @@
     }
   },
   "paths": {
-    "dtb": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/",
+    "dtb": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_N3/database/",
     "saving": "./../../test/max_mom_10/"
   },
   "max_mom": 10

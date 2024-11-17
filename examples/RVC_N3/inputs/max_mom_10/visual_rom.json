@@ -23,18 +23,13 @@
       "bases": "./../../test/max_mom_10/cobras_bases.hdf5"
     },
     "pod": {
-      "active": true,
+      "active": false,
       "name": "POD",
       "bases": "./../../test/max_mom_10/pod_bases.hdf5"
     },
     "cg": {
-      "active": true,
-      "name": "CG",
-      "nb_bins": 12,
-      "mapping": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/rom_cg/testcases/ADA12/mapping.csv",
-      "cases": {
-        "cold_T10000": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/rom_cg/testcases/ADA12/cold_T10000.csv"
-      }
+      "active": false,
+      "name": "CG"
     },
     "mt": {
       "active": false,
@@ -42,30 +37,33 @@
     }
   },
   "paths": {
-    "dtb": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/",
+    "dtb": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_N3/database/",
     "saving": "./../../test/max_mom_10/"
   },
   "data": {
     "cases": [
-      "cold_T6000",
       "cold_T8000",
       "cold_T10000",
       "cold_T12000",
-      "cold_T14000"
+      "cold_T14000",
+      "cold_T16000",
+      "cold_T18000"
     ],
     "teval": {
-      "cold_T6000": [1e-7, 1e-6, 5e-6, 3e-5, 1e-2],
       "cold_T8000": [1e-8, 5e-7, 3e-6, 1e-5, 1e-4],
       "cold_T10000": [1e-8, 2e-7, 7e-7, 3e-6, 1e-4],
       "cold_T12000": [1e-8, 2e-7, 7e-7, 2e-6, 1e-4],
-      "cold_T14000": [1e-8, 2e-7, 5e-7, 1e-6, 1e-4]
+      "cold_T14000": [1e-8, 2e-7, 5e-7, 1e-6, 1e-4],
+      "cold_T16000": [1e-8, 2e-7, 5e-7, 1e-6, 1e-4],
+      "cold_T18000": [1e-8, 2e-7, 5e-7, 1e-6, 1e-4]
     },
     "tlim": {
-      "cold_T6000": {"m0": [1e-6, 1e-3], "m1": [1e-9, 1e-3]},
       "cold_T8000": {"m0": [5e-7, 1e-4], "m1": [1e-8, 1e-4]},
       "cold_T10000": {"m0": [3e-7, 2e-5], "m1": [1e-8, 2e-5]},
       "cold_T12000": {"m0": [2e-7, 1e-5], "m1": [1e-8, 1e-5]},
-      "cold_T14000": {"m0": [5e-8, 1e-5], "m1": [1e-8, 1e-5]}
+      "cold_T14000": {"m0": [5e-8, 1e-5], "m1": [1e-8, 1e-5]},
+      "cold_T16000": {"m0": [5e-8, 1e-5], "m1": [1e-8, 1e-5]},
+      "cold_T18000": {"m0": [5e-8, 1e-5], "m1": [1e-8, 1e-5]}
     },
     "path": "./../../test/data/"
   },
@@ -75,8 +73,8 @@
     "markersize": 1,
     "subscript": "i",
     "err_scale": "log",
-    "molecule_label": "\\text{O$_2$}",
+    "molecule_label": "\\text{N$_2$}",
     "hline": 1.0
   },
-  "rom_range": [24,25,1]
+  "rom_range": [16,33,4]
 }
