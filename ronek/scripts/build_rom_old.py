@@ -31,8 +31,6 @@ env.set(**inputs["env"])
 # Libraries
 # =====================================
 import numpy as np
-import joblib as jl
-import multiprocessing
 
 from tqdm import tqdm
 from ronek import ops
@@ -114,43 +112,38 @@ if (__name__ == "__main__"):
 
   # Model reduction
   # ---------------
-  cov_mats = inputs["cov_mats"]
-
-  def compute_cov_mats_ij(X, Y, i, j):
-    env.set(**inputs["env"])
-    lin_ops = system.compute_lin_fom_ops(
-      mu=quad["mu"]["x"],
-      rho=quad["theta"]["rho"]["x"][j],
-      max_mom=int(inputs["max_mom"])
-    )
-    cobras = LinCoBRAS(
-      operators=lin_ops,
-      quadrature=quad,
-      path_to_saving=path_to_saving,
-      saving=False,
-      verbose=False
-    )
-    Xij, Yij = cobras(
-      xnot=cov_mats.get("xnot", None),
-      modes=False
-    )
-    wij = quad["theta"]["T"]["w"][i] * quad["theta"]["rho"]["w"][j]
-    X.append(wij*Xij)
-    Y.append(wij*Yij)
-
-  if (not cov_mats.get("read", False)):
-    nb_rho = len(quad["theta"]["rho"]["x"])
-    with multiprocessing.Manager() as manager:
-      X = manager.list()
-      Y = manager.list()
-      print("Looping over temperatures:")
-      for (i, Ti) in enumerate(quad["theta"]["T"]["x"]):
-        print("> T = %.4e K" % Ti)
-        system.update_fom_ops(Ti)
-        iterable = tqdm(range(nb_rho), ncols=80, desc="  Densities")
-        jl.Parallel(cov_mats.get("nb_workers", 4))(
-          jl.delayed(compute_cov_mats_ij)(X, Y, i, j) for j in iterable
+  cov_mats = inputs.get("cov_mats", {"read": False})
+  if (not cov_mats["read"]):
+    X, Y = [], []
+    print("Looping over temperatures:")
+    for (i, Ti) in enumerate(quad["theta"]["T"]["x"]):
+      print("> T = %.4e K" % Ti)
+      # > FOM operators
+      system.update_fom_ops(Ti)
+      for (j, rhoj) in enumerate(
+        tqdm(quad["theta"]["rho"]["x"], ncols=80, desc="  Densities")
+      ):
+        # > Linear operators
+        lin_ops = system.compute_lin_fom_ops(
+          mu=quad["mu"]["x"],
+          rho=rhoj,
+          max_mom=int(inputs["max_mom"])
         )
+        cobras = LinCoBRAS(
+          operators=lin_ops,
+          quadrature=quad,
+          path_to_saving=path_to_saving,
+          saving=False,
+          verbose=False
+        )
+        # > Covariance matrices
+        Xij, Yij = cobras(
+          xnot=[0],
+          modes=False
+        )
+        wij = quad["theta"]["T"]["w"][i] * quad["theta"]["rho"]["w"][j]
+        X.append(wij*Xij)
+        Y.append(wij*Yij)
     X = np.hstack(X)
     Y = np.hstack(Y)
     if cov_mats.get("save", False):
