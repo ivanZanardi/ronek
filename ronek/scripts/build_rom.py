@@ -140,6 +140,8 @@ if (__name__ == "__main__"):
 
   if (not cov_mats.get("read", False)):
     nb_rho = len(quad["theta"]["rho"]["x"])
+    iterable = tqdm(list(range(nb_rho), ncols=80, desc="  Densities"))
+    nb_workers = cov_mats.get("nb_workers", 4)
     with multiprocessing.Manager() as manager:
       X = manager.list()
       Y = manager.list()
@@ -147,10 +149,13 @@ if (__name__ == "__main__"):
       for (i, Ti) in enumerate(quad["theta"]["T"]["x"]):
         print("> T = %.4e K" % Ti)
         system.update_fom_ops(Ti)
-        iterable = tqdm(range(nb_rho), ncols=80, desc="  Densities")
-        jl.Parallel(cov_mats.get("nb_workers", 4))(
-          jl.delayed(compute_cov_mats_ij)(X, Y, i, j) for j in iterable
-        )
+        if (nb_workers > 1):
+          jl.Parallel(nb_workers)(
+            jl.delayed(compute_cov_mats_ij)(X, Y, i, j) for j in iterable
+          )
+        else:
+          for j in iterable:
+            compute_cov_mats_ij(X, Y, i, j)
     X = np.hstack(X)
     Y = np.hstack(Y)
     if cov_mats.get("save", False):
