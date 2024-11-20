@@ -100,12 +100,9 @@ if (__name__ == "__main__"):
     dist_x="uniform",
     dist_y="uniform",
     quad_x="trapz",
-    quad_y="gl",
-    joint=False
+    quad_y="gl"
   )
-  quad["theta"] = {}
-  for (i, k) in enumerate(("T", "rho")):
-    quad["theta"][k] = {"x": theta[i], "w": np.sqrt(w_theta[i])}
+  quad["theta"] = {"x": theta, "w": np.sqrt(w_theta)}
   # > Save quadrature points
   filename = path_to_saving + "/quad_theta.json"
   quad_theta = utils.map_nested_dict(quad["theta"], lambda x: x.tolist())
@@ -116,11 +113,13 @@ if (__name__ == "__main__"):
   # ---------------
   cov_mats = inputs["cov_mats"]
 
-  def compute_cov_mats_ij(X, Y, i, j):
+  def compute_cov_mat_i(X, Y, i):
     env.set(**inputs["env"])
+    Ti, rhoi = quad["theta"]["x"][i]
+    system.update_fom_ops(Ti)
     lin_ops = system.compute_lin_fom_ops(
       mu=quad["mu"]["x"],
-      rho=quad["theta"]["rho"]["x"][j],
+      rho=rhoi,
       max_mom=int(inputs["max_mom"])
     )
     cobras = LinCoBRAS(
@@ -130,34 +129,29 @@ if (__name__ == "__main__"):
       saving=False,
       verbose=False
     )
-    Xij, Yij = cobras(
+    Xi, Yi = cobras(
       xnot=cov_mats.get("xnot", None),
       modes=False
     )
-    wij = quad["theta"]["T"]["w"][i] * quad["theta"]["rho"]["w"][j]
-    X.append(wij*Xij)
-    Y.append(wij*Yij)
+    X.append(quad["theta"]["w"][i]*Xi)
+    Y.append(quad["theta"]["w"][i]*Yi)
 
   if (not cov_mats.get("read", False)):
-    nb_rho = len(quad["theta"]["rho"]["x"])
-    iterable = tqdm(list(range(nb_rho), ncols=80, desc="  Densities"))
+    nb_theta = len(quad["theta"]["x"])
+    iterable = tqdm(range(nb_theta), ncols=80, desc="Thetas", file=sys.stdout)
     nb_workers = cov_mats.get("nb_workers", 4)
     with multiprocessing.Manager() as manager:
       X = manager.list()
       Y = manager.list()
-      print("Looping over temperatures:")
-      for (i, Ti) in enumerate(quad["theta"]["T"]["x"]):
-        print("> T = %.4e K" % Ti)
-        system.update_fom_ops(Ti)
-        if (nb_workers > 1):
-          jl.Parallel(nb_workers)(
-            jl.delayed(compute_cov_mats_ij)(X, Y, i, j) for j in iterable
-          )
-        else:
-          for j in iterable:
-            compute_cov_mats_ij(X, Y, i, j)
-    X = np.hstack(X)
-    Y = np.hstack(Y)
+      if (nb_workers > 1):
+        jl.Parallel(nb_workers)(
+          jl.delayed(compute_cov_mat_i)(X, Y, i) for i in iterable
+        )
+      else:
+        for i in iterable:
+          compute_cov_mat_i(X, Y, i)
+      X = np.hstack(list(X))
+      Y = np.hstack(list(Y))
     if cov_mats.get("save", False):
       np.save(path_to_saving + "/X.npy", X)
       np.save(path_to_saving + "/Y.npy", Y)
@@ -165,16 +159,15 @@ if (__name__ == "__main__"):
     print("Reading X and Y matrices ...")
     X = np.load(cov_mats["path_x"])
     Y = np.load(cov_mats["path_y"])
-    cobras = LinCoBRAS(
-      operators=None,
-      quadrature=None,
-      path_to_saving=path_to_saving,
-      saving=False,
-      verbose=False
-    )
 
   # > Compute balancing modes
-  cobras.verbose = True
+  cobras = LinCoBRAS(
+    operators=None,
+    quadrature=None,
+    path_to_saving=path_to_saving,
+    saving=False,
+    verbose=True
+  )
   cobras(
     X=X,
     Y=Y,

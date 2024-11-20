@@ -69,18 +69,18 @@ if (__name__ == '__main__'):
   # ---------------
   # Construct design matrix
   T, mu = [inputs["param_space"]["sampled"][k] for k in ("T", "mu")]
-  # > Sampled temperatures
-  if isinstance(T, dict):
-    T = system.construct_design_mat_temp(**T)
-  else:
-    T = np.sort(np.array(T.reshape(-1)))
-    T = pd.DataFrame(data=T, columns=["T"])
-  nb_samples_temp = len(T)
-  # > Sampled initial conditions parameters
-  mu = system.construct_design_mat_mu(**mu)
-  nb_samples_mu = len(mu)
-  # Generate data
-  if ((nb_samples_temp > 0) and (nb_samples_mu > 0)):
+  if ((T["nb_samples"] > 0) and (mu["nb_samples"] > 0)):
+    # > Sampled temperatures
+    if isinstance(T, dict):
+      T = system.construct_design_mat_temp(**T)
+    else:
+      T = np.sort(np.array(T.reshape(-1)))
+      T = pd.DataFrame(data=T, columns=["T"])
+    nb_samples_temp = len(T)
+    # > Sampled initial conditions parameters
+    mu = system.construct_design_mat_mu(**mu)
+    nb_samples_mu = len(mu)
+    # Generate data
     print("Looping over sampled temperatures:")
     runtime = 0.0
     for (i, Ti) in enumerate(T.values.reshape(-1)):
@@ -118,6 +118,7 @@ if (__name__ == '__main__'):
   # Defined cases
   # ---------------
   for (k, param) in inputs["param_space"]["defined"]["cases"].items():
+    print(f"Running case '{k}' ...")
     runtime = system.compute_fom_sol(
       T=float(param["T"]),
       t=t,
