@@ -43,6 +43,6 @@
     "err_scale": "log",
     "hline": 1.0
   },
-  "rom_range": [6,13],
+  "rom_range": [9,14],
   "eval_err": "mom"
 }
