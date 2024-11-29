@@ -10,14 +10,14 @@
   },
   "grids": {
     "t": {
-      "start": 1e-10,
-      "stop": 1e0,
+      "start": 1e-12,
+      "stop": 1e-2,
       "num": 51
     },
     "theta": {
       "T":  {
-        "start": 5e3,
-        "stop": 1.5e4,
+        "start": 1e4,
+        "stop": 2e4,
         "num": 10
       },
       "rho": {
@@ -42,7 +42,7 @@
   "cov_mats": {
     "xnot": [0],
     "read": false,
-    "save": true,
+    "save": false,
     "nb_workers": 10,
     "path_x": "./../../test/max_mom_2/X.npy",
     "path_y": "./../../test/max_mom_2/Y.npy"

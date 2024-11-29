@@ -34,7 +34,7 @@
   },
   "data": {
     "range": [0,1000],
-    "nb_workers": 32,
+    "nb_workers": 16,
     "path": "./../../test/data/"
   },
   "plot": {
@@ -43,6 +43,6 @@
     "err_scale": "log",
     "hline": 1.0
   },
-  "rom_range": [9,14],
+  "rom_range": [8,12],
   "eval_err": "mom"
 }
