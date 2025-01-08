@@ -7,7 +7,7 @@
 ### Examples
 
 The available examples include:
-- `RVC_O3`: Rovibrational collisional model for the O2 + O system at T = 10,000 K.
+- `RVC_O3`: Rovibrational collisional model for the O2 + O system.
 - `VC_O3_O4`: Vibrational collisional model for the O2 + O and O2 + O2 systems at T = 10,000 K.
 
 Running the examples:
