@@ -101,18 +101,18 @@ class Species(object):
     self.hf = self.Hf / self.m
 
   def update(self, T):
-    # Partition function
+    # Partition functions
     self.ov_kT = 1.0/(const.UKB*T)
     self.q = self._q(T)
     self.Q = self._Q()
-    # Enthalpy/Energy
+    # Energies [J/kg]
     self.e_tr = self.cv_tr * T
     self.e = self.e_tr + self.e_int + self.hf
 
   # Partition functions
   # ===================================
   def _Q(self):
-    return np.sum(self.q)
+    return np.sum(self.q, keepdims=True)
 
   def _q(self, T):
     return self._q_zero() * self._q_tr(T) * self._q_int()

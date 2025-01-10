@@ -1,8 +1,8 @@
 import numpy as np
 
-from .. import const
 from species import Species
 from typing import Dict, Union
+import const
 
 
 class Mixture(object):
@@ -19,7 +19,10 @@ class Mixture(object):
     self.use_factorial = bool(use_factorial)
     self._init_species(species)
 
-  def _init_species(self, species: Dict[str, str]) -> None:
+  def _init_species(
+    self,
+    species: Dict[str, Union[str, dict]]
+  ) -> None:
     # Initialize species
     self.species = {}
     for k in species.keys():
@@ -54,32 +57,31 @@ class Mixture(object):
   # ===================================
   def update(self, w, rho, T, Te=None) -> None:
     # Update species thermo
-    self._update_species_thermo(T, Te)
+    self.update_species_thermo(T, Te)
     # Update composition
-    self._update_composition(w, rho)
+    self.update_composition(w, rho)
     # Update mixture thermo
-    self._update_mix_thermo()
+    self.update_mixture_thermo()
 
-  def _update_species_thermo(self, T, Te=None) -> None:
+  def update_species_thermo(self, T, Te=None) -> None:
     if (Te is None):
       Te = T
     for s in self.species.values():
-      Ti = Te if (s.name == "e-") else T
+      Ti = Te if (s.name == "em") else T
       s.update(Ti)
 
-  def _update_composition(self, w, rho) -> None:
-    # Set species mass fractions
+  def update_composition(self, w, rho) -> None:
+    n = self.get_n(w, rho)
+    x = (1.0/np.sum(n)) * n
     for s in self.species.values():
+      s.x = x[s.indices]
+      s.n = n[s.indices]
       s.w = w[s.indices]
-      s.rho = s.w * rho
-    # Mixture molar mass [kg/mol]
-    self._M("w")
-    # Mixture specific gas constants [J/(kg K)]
+      s.rho = rho * s.w
+    self._M()
     self._R()
-    # Set species molar fractions
-    self._convert_mass_mole("w")
 
-  def _update_mix_thermo(self) -> None:
+  def update_mixture_thermo(self) -> None:
     # Constant specific heats
     self.cv_h = self._cv_h()
     # Energies
@@ -95,7 +97,7 @@ class Mixture(object):
     n: np.ndarray,
     rho: float
   ) -> np.ndarray:
-    return (1/rho) * self.m_mat @ n
+    return (1.0/rho) * self.m_mat @ n
 
   def get_n(
     self,
@@ -108,7 +110,7 @@ class Mixture(object):
     self,
     n: np.ndarray
   ) -> float:
-    return np.diag(self.m_mat) @ n
+    return self.m @ n
 
   # Equilibrium composition
   # ===================================
@@ -127,11 +129,11 @@ class Mixture(object):
     #    (n_Arp*n_em)/n_Ar = (Q_Arp*Q_em)/Q_Ar
     # -------------
     # Update thermo
-    self._update_species_thermo(T)
+    self.update_species_thermo(T)
     # Compute number density
     n = p / (const.UKB*T)
     # Compute coefficient for quadratic system
-    f = self.species["Ar+"].Q * self.species["e-"].Q
+    f = self.species["Arp"].Q * self.species["em"].Q
     f /= (self.species["Ar"].Q * n)
     # Solve quadratic system for 'x_em'
     a = 1.0
@@ -139,19 +141,18 @@ class Mixture(object):
     c = -f
     x = (-b+np.sqrt(b**2-4*a*c))/(2*a)
     # Set molar fractions
-    s = self.species["e-"]
+    s = self.species["em"]
     s.x = x
-    s = self.species["Ar+"]
+    s = self.species["Arp"]
     s.x = x * s.q / s.Q
     s = self.species["Ar"]
     s.x = (1.0-2.0*x) * s.q / s.Q
-    # Set mass fractions
-    self._M("x")
-    self._set_w_s()
     # Number densities
     n = n * np.concatenate([self.species[k].x for k in self.species_order])
-    # Mass densities
-    return self.get_rho(n)
+    # Mass fractions and density
+    rho = self.get_rho(n)
+    w = self.get_w(n, rho)
+    return rho, w
 
   # Initial composition
   # ===================================
@@ -162,16 +163,16 @@ class Mixture(object):
     noise: bool = False,
     sigma: float = 1e-2
   ) -> np.ndarray:
-    # Compute equilibrium mass densities
-    rho = self.compute_eq_comp(p, T)
+    # Compute equilibrium mass fractions
+    rho, w = self.compute_eq_comp(p, T)
     # Add random noise
     if noise:
       # > Electron
-      s = self.species["e-"]
-      x_em = np.clip(s.x * self._add_norm_noise(s, sigma), 0, 1)
+      s = self.species["em"]
+      x_em = np.clip(s.x * self._add_norm_noise(s, sigma, use_q=False), 0, 1)
       s.x = x_em
       # > Argon Ion
-      s = self.species["Ar+"]
+      s = self.species["Arp"]
       s.x = x_em * self._add_norm_noise(s, sigma)
       # > Argon
       s = self.species["Ar"]
@@ -180,15 +181,16 @@ class Mixture(object):
       self._M("x")
       self._set_w_s()
       # Mass densities
-      w = w * np.concatenate([self.species[k].w for k in self.species_order])
-      rho = w * np.sum(rho)
+      w = np.concatenate([self.species[k].w for k in self.species_order])
     # Return mass densities
-    return rho
+    return rho, w
 
-  def _add_norm_noise(self, species, sigma):
-    f = 1.0 + sigma*np.random.rand(species.nb_comp)
-    q = species.q * f
-    return q / np.sum(q)
+  def _add_norm_noise(self, species, sigma, use_q=True):
+    f = 1.0 + sigma * np.random.rand(species.nb_comp)
+    if use_q:
+      f *= species.q * f
+      f /= np.sum(f)
+    return f
 
   # Mixture properties
   # ===================================
@@ -196,7 +198,7 @@ class Mixture(object):
     self,
     qoi_used: str = "w"
   ):
-    self.M = 0.0
+    self.M = np.zeros(1)
     if (qoi_used == "w"):
       for s in self.species.values():
         self.M += np.sum(s.w) / s.M
@@ -206,7 +208,7 @@ class Mixture(object):
         self.M += np.sum(s.x) * s.M
 
   def _R(self):
-    self.R = 0.0
+    self.R = np.zeros(1)
     for s in self.species.values():
       self.R += np.sum(s.w) * s.R
 
@@ -231,9 +233,9 @@ class Mixture(object):
   # -----------------------------------
   def _cv_h(self):
     # Heavy particle constant-volume specific heat [J/(kg K)]
-    cv_h = 0.0
+    cv_h = np.zeros(1)
     for s in self.species.values():
-      if (s.name != "e-"):
+      if (s.name != "em"):
         cv_h += np.sum(s.w * s.cv)
     return cv_h
 
@@ -241,30 +243,30 @@ class Mixture(object):
   # -----------------------------------
   def _e(self):
     # Total energy [J/kg]
-    e = 0.0
+    e = np.zeros(1)
     for s in self.species.values():
       e += np.sum(s.w * s.e)
     return e
 
   def _e_e(self):
     # Electron energy [J/kg]
-    s = self.species["e-"]
-    return np.sum(s.w * s.e)
+    s = self.species["em"]
+    return np.sum(s.w * s.e, keepdims=True)
 
   def _e_int_h(self):
     # Heavy particle internal energy [J/kg]
-    e_int_h = 0.0
+    e_int_h = np.zeros(1)
     for s in self.species.values():
-      if (s.name != "e-"):
+      if (s.name != "em"):
         e_int_h += np.sum(s.w * s.e_int)
     return e_int_h
 
   def _hf_h(self):
     # Heavy particle enthalpy of formation [J/kg]
-    hf_h = 0.0
+    hf_h = np.zeros(1)
     for s in self.species.values():
-      if (s.name != "e-"):
-        hf_h += np.sum(s.w * s.hf)
+      if (s.name != "em"):
+        hf_h += np.sum(s.w) * s.hf
     return hf_h
 
   # Temperatures
@@ -277,7 +279,7 @@ class Mixture(object):
     # Heavy particle temperature [K]
     T = (e - e_e - self.e_int_h - self.hf_h) / self.cv_h
     # Free electron temperature [K]
-    s = self.species["e-"]
+    s = self.species["em"]
     Te = e_e / (s.w * s.cv)
     # Clipping
     T = np.maximum(T, const.TMIN)
