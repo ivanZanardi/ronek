@@ -57,8 +57,8 @@ class Kinetics(object):
     # > First order moment
     if ("EN" in self.reactions):
       ve = self._compute_ve(Te)
-      self.rates["EN"] = ve * self._compute_Q11_en(Te)
-      self.rates["EI"] = ve * self._compute_Q11_ei(T, Te)
+      self.rates["EN"] = self._compute_Q11_en(Te, ve)
+      self.rates["EI"] = self._compute_Q11_ei(T, Te, ve)
 
   # Forward and backward rates
   # -----------------------------------
@@ -150,12 +150,12 @@ class Kinetics(object):
 
   # Collisional processes - First order moment
   # -----------------------------------
-  def _compute_Q11_en(self, Te):
+  def _compute_Q11_en(self, Te, ve):
     """Electron-neutral collision integral (EN)"""
     if self.use_fit:
       # Curve fit model
       # > See: https://doi.org/10.1007/978-1-4419-8172-1 - Eq. 11.3
-      return 8.0/3.0 * self._compute_Q11_en_capitelli(Te)
+      return 8.0/3.0 * ve * self._compute_Q11_en_capitelli(Te)
     else:
       # Look-up table
       # > See: Kapper's PhD thesis, The Ohio State University, 2009
@@ -172,17 +172,17 @@ class Kinetics(object):
     # Conversion: A^2 -> m^2
     return 1e-20 * Q11
 
-  def _compute_Q11_ei(self, T, Te):
+  def _compute_Q11_ei(self, T, Te, ve):
     """Electron-ion collision integral (EI)"""
     # Electron and ion number densities
     ne = self.mix.species["em"].n.reshape(1)
     ni = np.sum(self.mix.species["Arp"].n).reshape(1)
     if self.use_fit:
       # Curve fit model
-      return 8.0/3.0 * self._compute_Q11_ei_magin(ne, ni, T, Te)
+      return 8.0/3.0 * ve * self._compute_Q11_ei_magin(ne, ni, T, Te)
     else:
       # Analytical table
-      return 2.0 * self._compute_Q11_ei_kapper(ne, Te)
+      return 2.0 * ve * self._compute_Q11_ei_kapper(ne, Te)
 
   def _compute_Q11_ei_magin(self, ne, ni, T, Te):
     """

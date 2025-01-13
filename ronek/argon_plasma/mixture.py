@@ -1,8 +1,8 @@
 import numpy as np
 
-from species import Species
+from .. import const
+from .species import Species
 from typing import Dict, Union
-import const
 
 
 class Mixture(object):
