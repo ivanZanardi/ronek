@@ -56,8 +56,9 @@ class Kinetics(object):
       self.rates["Ie"] = self._compute_Ie_rates(Te)
     # > First order moment
     if ("EN" in self.reactions):
-      self.rates["EN"] = self._compute_EN_rate(Te)
-      self.rates["EI"] = self._compute_EI_rate(T, Te)
+      ve = self._compute_ve(Te)
+      self.rates["EN"] = ve * self._compute_Q11_en(Te)
+      self.rates["EI"] = ve * self._compute_Q11_ei(T, Te)
 
   # Forward and backward rates
   # -----------------------------------
@@ -149,54 +150,82 @@ class Kinetics(object):
 
   # Collisional processes - First order moment
   # -----------------------------------
-  def _compute_EN_rate(self, Te, identifier="EN"):
-    """Electron-neutral collision rate/integral (EN)"""
+  def _compute_Q11_en(self, Te):
+    """Electron-neutral collision integral (EN)"""
     if self.use_Q11_fit:
-      # Curve fit model (Gupta)
-      # > Common factors
-      lnT1 = np.log(Te)
-      lnT2 = lnT1*lnT1
-      lnT3 = lnT2*lnT1
-      # > Collision integral for 'em-Ar' interactions
-      c = self.reactions[identifier]["Q11_fit"]
-      Q11 = 1e-20 * np.exp(c[0]*lnT3 + c[1]*lnT2 + c[2]*lnT1 + c[3])
-      return Q11
+      # Curve fit model
+      return 8.0/3.0 * self._compute_Q11_en_capitelli(Te)
     else:
-      # Look-up table (Kapper's PhD thesis, 2009)
-      return self.reactions["EN"]["interp"](Te)
+      # Look-up table
+      # > See: Kapper's PhD thesis, The Ohio State University, 2009
+      return 2.0 * self.reactions["EN"]["interp"](Te)
 
-  def _compute_EI_rate(self, T, Te, identifier="EI"):
-    """Electron-ion collision rate/integral (EI)"""
-    # Electron species
-    s = self.mix.species["em"]
+  def _compute_Q11_en_capitelli(self, Te):
+    # > See: Capitelli, M., Bruno, D., Laricchiuta, A.,
+    #        "Fundamental Aspects of Plasma Physics: Transport",
+    #        Spinger, 2013
+    lnT = np.log(Te)
+    c = self.reactions["EN"]["Q11_fit"]
+    fac = np.exp((lnT - c[0])/c[1])
+    Q11 = c[2]*lnT**c[5]*fac/(fac + 1.0/fac) \
+        + c[6]*np.exp(-((lnT - c[7])/c[8])**2) \
+        + c[3] + c[9]*lnT**c[4]
+    Q11 *= np.pi
+    # Conversion: A^2 -> m^2
+    return 1e-20 * Q11
+
+  def _compute_Q11_ei(self, T, Te):
+    """Electron-ion collision integral (EI)"""
+    # Electron and ion number densities
+    ne = self.mix.species["em"].n.reshape(1)
+    ni = np.sum(self.mix.species["Arp"].n).reshape(1)
     if self.use_Q11_fit:
-      # Curve fit model (Magin's PhD thesis, ULB, 2004)
-      # > Average closest impact parameter for 'em-Arp' and 'em-em' interactions
-      f0 = const.UE**2/(8.0*np.pi*const.UEPS0*const.UKB)
-      be = f0/Te
-      # > Average closest impact parameter for 'Arp-Arp' interactions
-      bh = f0/T
-      # > Debye shielding distance (em and Arp contributions)
-      Ds = np.sqrt(const.UEPS0*const.UKB*Te/(2.0*s.n*const.UE**2))
-      Ds = np.minimum(Ds,10000.0*(be + bh))
-      # > Non-dimensional temperature for charge-charge interactions
-      Tse = np.maximum(Ds/(2.0*be),0.1)
-      # > Common factors
-      lnT1 = np.log(Tse)
-      lnT2 = lnT1*lnT1
-      lnT3 = lnT2*lnT1
-      lnT4 = lnT3*lnT1
-      # > Collision integral for 'em-Arp' and 'em-em' interactions
-      c = self.reactions[identifier]["Q11_fit"]
-      Q11 = np.exp(c[0]*lnT4 + c[1]*lnT3 + c[2]*lnT2 + c[3]*lnT1 + c[4])
-      Q11 *= np.pi*Ds**2/(Tse**2)
-      return Q11
+      # Curve fit model
+      return 8.0/3.0 * self._compute_Q11_ei_magin(ne, ni, T, Te)
     else:
-      # Analytical model (Kapper's PhD thesis, 2009)
-      # > Compute Coulomb logarithm
-      lam = 1.24e7*np.sqrt(Te**3/s.n)
-      # > Compute momentum-averaged cross section
-      Qei = 5.85e-10*np.log(lam)/Te**2
-      # > Electron mean thermal velocity
-      ve = np.sqrt((8.0*const.URG*Te)/(np.pi*s.M))
-      return ve*Qei
+      # Analytical table
+      return 2.0 * self._compute_Q11_ei_kapper(ne, Te)
+
+  def _compute_Q11_ei_magin(self, ne, ni, T, Te):
+    """
+    See: Magin's PhD thesis, ULB, 2004
+    """
+    # Average closest impact parameters for 'em-Arp' and 'em-em' interactions
+    f0 = const.UE*const.UE/(8.0*np.pi*const.UEPS0*const.UKB)
+    bh = f0/T
+    be = f0/Te
+    # Debye shielding distance (em and Arp contributions)
+    Ds = self._compute_Ds(ne, ni, T, Te)
+    Ds = np.minimum(Ds,10000.0*(be + bh))
+    # Non-dimensional temperature for charge-charge interactions
+    Tse = np.maximum(Ds/(2.0*be),0.1)
+    # Common factors
+    lnT1 = np.log(Tse)
+    lnT2 = lnT1*lnT1
+    lnT3 = lnT2*lnT1
+    lnT4 = lnT3*lnT1
+    efac = np.pi*Ds*Ds/(Tse*Tse)
+    # Collision integral for 'em-Arp' and 'em-em' interactions
+    c = self.reactions["EI"]["Q11_fit"]
+    return efac * np.exp(c[0]*lnT4 + c[1]*lnT3 + c[2]*lnT2 + c[3]*lnT1 + c[4])
+
+  def _compute_Q11_ei_kapper(self, ne, Te):
+    """
+    See: Kapper's PhD thesis, The Ohio State University, 2009
+    """
+    # Common factors
+    T2 = Te*Te
+    T3 = T2*Te
+    # Compute Coulomb logarithm
+    lam = 1.24e7*np.sqrt(T3/ne)
+    # Compute momentum-averaged cross section
+    return 5.85e-10*np.log(lam)/T2
+
+  def _compute_Ds(self, ne, ni, T, Te):
+    """Debye shielding distance"""
+    f = (const.UEPS0*const.UKB)/(const.UE*const.UE)
+    return np.sqrt(f/(ne/Te + ni/T))
+
+  def _compute_ve(self, Te):
+    """Electron mean thermal velocity"""
+    return np.sqrt((8.0*const.UKB*Te)/(np.pi*const.UME))
