@@ -15,15 +15,15 @@ class Kinetics(object):
     self,
     mixture,
     reactions,
-    use_Q11_fit=False
+    use_fit=False
   ):
     # Set mixtures
     self.mix = mixture                  # Reference mixture
     self.mix_e = copy.deepcopy(mixture) # Electron temperature-based thermo
     # Load reactions rates
     self._init_reactions(reactions)
-    # Q11 collision integrals
-    self.use_Q11_fit = use_Q11_fit
+    # Collision integrals fit
+    self.use_fit = use_fit
 
   def _init_reactions(self, reactions):
     self.reactions = reactions
@@ -152,7 +152,7 @@ class Kinetics(object):
   # -----------------------------------
   def _compute_Q11_en(self, Te):
     """Electron-neutral collision integral (EN)"""
-    if self.use_Q11_fit:
+    if self.use_fit:
       # Curve fit model
       # > See: https://doi.org/10.1007/978-1-4419-8172-1 - Eq. 11.3
       return 8.0/3.0 * self._compute_Q11_en_capitelli(Te)
@@ -177,7 +177,7 @@ class Kinetics(object):
     # Electron and ion number densities
     ne = self.mix.species["em"].n.reshape(1)
     ni = np.sum(self.mix.species["Arp"].n).reshape(1)
-    if self.use_Q11_fit:
+    if self.use_fit:
       # Curve fit model
       return 8.0/3.0 * self._compute_Q11_ei_magin(ne, ni, T, Te)
     else:
