@@ -154,6 +154,7 @@ class Kinetics(object):
     """Electron-neutral collision integral (EN)"""
     if self.use_Q11_fit:
       # Curve fit model
+      # > See: https://doi.org/10.1007/978-1-4419-8172-1 - Eq. 11.3
       return 8.0/3.0 * self._compute_Q11_en_capitelli(Te)
     else:
       # Look-up table
@@ -161,9 +162,6 @@ class Kinetics(object):
       return 2.0 * self.reactions["EN"]["interp"](Te)
 
   def _compute_Q11_en_capitelli(self, Te):
-    # > See: Capitelli, M., Bruno, D., Laricchiuta, A.,
-    #        "Fundamental Aspects of Plasma Physics: Transport",
-    #        Spinger, 2013
     lnT = np.log(Te)
     c = self.reactions["EN"]["Q11_fit"]
     fac = np.exp((lnT - c[0])/c[1])
