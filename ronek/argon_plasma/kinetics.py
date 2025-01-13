@@ -4,6 +4,7 @@ import scipy as sp
 import dill as pickle
 
 from .. import const
+from .. import utils
 from . import chem_eq
 
 
@@ -59,6 +60,8 @@ class Kinetics(object):
       ve = self._compute_ve(Te)
       self.rates["EN"] = self._compute_Q11_en(Te, ve)
       self.rates["EI"] = self._compute_Q11_ei(T, Te, ve)
+    # Squeeze matrices
+    self.rates = utils.map_nested_dict(self.rates, np.squeeze)
 
   # Forward and backward rates
   # -----------------------------------

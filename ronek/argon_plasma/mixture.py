@@ -41,6 +41,7 @@ class Mixture(object):
     for s in self.species.values():
       s.build()
     self._build_mass_matrix()
+    self._build_delta_energies()
 
   def _build_mass_matrix(self) -> None:
     # Build vector of masses
@@ -52,6 +53,16 @@ class Mixture(object):
     # Build mass matrix
     self.m_mat = np.diag(self.m)
     self.m_inv_mat = np.diag(self.m_inv)
+
+  def _build_delta_energies(self) -> None:
+    en = self.species["Ar"].lev["E"]    # [J]
+    ei = self.species["Arp"].lev["E"]   # [J]
+    self.de = {
+      # Neutral-Neutral
+      "nn": en.reshape(1,-1) - en.reshape(-1,1),
+      # Ion-Neutral
+      "in": ei.reshape(1,-1) - en.reshape(-1,1)
+    }
 
   # Update
   # ===================================
@@ -271,13 +282,9 @@ class Mixture(object):
 
   # Temperatures
   # -----------------------------------
-  def compute_temp(
-    self,
-    e: float,
-    e_e: float
-  ):
+  def compute_temp(self, e, e_e):
     # Heavy particle temperature [K]
-    T = (e - e_e - self.e_int_h - self.hf_h) / self.cv_h
+    T = (e - e_e - self._e_int_h() - self._hf_h()) / self._cv_h()
     # Free electron temperature [K]
     s = self.species["em"]
     Te = e_e / (s.w * s.cv)
