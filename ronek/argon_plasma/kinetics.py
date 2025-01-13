@@ -162,8 +162,8 @@ class Kinetics(object):
       return 2.0 * self.reactions["EN"]["interp"](Te)
 
   def _compute_Q11_en_capitelli(self, Te):
-    lnT = np.log(Te)
     c = self.reactions["EN"]["Q11_fit"]
+    lnT = np.log(Te)
     fac = np.exp((lnT - c[0])/c[1])
     Q11 = c[2]*lnT**c[5]*fac/(fac + 1.0/fac) \
         + c[6]*np.exp(-((lnT - c[7])/c[8])**2) \
