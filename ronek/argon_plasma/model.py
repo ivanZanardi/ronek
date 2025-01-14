@@ -82,36 +82,35 @@ class Model(object):
     w, e, e_e = self._extract_vars(x)
     # Update composition
     self.mix.update_composition(w, rho)
-    nn, ni, ne = [self.mix.species[k].n for k in ("Ar", "Arp", "em")]
     # Compute temperatures
     T, Te = self.mix.compute_temp(e, e_e)
     # Update thermo
     self.mix.update_species_thermo(T, Te)
-    # Compose kinetic operators
+    # Kinetics
+    # -------------
     kops = self._compose_kin_ops(T, Te)
-    # > Ionization processes
-    iops_fwd = (kops["Ih"]["fwd"] * nn[0] + kops["Ie"]["fwd"] * ne) * nn
-    iops_bwd = (kops["Ih"]["bwd"] * nn[0] + kops["Ie"]["bwd"] * ne) * ni * ne
-    iops = iops_fwd.T - iops_bwd
-    # Right hand side
+    omega_exc = self._compute_kin_omega_exc(kops)
+    omega_ion = self._compute_kin_omega_ion(kops)
+    # Compose RHS
+    # -------------
     f = np.zeros(self.nb_eqs)
     # > Argon
     i = self.mix.species["Ar"].indices
-    f[i] = (kops["EXh"] * nn[0] + kops["EXe"] * ne) @ nn \
-         - np.sum(iops, axis=1)
+    f[i] = omega_exc - np.sum(omega_ion, axis=1)
     # > Argon Ion
     i = self.mix.species["Arp"].indices
-    fion = np.sum(iops, axis=0)
+    fion = np.sum(omega_ion, axis=0)
     f[i] = fion
     # > Electron mass
     i = self.mix.species["em"].indices
     f[i] = np.sum(fion)
     # > Electron energy
     f[-1] = self._omega_ee(kops, T, Te)
-    # Conversions
-    # > Number densities to mass fractions: [1/(m^3 s)] -> [1/s]
+    # Convert RHS
+    # -------------
+    # Number densities to mass fractions: [1/(m^3 s)] -> [1/s]
     f[:self.mix.nb_comp] = self.mix.get_w(f[:self.mix.nb_comp], rho)
-    # > Volumetric to massic energy: [J/(m^3 s)] -> [J/(kg s)]
+    # Volumetric to massic energy: [J/(m^3 s)] -> [J/(kg s)]
     f[-2:] /= rho
     return f
 
@@ -122,7 +121,10 @@ class Model(object):
     e, e_e = x[self.mix.nb_comp:]
     return w, e, e_e
 
+  # Kinetic operators
+  # -----------------------------------
   def _compose_kin_ops(self, T, Te):
+    """Compose kinetic operators"""
     # Update kinetics
     self.kin.update(T, Te)
     # Compose operators
@@ -130,9 +132,9 @@ class Model(object):
     # > Excitation processes
     for k in ("EXh", "EXe"):
       rates = self.kin.rates[k]
-      ops[k] = self._compose_kin_ops_ex(rates)
+      ops[k] = self._compose_kin_ops_exc(rates)
       if (k == "EXe"):
-        ops[k+"_e"] = self._compose_kin_ops_ex(rates, apply_energy=True)
+        ops[k+"_e"] = self._compose_kin_ops_exc(rates, apply_energy=True)
     # > Ionization processes
     for k in ("Ih", "Ie"):
       rates = self.kin.rates[k]
@@ -141,7 +143,7 @@ class Model(object):
         ops[k+"_e"] = self._compose_kin_ops_ion(rates, apply_energy=True)
     return ops
 
-  def _compose_kin_ops_ex(self, rates, apply_energy=False):
+  def _compose_kin_ops_exc(self, rates, apply_energy=False):
     k = rates["fwd"] + rates["bwd"]
     k = (k - np.diag(np.sum(k, axis=-1))).T
     if apply_energy:
@@ -154,6 +156,18 @@ class Model(object):
       k["fwd"] *= self.mix.de["in"].T
       k["bwd"] *= self.mix.de["in"]
     return k
+
+  # Kinetic production terms
+  # -----------------------------------
+  def _compute_kin_omega_exc(self, kops):
+    nn, ne = [self.mix.species[k].n for k in ("Ar", "em")]
+    return (kops["EXh"] * nn[0] + kops["EXe"] * ne) @ nn
+
+  def _compute_kin_omega_ion(self, kops):
+    nn, ni, ne = [self.mix.species[k].n for k in ("Ar", "Arp", "em")]
+    ops_fwd = (kops["Ih"]["fwd"] * nn[0] + kops["Ie"]["fwd"] * ne) * nn
+    ops_bwd = (kops["Ih"]["bwd"] * nn[0] + kops["Ie"]["bwd"] * ne) * ni * ne
+    return ops_fwd.T - ops_bwd
 
   # Thermal nonequilibrium
   # -----------------------------------
