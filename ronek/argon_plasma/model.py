@@ -1,16 +1,10 @@
-import abc
-import time
 import numpy as np
 import scipy as sp
-import pandas as pd
-
-from pyDOE import lhs
 
 from .. import const
-from .. import utils
 from .mixture import Mixture
 from .kinetics import Kinetics
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional
 
 
 class Model(object):
@@ -46,7 +40,7 @@ class Model(object):
     )
     # Radiation
     self.use_rad = use_rad
-    self.rad = None
+    self.rad = rad_dtb
     # FOM
     # -------------
     # Solving
@@ -85,7 +79,7 @@ class Model(object):
   # ===================================
   def _fun(self, t, x, rho):
     # Extract variables
-    w, e, e_e = self.extract_vars(x)
+    w, e, e_e = self._extract_vars(x)
     # Update composition
     self.mix.update_composition(w, rho)
     nn, ni, ne = [self.mix.species[k].n for k in ("Ar", "Arp", "em")]
@@ -94,7 +88,7 @@ class Model(object):
     # Update thermo
     self.mix.update_species_thermo(T, Te)
     # Compose kinetic operators
-    kops = self.compose_kin_ops(T, Te)
+    kops = self._compose_kin_ops(T, Te)
     # > Ionization processes
     iops_fwd = (kops["Ih"]["fwd"] * nn[0] + kops["Ie"]["fwd"] * ne) * nn
     iops_bwd = (kops["Ih"]["bwd"] * nn[0] + kops["Ie"]["bwd"] * ne) * ni * ne
@@ -113,26 +107,22 @@ class Model(object):
     i = self.mix.species["em"].indices
     f[i] = np.sum(fion)
     # > Electron energy
-    f[-1] = np.sum(kops["EXe_e"] @ nn) \
-          - np.sum(kops["Ie_e"]["fwd"] * nn) \
-          + np.sum(kops["Ie_e"]["bwd"] * ni * ne)
-    f[-1] *= ne
+    f[-1] = self._omega_ee(kops, T, Te)
     # Conversions
-    # > Number densities to mass fractions
+    # > Number densities to mass fractions: [1/(m^3 s)] -> [1/s]
     f[:self.mix.nb_comp] = self.mix.get_w(f[:self.mix.nb_comp], rho)
-
-
-    # TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # > Volumetric to massic energy: [J/(m^3 s)] -> [J/(kg s)]
+    f[-2:] /= rho
     return f
 
-  def extract_vars(self, x):
+  def _extract_vars(self, x):
     # Mass fractions
     w = x[:self.mix.nb_comp]
     # Total and electron energies
     e, e_e = x[self.mix.nb_comp:]
     return w, e, e_e
 
-  def compose_kin_ops(self, T, Te):
+  def _compose_kin_ops(self, T, Te):
     # Update kinetics
     self.kin.update(T, Te)
     # Compose operators
@@ -165,98 +155,19 @@ class Model(object):
       k["bwd"] *= self.mix.de["in"]
     return k
 
+  # Thermal nonequilibrium
+  # -----------------------------------
+  def _omega_ee(self, kops, T, Te):
+    nn, ni, ne = [self.mix.species[k].n for k in ("Ar", "Arp", "em")]
+    f = np.sum(kops["EXe_e"] @ nn) \
+      - np.sum(kops["Ie_e"]["fwd"] * nn) \
+      + np.sum(kops["Ie_e"]["bwd"] * ni * ne) \
+      + 1.5 * const.UKB * (T-Te) * self._get_nu_eh()
+    return f * ne
 
-
-
-
-  def source_term_ie_vec(self, nn, ni, ne, kf, kb):
-    iops_fwd = kf.T * nn * ne
-    iops_bwd = kb.T * ni * ne * ne
-    iops = iops_fwd.T - iops_bwd
-    de = self.mix.de["in"]
-    f = np.zeros(self.nb_eqs-1)
-    # > Argon
-    i = self.mix.species["Ar"].indices
-    f[i] = - np.sum(iops, axis=1)
-    # > Argon Ion
-    i = self.mix.species["Arp"].indices
-    fion = np.sum(iops, axis=0)
-    f[i] = fion
-    # > Electron mass
-    i = self.mix.species["em"].indices
-    f[i] = np.sum(fion)
-    # > Electron energy
-    f[-1] = np.sum(kb.T * de * ni * ne) \
-          - np.sum(kf.T * de.T * nn)
-    f[-1] *= ne
-    return f
-
-  def source_term_ie(self, nn, ni, ne, kf, kb):
-
-    nb_lev = self.mix.species["Ar"].nb_comp
-    ei = self.mix.species["Ar"].lev["E"]
-    ej = self.mix.species["Arp"].lev["E"]
-
-    omega = np.zeros(self.nb_eqs-1)
-
-    for i in range(nb_lev):  # i = 0 to levels_Ar - 2
-
-      for j in range(2): 
-
-          # Production term
-          prod_term = ne * (nn[i] * kf[i,j] - ne * ni[j] * kb[j,i])
-
-          # Update omegai_Ar for the current level i
-          omega[i] -= prod_term
-
-          # Update omega for level Arp(j)
-          omega[nb_lev+j] += prod_term
-
-          # Update omega for em
-          omega[-2] += prod_term
-
-          # Thermal nonequilibrium adjustment
-          omega[-1] -= (ej[j] - ei[i]) * prod_term
-
-    return omega
-
-
-
-
-
-  def source_term_exe_vec(self, nn, ne, kf, kb):
-    kfb = kf + kb
-    k = (kfb - np.diag(np.sum(kfb, axis=-1))).T
-    # ke = (ke - np.diag(np.sum(ke, axis=-1))).T
-    ke = k * self.mix.de["nn"]
-
-    nb_lev = self.mix.species["Ar"].nb_comp
-    f = np.zeros(nb_lev+1)
-    f[:-1] = (k @ nn) * ne
-    f[-1] = np.sum((ke @ nn) * ne)
-    return f
-
-  def source_term_exe(self, nn, ne, kf, kb):
-
-    nb_lev = self.mix.species["Ar"].nb_comp
-    e = self.mix.species["Ar"].lev["E"]
-
-    omega = np.zeros(nb_lev+1)
-
-    for i in range(nb_lev):  # i = 0 to levels_Ar - 2
-
-      for j in range(i + 1, nb_lev): 
-
-          # Production term
-          prod_term = ne * (nn[i] * kf[i,j] - nn[j] * kb[j,i])
-
-          # Update omegai_Ar for the current level i
-          omega[i] -= prod_term
-
-          # Update omega for level Ar(j)
-          omega[j] += prod_term
-
-          # Thermal nonequilibrium adjustment
-          omega[-1] -= (e[j] - e[i]) * prod_term
-
-    return omega
+  def _get_nu_eh(self):
+    """Electron-heavy particle relaxation frequency [1/s]"""
+    s = self.mix.species
+    nu = self.kin.rates["EN"] * np.sum(s["Ar"].n) / s["Ar"].m \
+       + self.kin.rates["EI"] * np.sum(s["Arp"].n) / s["Arp"].m
+    return const.UME * nu
