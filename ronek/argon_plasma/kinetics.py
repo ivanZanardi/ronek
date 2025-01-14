@@ -20,11 +20,11 @@ class Kinetics(object):
   ):
     # Set mixtures
     self.mix = mixture                  # Reference mixture
-    self.mix_e = copy.deepcopy(mixture) # Electron temperature-based thermo
-    # Load reactions rates
-    self._init_reactions(reactions)
+    self.mix_e = copy.deepcopy(mixture) # Electron temperature-based thermo mixture
     # Collision integrals fit
     self.use_fit = use_fit
+    # Load reactions rates
+    self._init_reactions(reactions)
 
   def _init_reactions(self, reactions):
     self.reactions = reactions
@@ -34,7 +34,7 @@ class Kinetics(object):
       if (name not in ("T", "EN", "EI")):
         self.reactions[name]["param"] = chem_eq.get_param(reaction["equation"])
     # Electron-neutral collision rate (EN)
-    if ("EN" in self.reactions):
+    if (("EN" in self.reactions) and (not self.use_fit)):
       x = self.reactions["T"].reshape(-1)
       y = self.reactions["EN"]["values"].reshape(-1)
       self.reactions["EN"]["interp"] = sp.interpolate.interp1d(x, y, "linear")
@@ -58,9 +58,9 @@ class Kinetics(object):
     # > First order moment
     if ("EN" in self.reactions):
       ve = self._compute_ve(Te)
-      self.rates["EN"] = self._compute_Q11_en(Te, ve)
-      self.rates["EI"] = self._compute_Q11_ei(T, Te, ve)
-    # Squeeze matrices
+      self.rates["EN"] = self._compute_en_rate(Te, ve)
+      self.rates["EI"] = self._compute_ei_rate(T, Te, ve)
+    # Squeeze tensors
     self.rates = utils.map_nested_dict(self.rates, np.squeeze)
 
   # Forward and backward rates
@@ -153,18 +153,18 @@ class Kinetics(object):
 
   # Collisional processes - First order moment
   # -----------------------------------
-  def _compute_Q11_en(self, Te, ve):
-    """Electron-neutral collision integral (EN)"""
+  def _compute_en_rate(self, Te, ve):
+    """Electron-neutral collision rate (EN)"""
     if self.use_fit:
       # Curve fit model
       # > See: https://doi.org/10.1007/978-1-4419-8172-1 - Eq. 11.3
-      return 8.0/3.0 * ve * self._compute_Q11_en_capitelli(Te)
+      return 8.0/3.0 * ve * self._compute_en_Q11_capitelli(Te)
     else:
       # Look-up table
       # > See: Kapper's PhD thesis, The Ohio State University, 2009
       return 2.0 * self.reactions["EN"]["interp"](Te)
 
-  def _compute_Q11_en_capitelli(self, Te):
+  def _compute_en_Q11_capitelli(self, Te):
     c = self.reactions["EN"]["Q11_fit"]
     lnT = np.log(Te)
     fac = np.exp((lnT - c[0])/c[1])
@@ -175,19 +175,19 @@ class Kinetics(object):
     # Conversion: A^2 -> m^2
     return 1e-20 * Q11
 
-  def _compute_Q11_ei(self, T, Te, ve):
-    """Electron-ion collision integral (EI)"""
+  def _compute_ei_rate(self, T, Te, ve):
+    """Electron-ion collision rate (EI)"""
     # Electron and ion number densities
     ne = self.mix.species["em"].n.reshape(1)
     ni = np.sum(self.mix.species["Arp"].n).reshape(1)
     if self.use_fit:
       # Curve fit model
-      return 8.0/3.0 * ve * self._compute_Q11_ei_magin(ne, ni, T, Te)
+      return 8.0/3.0 * ve * self._compute_ei_Q11_magin(ne, ni, T, Te)
     else:
       # Analytical table
-      return 2.0 * ve * self._compute_Q11_ei_kapper(ne, Te)
+      return 2.0 * ve * self._compute_ei_Q11_kapper(ne, Te)
 
-  def _compute_Q11_ei_magin(self, ne, ni, T, Te):
+  def _compute_ei_Q11_magin(self, ne, ni, T, Te):
     """
     See: Magin's PhD thesis, ULB, 2004
     """
@@ -210,7 +210,7 @@ class Kinetics(object):
     c = self.reactions["EI"]["Q11_fit"]
     return efac * np.exp(c[0]*lnT4 + c[1]*lnT3 + c[2]*lnT2 + c[3]*lnT1 + c[4])
 
-  def _compute_Q11_ei_kapper(self, ne, Te):
+  def _compute_ei_Q11_kapper(self, ne, Te):
     """
     See: Kapper's PhD thesis, The Ohio State University, 2009
     """

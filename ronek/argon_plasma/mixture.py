@@ -66,21 +66,8 @@ class Mixture(object):
 
   # Update
   # ===================================
-  def update(self, w, rho, T, Te=None) -> None:
-    # Update species thermo
-    self.update_species_thermo(T, Te)
-    # Update composition
-    self.update_composition(w, rho)
-    # Update mixture thermo
-    self.update_mixture_thermo()
-
-  def update_species_thermo(self, T, Te=None) -> None:
-    if (Te is None):
-      Te = T
-    for s in self.species.values():
-      Ti = Te if (s.name == "em") else T
-      s.update(Ti)
-
+  # Composition
+  # -----------------------------------
   def update_composition(self, w, rho) -> None:
     n = self.get_n(w, rho)
     x = (1.0/np.sum(n)) * n
@@ -91,6 +78,15 @@ class Mixture(object):
       s.rho = rho * s.w
     self._M()
     self._R()
+
+  # Thermodynamics
+  # -----------------------------------
+  def update_species_thermo(self, T, Te=None) -> None:
+    if (Te is None):
+      Te = T
+    for s in self.species.values():
+      Ti = Te if (s.name == "em") else T
+      s.update(Ti)
 
   def update_mixture_thermo(self) -> None:
     # Constant specific heats
