@@ -77,9 +77,9 @@ class Model(object):
 
   # FOM
   # ===================================
-  def _fun(self, t, x, rho):
+  def fun(self, t, y, rho):
     # Extract variables
-    w, e, e_e = self._extract_vars(x)
+    w, e, e_e = self._extract_vars(y)
     # Update composition
     self.mix.update_composition(w, rho)
     # Compute temperatures
@@ -114,11 +114,11 @@ class Model(object):
     f[-2:] /= rho
     return f
 
-  def _extract_vars(self, x):
+  def _extract_vars(self, y):
     # Mass fractions
-    w = x[:self.mix.nb_comp]
+    w = y[:self.mix.nb_comp]
     # Total and electron energies
-    e, e_e = x[self.mix.nb_comp:]
+    e, e_e = y[self.mix.nb_comp:]
     return w, e, e_e
 
   # Kinetic operators
@@ -185,3 +185,25 @@ class Model(object):
     nu = self.kin.rates["EN"] * np.sum(s["Ar"].n) / s["Ar"].m \
        + self.kin.rates["EI"] * np.sum(s["Arp"].n) / s["Arp"].m
     return const.UME * nu
+
+  # Solving
+  # ===================================
+  def solve(
+    self,
+    t: np.ndarray,
+    y0: np.ndarray,
+    rho: float
+  ) -> np.ndarray:
+    sol = sp.integrate.solve_ivp(
+      fun=self.fun,
+      t_span=[0.0,t[-1]],
+      y0=y0,
+      method="LSODA",
+      t_eval=t,
+      args=(rho,),
+      first_step=1e-14,
+      rtol=1e-6,
+      atol=0.0,
+      jac=None
+    )
+    return sol.y

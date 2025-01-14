@@ -159,7 +159,7 @@ class Mixture(object):
     # Mass fractions and density
     rho = self.get_rho(n)
     w = self.get_w(n, rho)
-    return rho, w
+    return w, rho
 
   # Initial composition
   # ===================================
@@ -171,7 +171,7 @@ class Mixture(object):
     sigma: float = 1e-2
   ) -> np.ndarray:
     # Compute equilibrium mass fractions
-    rho, w = self.compute_eq_comp(p, T)
+    w, rho = self.compute_eq_comp(p, T)
     # Add random noise
     if noise:
       # > Electron
@@ -190,7 +190,7 @@ class Mixture(object):
       # Mass densities
       w = np.concatenate([self.species[k].w for k in self.species_order])
     # Return mass densities
-    return rho, w
+    return w, rho
 
   def _add_norm_noise(self, species, sigma, use_q=True):
     f = 1.0 + sigma * np.random.rand(species.nb_comp)
