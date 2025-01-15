@@ -63,13 +63,13 @@ class Species(object):
   # Moments
   # ===================================
   def compute_mom(self, n, m=0):
-    e = self.lev["E"] / const.eV_to_J
+    e = self.lev["E"] / const.UE
     if (n.shape[-1] != self.nb_comp):
       n = n.T
     return np.sum(n * e**m, axis=-1)
 
   def compute_mom_basis(self, max_mom):
-    e = self.lev["E"] / const.eV_to_J
+    e = self.lev["E"] / const.UE
     m = [np.ones_like(e)]
     for i in range(max_mom-1):
       mi = m[-1]*e
@@ -89,16 +89,14 @@ class Species(object):
     # > Specific gas constants [J/(kg K)]
     self.R = const.URG / self.M
     # Translational partition function factor
-    self.q_tr_fac = 2.0 * np.pi * self.m * const.UKB / (const.UH**2)
+    self.q_tr_fac = 2.0 * np.pi * self.m * const.UKB / (const.UH * const.UH)
     # Constant-volume and -pressure specific heats [J/(kg K)]
     self.cv = self.cv_tr = 1.5 * self.R
     self.cp = self.cv_tr + self.R
     # Specific heat ratio
     self.gamma = 5.0 / 3.0
     # Internal energy [J/kg]
-    self.e_int = self.lev["E"] / self.m
-    # Enthalpy of formation [J/kg]
-    self.hf = self.Hf / self.m
+    self.e_int = (self.lev["E"] + self.Hf) / self.m
 
   def update(self, T):
     # Partition functions
@@ -107,7 +105,7 @@ class Species(object):
     self.Q = self._Q()
     # Energies [J/kg]
     self.e_tr = self.cv_tr * T
-    self.e = self.e_tr + self.e_int + self.hf
+    self.e = self.e_tr + self.e_int
 
   # Partition functions
   # ===================================

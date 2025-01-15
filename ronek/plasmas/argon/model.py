@@ -25,12 +25,13 @@ class ArgonCR(object):
     # Thermochemistry database
     # -------------
     # Mixture
+    self.species_order = ("Ar", "Arp", "em")
     self.mix = Mixture(
       species,
-      species_order=("Ar", "Arp", "em"),
+      species_order=self.species_order,
       use_factorial=use_factorial
     )
-    self.nb_eqs = self.mix.nb_comp + 2
+    self.mix.build()
     # Kinetics
     self.kin = Kinetics(
       mixture=self.mix,
@@ -40,6 +41,9 @@ class ArgonCR(object):
     # Radiation
     self.use_rad = use_rad
     self.rad = rad_dtb
+    # Dimensions
+    self.nb_temp = 2
+    self.nb_eqs = self.mix.nb_comp + self.nb_temp
     # FOM
     # -------------
     # Solving
@@ -48,11 +52,12 @@ class ArgonCR(object):
     self.jac = None
     # ROM
     # -------------
-    self.use_proj = use_proj
     # Bases
     self.phi = None
     self.psi = None
-    self.runtime = 0.0
+    # Projector
+    self.P = None
+    self.use_proj = use_proj
 
   def _is_einsum_used(self, identifier: str) -> None:
     if self.use_einsum:
@@ -60,22 +65,6 @@ class ArgonCR(object):
         "This functionality is not supported " \
         f"when using 'einsum': '{identifier}'."
       )
-
-  # Build
-  # ===================================
-  def build(self) -> None:
-    self.mix.build()
-    self._build_delta_energies()
-
-  def _build_delta_energies(self) -> None:
-    en = self.species["Ar"].lev["E"]    # [J]
-    ei = self.species["Arp"].lev["E"]   # [J]
-    self.de = {
-      # Neutral-Neutral
-      "nn": en.reshape(1,-1) - en.reshape(-1,1),
-      # Ion-Neutral
-      "in": ei.reshape(1,-1) - en.reshape(-1,1)
-    }
 
   # Equilibrium composition
   # ===================================
@@ -94,30 +83,29 @@ class ArgonCR(object):
     #    (n_Arp*n_em)/n_Ar = (Q_Arp*Q_em)/Q_Ar
     # -------------
     # Update thermo
-    self.update_species_thermo(T)
+    self.mix.update_species_thermo(T)
     # Compute number density
     n = p / (const.UKB*T)
     # Compute coefficient for quadratic system
-    f = self.species["Arp"].Q * self.species["em"].Q
-    f /= (self.species["Ar"].Q * n)
+    f = self.mix.species["Arp"].Q * self.mix.species["em"].Q
+    f /= (self.mix.species["Ar"].Q * n)
     # Solve quadratic system for 'x_em'
     a = 1.0
     b = 2.0 * f
     c = -f
     x = (-b+np.sqrt(b**2-4*a*c))/(2*a)
     # Set molar fractions
-    s = self.species["em"]
+    s = self.mix.species["em"]
     s.x = x
-    s = self.species["Arp"]
+    s = self.mix.species["Arp"]
     s.x = x * s.q / s.Q
-    s = self.species["Ar"]
+    s = self.mix.species["Ar"]
     s.x = (1.0-2.0*x) * s.q / s.Q
     # Number densities
-    n = n * np.concatenate([self.species[k].x for k in self.species_order])
+    n = n * np.concatenate([self.mix.species[k].x for k in self.species_order])
     # Mass fractions and density
-    rho = self.get_rho(n)
-    w = self.get_w(n, rho)
-    # w = np.maximum(w, const.WMIN)
+    rho = self.mix.get_rho(n)
+    w = self.mix.get_w(rho, n)
     return w, rho
 
   # Initial composition
@@ -134,20 +122,20 @@ class ArgonCR(object):
     # Add random noise
     if noise:
       # > Electron
-      s = self.species["em"]
+      s = self.mix.species["em"]
       x_em = np.clip(s.x * self._add_norm_noise(s, sigma, use_q=False), 0, 1)
       s.x = x_em
       # > Argon Ion
-      s = self.species["Arp"]
+      s = self.mix.species["Arp"]
       s.x = x_em * self._add_norm_noise(s, sigma)
       # > Argon
-      s = self.species["Ar"]
+      s = self.mix.species["Ar"]
       s.x = (1.0-2.0*x_em) * self._add_norm_noise(s, sigma)
       # Set mass fractions
       self._M("x")
       self._set_w_s()
       # Mass densities
-      w = np.concatenate([self.species[k].w for k in self.species_order])
+      w = np.concatenate([self.mix.species[k].w for k in self.species_order])
     # Return mass densities
     return w, rho
 
@@ -175,17 +163,17 @@ class ArgonCR(object):
   # ===================================
   def _fun(self, t, y, rho):
     # Extract mass fractions and temperatures
-    w, T, Te = self._extract_vars(y, rho)
+    w, T, Te = self._get_prim(y, rho)
     # Update mixture
     self.mix.update(rho, w, T, Te)
     # Kinetics
     # -------------
+    # > Operators
     kin_ops = self._compose_kin_ops(T, Te)
-    # > Excitation
+    # > Production terms
     omega_exc = self._compute_kin_omega_exc(kin_ops)
-    # > Ionization
     omega_ion = self._compute_kin_omega_ion(kin_ops)
-    # Compose RHS
+    # Compose RHS - Mass
     # -------------
     f = np.zeros(self.nb_eqs)
     # > Argon nd
@@ -197,22 +185,18 @@ class ArgonCR(object):
     # > Electron nd
     i = self.mix.species["em"].indices
     f[i] = np.sum(omega_ion)
-    # > Convert: [1/(m^3 s)] -> [kg/(m^3 s)]
-    f[:-2] *= self.mix.m
-    # > Temperatures
-    self._omega_temps(kin_ops, T, Te, f, rho)
-    # Return RHS
+    # > Convert: [1/(m^3 s)] -> [1/s]
+    f[:-2] = self.mix.get_w(rho, f[:-2])
+    # Compose RHS - Energy
     # -------------
-    return (1.0/rho) * f
+    self._omega_energies(rho, T, Te, kin_ops, f)
+    return f
 
-  def _extract_vars(self, y, rho):
-    # Unpack mass fractions and temperatures
+  def _get_prim(self, y, rho):
+    # Unpacking
     w, T, pe = y[:-2], y[-2], y[-1]
     # Electron temperature
-    s = self.mix.species["em"]
-    Te = pe / (rho*w[s.indices]*s.R)
-    Te = np.maximum(Te, const.TMIN)
-    print(T, Te)
+    Te = self.mix.get_Te(rho, pe, w)
     return w, T, Te
 
   # Kinetics operators
@@ -241,14 +225,14 @@ class ArgonCR(object):
     k = rates["fwd"] + rates["bwd"]
     k = (k - np.diag(np.sum(k, axis=-1))).T
     if apply_energy:
-      k *= self.de["nn"]
+      k *= self.mix.de["Ar-Ar"]
     return k
 
   def _compose_kin_ops_ion(self, rates, apply_energy=False):
     k = {d: rates[d].T for d in ("fwd", "bwd")}
     if apply_energy:
-      k["fwd"] *= self.de["in"].T
-      k["bwd"] *= self.de["in"]
+      k["fwd"] *= self.mix.de["Arp-Ar"].T
+      k["bwd"] *= self.mix.de["Arp-Ar"]
     return k
 
   # Kinetics production terms
@@ -265,28 +249,24 @@ class ArgonCR(object):
       omega[k] *= nn if (k == "fwd") else (ni * ne)
     return omega["fwd"].T - omega["bwd"]
 
-  # Temperatures
+  # Energies
   # -----------------------------------
-  def _omega_temps(self, kin_ops, T, Te, f, rho):
+  def _omega_energies(self, rho, T, Te, kin_ops, f):
     # Total energy production term
     omega_e = self._omega_energy()
     # Electron energy production term
-    omega_ee = self._omega_energy_e(kin_ops, T, Te)
+    omega_ee = self._omega_energy_e(T, Te, kin_ops)
     # Translational temperature
-    f[-2] = omega_e - (omega_ee + self.mix._e_h(f))
-    f[-2] /= self.mix.cv_h
-    # # Electron temperature
-    # s = self.mix.species["em"]
-    # f[-1] = omega_ee - s.e * f[s.indices]
-    # print(f[-1])
-    # f[-1] /= (s.w * s.cv)
+    f[-2] = omega_e - (omega_ee + rho*self.mix._e_h(f))
+    f[-2] /= (rho * self.mix.cv_h)
     # Electron pressure
-    f[-1] = rho * (self.mix.species["em"].gamma - 1) * omega_ee
+    g = self.mix.species["em"].gamma
+    f[-1] = (g - 1) * omega_ee
 
   def _omega_energy(self):
     return 0.0
 
-  def _omega_energy_e(self, kin_ops, T, Te):
+  def _omega_energy_e(self, T, Te, kin_ops):
     nn, ni, ne = [self.mix.species[k].n for k in ("Ar", "Arp", "em")]
     f = np.sum(kin_ops["EXe_e"] @ nn) \
       - np.sum(kin_ops["Ie_e"]["fwd"] * nn) \
@@ -309,7 +289,8 @@ class ArgonCR(object):
     y0: np.ndarray,
     rho: float
   ) -> np.ndarray:
-    sol = sp.integrate.solve_ivp(
+    self.pre_proc(y0, rho)
+    y = sp.integrate.solve_ivp(
       fun=self._fun,
       t_span=[0.0,t[-1]],
       y0=y0,
@@ -320,30 +301,13 @@ class ArgonCR(object):
       rtol=1e-6,
       atol=1e-20,
       jac=None,
-    )
-    y = sol.y
-    y[-1] = self._pe_to_Te(y, rho)
+    ).y
+    self.post_proc(y, rho)
     return y
 
-  def _pe_to_Te(self, y, rho):
-    s = self.mix.species["em"]
-    Te = y[-1] / (rho*y[s.indices]*s.R)
-    return np.maximum(Te, const.TMIN)
+  def pre_proc(self, y, rho):
+    self.mix.set_temp_limits(T=y[-2:])
+    y[-1] = self.mix.get_pe(rho=rho, Te=y[-1], w=y[:-2])
 
-  # def pre_proc(self, y, rho):
-  #   # Extract variables
-  #   w, e, e_e = self._extract_vars(y)
-  #   # Update composition
-  #   self.mix.update_composition(w, rho)
-  #   # Compute temperatures
-  #   T, Te = self.mix.compute_temp(e, e_e)
-
-
-  # def _extract_vars(self, y):
-  #   # Mass fractions
-  #   w = y[:self.mix.nb_comp]
-  #   # Total and electron energies
-  #   e, e_e = y[self.mix.nb_comp:]
-  #   return w, e, e_e
-
-  # def post_proc()
+  def post_proc(self, y, rho):
+    y[-1] = self.mix.get_Te(rho=rho, pe=y[-1], w=y[:-2])

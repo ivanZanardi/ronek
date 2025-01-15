@@ -18,9 +18,6 @@ class Mixture(object):
     self.species_order = tuple(species_order)
     self.use_factorial = bool(use_factorial)
     self._init_species(species)
-    # Temperature limits
-    self.Tmin = const.TMIN
-    self.Tmax = const.TMAX
 
   def _init_species(
     self,
@@ -38,12 +35,17 @@ class Mixture(object):
       si = ei
     self.nb_comp = ei
 
+  def set_temp_limits(self, T):
+    self.Tmin = np.maximum(np.min(T), const.TMIN)
+    self.Tmax = np.minimum(np.max(T), const.TMAX)
+
   # Build
   # ===================================
   def build(self) -> None:
     for s in self.species.values():
       s.build()
     self._build_mass_matrix()
+    self._build_delta_energies()
 
   def _build_mass_matrix(self) -> None:
     # Build vector of masses
@@ -56,11 +58,22 @@ class Mixture(object):
     self.m_mat = np.diag(self.m)
     self.m_inv_mat = np.diag(self.m_inv)
 
+  def _build_delta_energies(self) -> None:
+    self.de = {}
+    for i in self.species_order:
+      si = self.species[i]
+      ei = si.e_int * si.m
+      for j in self.species_order:
+        sj = self.species[j]
+        ej = sj.e_int * sj.m
+        # Compute energy difference [J]
+        self.de[j+"-"+i] = ej.reshape(1,-1) - ei.reshape(-1,1)
+
   # Update
   # ===================================
   def update(self, rho, w, T, Te=None) -> None:
     # Update composition
-    self.update_composition(w, rho)
+    self.update_composition(rho, w)
     # Update species thermo
     self.update_species_thermo(T, Te)
     # Update mixture thermo
@@ -68,8 +81,8 @@ class Mixture(object):
 
   # Composition
   # -----------------------------------
-  def update_composition(self, w, rho) -> None:
-    n = self.get_n(w, rho)
+  def update_composition(self, rho, w) -> None:
+    n = self.get_n(rho, w)
     x = (1.0/np.sum(n)) * n
     for s in self.species.values():
       s.x = x[s.indices]
@@ -100,23 +113,44 @@ class Mixture(object):
   # ===================================
   def get_w(
     self,
-    n: np.ndarray,
-    rho: float
+    rho: float,
+    n: np.ndarray
   ) -> np.ndarray:
-    return (1.0/rho) * self.m * n
+    return (1.0/rho) * self.m_mat @ n
 
   def get_n(
     self,
-    w: np.ndarray,
-    rho: float
+    rho: float,
+    w: np.ndarray
   ) -> np.ndarray:
-    return rho * self.m_inv * w
+    return rho * self.m_inv_mat @ w
 
   def get_rho(
     self,
     n: np.ndarray
   ) -> float:
     return self.m @ n
+
+  def get_Te(
+    self,
+    rho: float,
+    pe: float,
+    w: np.ndarray
+  ) -> float:
+    s = self.species["em"]
+    we = np.maximum(w[s.indices], const.WMIN)
+    Te = pe / (rho * we * s.R)
+    Te = np.clip(Te, self.Tmin, self.Tmax)
+    return Te
+
+  def get_pe(
+    self,
+    rho: float,
+    Te: float,
+    w: np.ndarray
+  ) -> float:
+    s = self.species["em"]
+    return rho * w[s.indices] * s.R * Te
 
   # Mixture properties
   # ===================================
@@ -143,17 +177,21 @@ class Mixture(object):
     qoi_used: str = "w"
   ):
     if (qoi_used == "w"):
-      self._set_x_s()
+      self._set_xs()
     elif (qoi_used == "x"):
-      self._set_w_s()
+      self._set_ws()
 
-  def _set_x_s(self):
+  def _set_xs(self):
     for s in self.species.values():
       s.x = self.M / s.M * s.w
 
-  def _set_w_s(self):
+  def _set_ws(self):
     for s in self.species.values():
       s.w = s.M / self.M * s.x
+
+  def _get_ys(self, species, y):
+    # Default: Mass fractions
+    return species.w if (y is None) else y[species.indices]
 
   # Constant specific heats
   # -----------------------------------
@@ -162,7 +200,7 @@ class Mixture(object):
     cv_h = np.zeros(1)
     for s in self.species.values():
       if (s.name != "em"):
-        ys = s.w if (y is None) else y[s.indices]
+        ys = self._get_ys(s, y)
         cv_h += np.sum(ys * s.cv)
     return cv_h
 
@@ -172,51 +210,30 @@ class Mixture(object):
     # Total energy [J/kg]
     e = np.zeros(1)
     for s in self.species.values():
-      ys = s.w if (y is None) else y[s.indices]
+      ys = self._get_ys(s, y)
       e += np.sum(ys * s.e)
     return e
+
+  def _e_e(self, y=None):
+    # Electron energy [J/kg]
+    s = self.species["em"]
+    ys = self._get_ys(s, y)
+    return ys * s.e
 
   def _e_h(self, y=None):
     # Heavy particle energy [J/kg]
     e_h = np.zeros(1)
     for s in self.species.values():
       if (s.name != "em"):
-        ys = s.w if (y is None) else y[s.indices]
+        ys = self._get_ys(s, y)
         e_h += np.sum(ys * s.e)
     return e_h
-
-  def _e_e(self, y=None):
-    # Electron energy [J/kg]
-    s = self.species["em"]
-    ys = s.w if (y is None) else y[s.indices]
-    return ys * s.e
 
   def _e_int_h(self, y=None):
     # Heavy particle internal energy [J/kg]
     e_int_h = np.zeros(1)
     for s in self.species.values():
       if (s.name != "em"):
-        ys = s.w if (y is None) else y[s.indices]
-        e_int_h += np.sum(ys * (s.e_int + s.hf))
+        ys = self._get_ys(s, y)
+        e_int_h += np.sum(ys * s.e_int)
     return e_int_h
-
-  # def _hf_h(self, y=None):
-  #   # Heavy particle enthalpy of formation [J/kg]
-  #   hf_h = np.zeros(1)
-  #   for s in self.species.values():
-  #     if (s.name != "em"):
-  #       ys = s.w if (y is None) else y[s.indices]
-  #       hf_h += np.sum(ys) * s.hf
-  #   return hf_h
-
-  # # Temperatures
-  # # -----------------------------------
-  # def compute_temp(self, e, Te):
-  #   # Heavy particle temperature [K]
-  #   T = (e - self._e_e() - self._e_int_h()) / self._cv_h()
-  #   print(T, Te)
-  #   # Clipping
-  #   T = np.clip(T, self.Tmin, self.Tmax)
-  #   Te = np.clip(Te, self.Tmin, self.Tmax)
-  #   print(T, Te)
-  #   return T, Te
