@@ -77,7 +77,7 @@ class Model(object):
 
   # FOM
   # ===================================
-  def fun(self, t, y, rho):
+  def _fun(self, t, y, rho):
     # Extract variables
     w, e, e_e = self._extract_vars(y)
     # Update composition
@@ -195,7 +195,7 @@ class Model(object):
     rho: float
   ) -> np.ndarray:
     sol = sp.integrate.solve_ivp(
-      fun=self.fun,
+      fun=self._fun,
       t_span=[0.0,t[-1]],
       y0=y0,
       method="LSODA",
@@ -203,7 +203,7 @@ class Model(object):
       args=(rho,),
       first_step=1e-14,
       rtol=1e-6,
-      atol=0.0,
+      atol=1e-15,
       jac=None
     )
     return sol.y

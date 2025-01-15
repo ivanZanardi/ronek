@@ -284,7 +284,9 @@ class Mixture(object):
     # Free electron temperature [K]
     s = self.species["em"]
     Te = e_e / (s.w * s.cv)
+    print(T, Te)
     # Clipping
     T = np.maximum(T, const.TMIN)
     Te = np.maximum(Te, const.TMIN)
+    print(T, Te)
     return T, Te

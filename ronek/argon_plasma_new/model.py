@@ -170,9 +170,9 @@ class Model(object):
     f[-2] = omega_e - (omega_ee + self.mix._e_h(f))
     f[-2] /= self.mix.cv_h
     # Electron temperature
-    s = self.mix.species["em"]
-    f[-1] = omega_ee - s.e * f[s.indices]
-    f[-1] /= (s.w * s.cv)
+    # s = self.mix.species["em"]
+    # f[-1] = omega_ee - s.e * f[s.indices]
+    # f[-1] /= (s.w * s.cv)
 
   def _omega_energy(self):
     return 0.0
