@@ -102,12 +102,15 @@ class Mixture(object):
       s.update(Ti)
 
   def update_mixture_thermo(self) -> None:
-    # Constant specific heats
+    # Constant-volume specific heats
+    self.cv_e = self._cv_e()
     self.cv_h = self._cv_h()
+    self.cv = self.cv_e + self.cv_h
     # Energies
-    self.e = self._e()
     self.e_e = self._e_e()
+    self.e_h = self._e_h()
     self.e_int_h = self._e_int_h()
+    self.e = self.e_e + self.e_h
 
   # Conversions
   # ===================================
@@ -193,10 +196,24 @@ class Mixture(object):
     # Default: Mass fractions
     return species.w if (y is None) else y[species.indices]
 
-  # Constant specific heats
+  # Constant-volume specific heats
   # -----------------------------------
+  def _cv(self, y=None):
+    # Total [J/(kg K)]
+    cv = np.zeros(1)
+    for s in self.species.values():
+      ys = self._get_ys(s, y)
+      cv += np.sum(ys * s.cv)
+    return cv
+
+  def _cv_e(self, y=None):
+    # Electron [J/(kg K)]
+    s = self.species["em"]
+    ys = self._get_ys(s, y)
+    return ys * s.cv
+
   def _cv_h(self, y=None):
-    # Heavy particle constant-volume specific heat [J/(kg K)]
+    # Heavy particle [J/(kg K)]
     cv_h = np.zeros(1)
     for s in self.species.values():
       if (s.name != "em"):

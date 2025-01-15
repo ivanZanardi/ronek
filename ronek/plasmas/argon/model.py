@@ -132,8 +132,8 @@ class ArgonCR(object):
       s = self.mix.species["Ar"]
       s.x = (1.0-2.0*x_em) * self._add_norm_noise(s, sigma)
       # Set mass fractions
-      self._M("x")
-      self._set_w_s()
+      self.mix._M("x")
+      self.mix._set_ws()
       # Mass densities
       w = np.concatenate([self.mix.species[k].w for k in self.species_order])
     # Return mass densities
@@ -260,6 +260,7 @@ class ArgonCR(object):
     f[-2] = omega_e - (omega_ee + rho*self.mix._e_h(f))
     f[-2] /= (rho * self.mix.cv_h)
     # Electron pressure
+    # See: Eq. (2.52) - Kapper's PhD thesis, The Ohio State University, 2009
     g = self.mix.species["em"].gamma
     f[-1] = (g - 1) * omega_ee
 
