@@ -44,7 +44,6 @@ class Mixture(object):
     for s in self.species.values():
       s.build()
     self._build_mass_matrix()
-    self._build_delta_energies()
 
   def _build_mass_matrix(self) -> None:
     # Build vector of masses
@@ -56,16 +55,6 @@ class Mixture(object):
     # Build mass matrix
     self.m_mat = np.diag(self.m)
     self.m_inv_mat = np.diag(self.m_inv)
-
-  def _build_delta_energies(self) -> None:
-    en = self.species["Ar"].lev["E"]    # [J]
-    ei = self.species["Arp"].lev["E"]   # [J]
-    self.de = {
-      # Neutral-Neutral
-      "nn": en.reshape(1,-1) - en.reshape(-1,1),
-      # Ion-Neutral
-      "in": ei.reshape(1,-1) - en.reshape(-1,1)
-    }
 
   # Update
   # ===================================
@@ -80,7 +69,6 @@ class Mixture(object):
   # Composition
   # -----------------------------------
   def update_composition(self, w, rho) -> None:
-    w = np.maximum(w, const.WMIN)
     n = self.get_n(w, rho)
     x = (1.0/np.sum(n)) * n
     for s in self.species.values():
@@ -129,87 +117,6 @@ class Mixture(object):
     n: np.ndarray
   ) -> float:
     return self.m @ n
-
-  # Equilibrium composition
-  # ===================================
-  def compute_eq_comp(
-    self,
-    p: float,
-    T: float
-  ) -> np.ndarray:
-    # Solve this system of equations:
-    # -------------
-    # 1) Charge neutrality:
-    #    x_em = x_Arp
-    # 2) Mole conservation:
-    #    x_em + x_Arp + x_Ar = 1
-    # 3) Detailed balance:
-    #    (n_Arp*n_em)/n_Ar = (Q_Arp*Q_em)/Q_Ar
-    # -------------
-    # Update thermo
-    self.update_species_thermo(T)
-    # Compute number density
-    n = p / (const.UKB*T)
-    # Compute coefficient for quadratic system
-    f = self.species["Arp"].Q * self.species["em"].Q
-    f /= (self.species["Ar"].Q * n)
-    # Solve quadratic system for 'x_em'
-    a = 1.0
-    b = 2.0 * f
-    c = -f
-    x = (-b+np.sqrt(b**2-4*a*c))/(2*a)
-    # Set molar fractions
-    s = self.species["em"]
-    s.x = x
-    s = self.species["Arp"]
-    s.x = x * s.q / s.Q
-    s = self.species["Ar"]
-    s.x = (1.0-2.0*x) * s.q / s.Q
-    # Number densities
-    n = n * np.concatenate([self.species[k].x for k in self.species_order])
-    # Mass fractions and density
-    rho = self.get_rho(n)
-    w = self.get_w(n, rho)
-    w = np.maximum(w, const.WMIN)
-    return w, rho
-
-  # Initial composition
-  # ===================================
-  def get_init_composition(
-    self,
-    p: float,
-    T: float,
-    noise: bool = False,
-    sigma: float = 1e-2
-  ) -> np.ndarray:
-    # Compute equilibrium mass fractions
-    w, rho = self.compute_eq_comp(p, T)
-    # Add random noise
-    if noise:
-      # > Electron
-      s = self.species["em"]
-      x_em = np.clip(s.x * self._add_norm_noise(s, sigma, use_q=False), 0, 1)
-      s.x = x_em
-      # > Argon Ion
-      s = self.species["Arp"]
-      s.x = x_em * self._add_norm_noise(s, sigma)
-      # > Argon
-      s = self.species["Ar"]
-      s.x = (1.0-2.0*x_em) * self._add_norm_noise(s, sigma)
-      # Set mass fractions
-      self._M("x")
-      self._set_w_s()
-      # Mass densities
-      w = np.concatenate([self.species[k].w for k in self.species_order])
-    # Return mass densities
-    return w, rho
-
-  def _add_norm_noise(self, species, sigma, use_q=True):
-    f = 1.0 + sigma * np.random.rand(species.nb_comp)
-    if use_q:
-      f *= species.q * f
-      f /= np.sum(f)
-    return f
 
   # Mixture properties
   # ===================================

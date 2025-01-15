@@ -3,9 +3,9 @@ import numpy as np
 import scipy as sp
 import dill as pickle
 
-from .. import const
-from .. import utils
-from . import chem_eq
+from ... import const
+from ... import utils
+from .. import chem_eq
 
 
 class Kinetics(object):
@@ -62,6 +62,10 @@ class Kinetics(object):
       self.rates["EI"] = self._compute_ei_rate(T, Te, ve)
     # Squeeze tensors
     self.rates = utils.map_nested_dict(self.rates, np.squeeze)
+
+  def _compute_ve(self, Te):
+    """Electron mean thermal velocity"""
+    return np.sqrt((8.0*const.UKB*Te)/(np.pi*const.UME))
 
   # Forward and backward rates
   # -----------------------------------
@@ -226,7 +230,3 @@ class Kinetics(object):
     """Debye shielding distance"""
     f = (const.UEPS0*const.UKB)/(const.UE*const.UE)
     return np.sqrt(f/(ne/Te + ni/T))
-
-  def _compute_ve(self, Te):
-    """Electron mean thermal velocity"""
-    return np.sqrt((8.0*const.UKB*Te)/(np.pi*const.UME))

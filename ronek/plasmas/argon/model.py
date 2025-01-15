@@ -1,13 +1,13 @@
 import numpy as np
 import scipy as sp
 
-from .. import const
-from .mixture import Mixture
+from ... import const
+from ..mixture import Mixture
 from .kinetics import Kinetics
 from typing import Dict, Optional
 
 
-class Model(object):
+class ArgonCR(object):
 
   # Initialization
   # ===================================
@@ -30,7 +30,6 @@ class Model(object):
       species_order=("Ar", "Arp", "em"),
       use_factorial=use_factorial
     )
-    self.mix.build()
     self.nb_eqs = self.mix.nb_comp + 2
     # Kinetics
     self.kin = Kinetics(
@@ -62,6 +61,103 @@ class Model(object):
         f"when using 'einsum': '{identifier}'."
       )
 
+  # Build
+  # ===================================
+  def build(self) -> None:
+    self.mix.build()
+    self._build_delta_energies()
+
+  def _build_delta_energies(self) -> None:
+    en = self.species["Ar"].lev["E"]    # [J]
+    ei = self.species["Arp"].lev["E"]   # [J]
+    self.de = {
+      # Neutral-Neutral
+      "nn": en.reshape(1,-1) - en.reshape(-1,1),
+      # Ion-Neutral
+      "in": ei.reshape(1,-1) - en.reshape(-1,1)
+    }
+
+  # Equilibrium composition
+  # ===================================
+  def compute_eq_comp(
+    self,
+    p: float,
+    T: float
+  ) -> np.ndarray:
+    # Solve this system of equations:
+    # -------------
+    # 1) Charge neutrality:
+    #    x_em = x_Arp
+    # 2) Mole conservation:
+    #    x_em + x_Arp + x_Ar = 1
+    # 3) Detailed balance:
+    #    (n_Arp*n_em)/n_Ar = (Q_Arp*Q_em)/Q_Ar
+    # -------------
+    # Update thermo
+    self.update_species_thermo(T)
+    # Compute number density
+    n = p / (const.UKB*T)
+    # Compute coefficient for quadratic system
+    f = self.species["Arp"].Q * self.species["em"].Q
+    f /= (self.species["Ar"].Q * n)
+    # Solve quadratic system for 'x_em'
+    a = 1.0
+    b = 2.0 * f
+    c = -f
+    x = (-b+np.sqrt(b**2-4*a*c))/(2*a)
+    # Set molar fractions
+    s = self.species["em"]
+    s.x = x
+    s = self.species["Arp"]
+    s.x = x * s.q / s.Q
+    s = self.species["Ar"]
+    s.x = (1.0-2.0*x) * s.q / s.Q
+    # Number densities
+    n = n * np.concatenate([self.species[k].x for k in self.species_order])
+    # Mass fractions and density
+    rho = self.get_rho(n)
+    w = self.get_w(n, rho)
+    # w = np.maximum(w, const.WMIN)
+    return w, rho
+
+  # Initial composition
+  # ===================================
+  def get_init_composition(
+    self,
+    p: float,
+    T: float,
+    noise: bool = False,
+    sigma: float = 1e-2
+  ) -> np.ndarray:
+    # Compute equilibrium mass fractions
+    w, rho = self.compute_eq_comp(p, T)
+    # Add random noise
+    if noise:
+      # > Electron
+      s = self.species["em"]
+      x_em = np.clip(s.x * self._add_norm_noise(s, sigma, use_q=False), 0, 1)
+      s.x = x_em
+      # > Argon Ion
+      s = self.species["Arp"]
+      s.x = x_em * self._add_norm_noise(s, sigma)
+      # > Argon
+      s = self.species["Ar"]
+      s.x = (1.0-2.0*x_em) * self._add_norm_noise(s, sigma)
+      # Set mass fractions
+      self._M("x")
+      self._set_w_s()
+      # Mass densities
+      w = np.concatenate([self.species[k].w for k in self.species_order])
+    # Return mass densities
+    return w, rho
+
+  def _add_norm_noise(self, species, sigma, use_q=True):
+    f = 1.0 + sigma * np.random.rand(species.nb_comp)
+    if use_q:
+      f *= species.q * f
+      f /= np.sum(f)
+    return f
+
   # ROM
   # ===================================
   def set_basis(
@@ -78,8 +174,8 @@ class Model(object):
   # FOM
   # ===================================
   def _fun(self, t, y, rho):
-    # Unpack mass fractions and temperatures
-    w, T, Te = y[:-2], y[-2], y[-1]
+    # Extract mass fractions and temperatures
+    w, T, Te = self._extract_vars(y, rho)
     # Update mixture
     self.mix.update(rho, w, T, Te)
     # Kinetics
@@ -104,10 +200,20 @@ class Model(object):
     # > Convert: [1/(m^3 s)] -> [kg/(m^3 s)]
     f[:-2] *= self.mix.m
     # > Temperatures
-    self._omega_temps(kin_ops, T, Te, f)
+    self._omega_temps(kin_ops, T, Te, f, rho)
     # Return RHS
     # -------------
     return (1.0/rho) * f
+
+  def _extract_vars(self, y, rho):
+    # Unpack mass fractions and temperatures
+    w, T, pe = y[:-2], y[-2], y[-1]
+    # Electron temperature
+    s = self.mix.species["em"]
+    Te = pe / (rho*w[s.indices]*s.R)
+    Te = np.maximum(Te, const.TMIN)
+    print(T, Te)
+    return w, T, Te
 
   # Kinetics operators
   # -----------------------------------
@@ -135,14 +241,14 @@ class Model(object):
     k = rates["fwd"] + rates["bwd"]
     k = (k - np.diag(np.sum(k, axis=-1))).T
     if apply_energy:
-      k *= self.mix.de["nn"]
+      k *= self.de["nn"]
     return k
 
   def _compose_kin_ops_ion(self, rates, apply_energy=False):
     k = {d: rates[d].T for d in ("fwd", "bwd")}
     if apply_energy:
-      k["fwd"] *= self.mix.de["in"].T
-      k["bwd"] *= self.mix.de["in"]
+      k["fwd"] *= self.de["in"].T
+      k["bwd"] *= self.de["in"]
     return k
 
   # Kinetics production terms
@@ -161,7 +267,7 @@ class Model(object):
 
   # Temperatures
   # -----------------------------------
-  def _omega_temps(self, kin_ops, T, Te, f):
+  def _omega_temps(self, kin_ops, T, Te, f, rho):
     # Total energy production term
     omega_e = self._omega_energy()
     # Electron energy production term
@@ -169,10 +275,13 @@ class Model(object):
     # Translational temperature
     f[-2] = omega_e - (omega_ee + self.mix._e_h(f))
     f[-2] /= self.mix.cv_h
-    # Electron temperature
+    # # Electron temperature
     # s = self.mix.species["em"]
     # f[-1] = omega_ee - s.e * f[s.indices]
+    # print(f[-1])
     # f[-1] /= (s.w * s.cv)
+    # Electron pressure
+    f[-1] = rho * (self.mix.species["em"].gamma - 1) * omega_ee
 
   def _omega_energy(self):
     return 0.0
@@ -209,10 +318,17 @@ class Model(object):
       args=(rho,),
       first_step=1e-14,
       rtol=1e-6,
-      atol=0.0,
+      atol=1e-20,
       jac=None,
     )
-    return sol.y
+    y = sol.y
+    y[-1] = self._pe_to_Te(y, rho)
+    return y
+
+  def _pe_to_Te(self, y, rho):
+    s = self.mix.species["em"]
+    Te = y[-1] / (rho*y[s.indices]*s.R)
+    return np.maximum(Te, const.TMIN)
 
   # def pre_proc(self, y, rho):
   #   # Extract variables
