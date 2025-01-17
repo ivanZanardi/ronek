@@ -16,6 +16,7 @@ class ArgonCR(object):
     species: Dict[str, str],
     kin_dtb: str,
     rad_dtb: Optional[str] = None,
+    use_pe: bool = False,
     use_rad: bool = False,
     use_proj: bool = False,
     use_einsum: bool = False,
@@ -24,6 +25,8 @@ class ArgonCR(object):
   ) -> None:
     # Thermochemistry database
     # -------------
+    # Use electron pressure
+    self.use_pe = use_pe
     # Mixture
     self.species_order = ("Ar", "Arp", "em")
     self.mix = Mixture(
@@ -193,10 +196,11 @@ class ArgonCR(object):
     return f
 
   def _get_prim(self, y, rho):
-    # Unpacking
-    w, T, pe = y[:-2], y[-2], y[-1]
-    # Electron temperature
-    Te = self.mix.get_Te(rho, pe, w)
+    if self.use_pe:
+      w, T, pe = y[:-2], y[-2], y[-1]
+      Te = self.mix.get_Te(rho, pe, w)
+    else:
+      w, T, Te = y[:-2], y[-2], y[-1]
     return w, T, Te
 
   # Kinetics operators
@@ -259,10 +263,16 @@ class ArgonCR(object):
     # Translational temperature
     f[-2] = omega_e - (omega_ee + rho*self.mix._e_h(f))
     f[-2] /= (rho * self.mix.cv_h)
-    # Electron pressure
-    # See: Eq. (2.52) - Kapper's PhD thesis, The Ohio State University, 2009
-    g = self.mix.species["em"].gamma
-    f[-1] = (g - 1) * omega_ee
+    # Electron pressure/temperature
+    s = self.mix.species["em"]
+    if self.use_pe:
+      # > Pressure
+      # See: Eq. (2.52) - Kapper's PhD thesis, The Ohio State University, 2009
+      f[-1] = (s.gamma - 1) * omega_ee
+    else:
+      # > Temperature
+      f[-1] = omega_ee - s.e * rho * f[s.indices]
+      f[-1] /= ((s.w + 1e-8) * rho * s.cv)
 
   def _omega_energy(self):
     return 0.0
@@ -308,7 +318,9 @@ class ArgonCR(object):
 
   def pre_proc(self, y, rho):
     self.mix.set_temp_limits(T=y[-2:])
-    y[-1] = self.mix.get_pe(rho=rho, Te=y[-1], w=y[:-2])
+    if self.use_pe:
+      y[-1] = self.mix.get_pe(rho=rho, Te=y[-1], w=y[:-2])
 
   def post_proc(self, y, rho):
-    y[-1] = self.mix.get_Te(rho=rho, pe=y[-1], w=y[:-2])
+    if self.use_pe:
+      y[-1] = self.mix.get_Te(rho=rho, pe=y[-1], w=y[:-2])
