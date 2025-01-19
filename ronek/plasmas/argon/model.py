@@ -287,7 +287,7 @@ class ArgonCR(object):
     f = np.sum(kin_ops["EXe_e"] @ nn) \
       - np.sum(kin_ops["Ie_e"]["fwd"] * nn) \
       + np.sum(kin_ops["Ie_e"]["bwd"] * ni * ne) \
-      # + 1.5 * const.UKB * (T-Te) * self._get_nu_eh()
+      + 1.5 * const.UKB * (T-Te) * self._get_nu_eh()
     return f * ne
 
   def _get_nu_eh(self):
@@ -305,7 +305,7 @@ class ArgonCR(object):
     y0: np.ndarray,
     rho: float
   ) -> np.ndarray:
-    self.get_pe(y0, rho)
+    self.pre_proc(y0, rho)
     y = sp.integrate.solve_ivp(
       fun=self._fun,
       t_span=[0.0,t[-1]],
@@ -318,13 +318,13 @@ class ArgonCR(object):
       atol=0.0,
       jac=None,
     ).y
-    self.get_Te(y, rho)
+    self.post_proc(y, rho)
     return y
 
-  def get_pe(self, y, rho):
+  def pre_proc(self, y, rho):
     if self.use_pe:
       y[-1] = self.mix.get_pe(rho=rho, Te=y[-1], w=y[:-2])
 
-  def get_Te(self, y, rho):
+  def post_proc(self, y, rho):
     if self.use_pe:
       y[-1] = self.mix.get_Te(rho=rho, pe=y[-1], w=y[:-2])
