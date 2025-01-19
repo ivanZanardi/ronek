@@ -16,7 +16,7 @@ class ArgonCR(object):
     species: Dict[str, str],
     kin_dtb: str,
     rad_dtb: Optional[str] = None,
-    use_pe: bool = False,
+    use_pe: bool = True,
     use_rad: bool = False,
     use_proj: bool = False,
     use_einsum: bool = False,
@@ -25,7 +25,7 @@ class ArgonCR(object):
   ) -> None:
     # Thermochemistry database
     # -------------
-    # Use electron pressure
+    # Solve for electron pressure
     self.use_pe = use_pe
     # Mixture
     self.species_order = ("Ar", "Arp", "em")
@@ -97,6 +97,7 @@ class ArgonCR(object):
     b = 2.0 * f
     c = -f
     x = (-b+np.sqrt(b**2-4*a*c))/(2*a)
+    x = np.clip(x, const.XMIN, 1.0)
     # Set molar fractions
     s = self.mix.species["em"]
     s.x = x
@@ -201,7 +202,11 @@ class ArgonCR(object):
       Te = self.mix.get_Te(rho, pe, w)
     else:
       w, T, Te = y[:-2], y[-2], y[-1]
+    T, Te = [self._clip_temp(z) for z in (T, Te)]
     return w, T, Te
+
+  def _clip_temp(self, T):
+    return np.clip(T, const.TMIN, const.TMAX)
 
   # Kinetics operators
   # -----------------------------------
@@ -229,14 +234,14 @@ class ArgonCR(object):
     k = rates["fwd"] + rates["bwd"]
     k = (k - np.diag(np.sum(k, axis=-1))).T
     if apply_energy:
-      k *= self.mix.de["Ar-Ar"]
+      k = k * self.mix.de["Ar-Ar"]
     return k
 
   def _compose_kin_ops_ion(self, rates, apply_energy=False):
     k = {d: rates[d].T for d in ("fwd", "bwd")}
     if apply_energy:
-      k["fwd"] *= self.mix.de["Arp-Ar"].T
-      k["bwd"] *= self.mix.de["Arp-Ar"]
+      k["fwd"] = k["fwd"] * self.mix.de["Arp-Ar"].T
+      k["bwd"] = k["bwd"] * self.mix.de["Arp-Ar"]
     return k
 
   # Kinetics production terms
@@ -268,11 +273,11 @@ class ArgonCR(object):
     if self.use_pe:
       # > Pressure
       # See: Eq. (2.52) - Kapper's PhD thesis, The Ohio State University, 2009
-      f[-1] = (s.gamma - 1) * omega_ee
+      f[-1] = (s.gamma - 1.0) * omega_ee
     else:
       # > Temperature
       f[-1] = omega_ee - s.e * rho * f[s.indices]
-      f[-1] /= ((s.w + 1e-8) * rho * s.cv)
+      f[-1] /= (s.w * rho * s.cv)
 
   def _omega_energy(self):
     return 0.0
@@ -282,7 +287,7 @@ class ArgonCR(object):
     f = np.sum(kin_ops["EXe_e"] @ nn) \
       - np.sum(kin_ops["Ie_e"]["fwd"] * nn) \
       + np.sum(kin_ops["Ie_e"]["bwd"] * ni * ne) \
-      + 1.5 * const.UKB * (T-Te) * self._get_nu_eh()
+      # + 1.5 * const.UKB * (T-Te) * self._get_nu_eh()
     return f * ne
 
   def _get_nu_eh(self):
@@ -300,7 +305,7 @@ class ArgonCR(object):
     y0: np.ndarray,
     rho: float
   ) -> np.ndarray:
-    self.pre_proc(y0, rho)
+    self.get_pe(y0, rho)
     y = sp.integrate.solve_ivp(
       fun=self._fun,
       t_span=[0.0,t[-1]],
@@ -309,18 +314,17 @@ class ArgonCR(object):
       t_eval=t,
       args=(rho,),
       first_step=1e-14,
-      rtol=1e-6,
-      atol=1e-20,
+      rtol=1e-8,
+      atol=0.0,
       jac=None,
     ).y
-    self.post_proc(y, rho)
+    self.get_Te(y, rho)
     return y
 
-  def pre_proc(self, y, rho):
-    self.mix.set_temp_limits(T=y[-2:])
+  def get_pe(self, y, rho):
     if self.use_pe:
       y[-1] = self.mix.get_pe(rho=rho, Te=y[-1], w=y[:-2])
 
-  def post_proc(self, y, rho):
+  def get_Te(self, y, rho):
     if self.use_pe:
       y[-1] = self.mix.get_Te(rho=rho, pe=y[-1], w=y[:-2])

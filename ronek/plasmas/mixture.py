@@ -1,6 +1,5 @@
 import numpy as np
 
-from .. import const
 from .species import Species
 from typing import Dict, Union
 
@@ -34,10 +33,6 @@ class Mixture(object):
       self.species[k].indices = np.arange(si, ei)
       si = ei
     self.nb_comp = ei
-
-  def set_temp_limits(self, T):
-    self.Tmin = np.maximum(np.min(T), const.TMIN)
-    self.Tmax = np.minimum(np.max(T), const.TMAX)
 
   # Build
   # ===================================
@@ -141,10 +136,7 @@ class Mixture(object):
     w: np.ndarray
   ) -> float:
     s = self.species["em"]
-    we = np.maximum(w[s.indices], const.WMIN)
-    Te = pe / (rho * we * s.R)
-    Te = np.clip(Te, self.Tmin, self.Tmax)
-    return Te
+    return pe / (rho * w[s.indices] * s.R)
 
   def get_pe(
     self,
