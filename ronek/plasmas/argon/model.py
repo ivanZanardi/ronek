@@ -51,6 +51,7 @@ class ArgonCR(object):
     # -------------
     # Solving
     self.fun = None
+    self._jac = torch.func.jacrev(self._fun, argnums=1)
     self.jac = None
     # ROM
     # -------------
@@ -158,21 +159,21 @@ class ArgonCR(object):
     omega_ion = self._compute_kin_omega_ion(kin_ops)
     # Compose RHS - Mass
     # -------------
-    f = torch.zeros(self.nb_eqs)
     # > Argon nd
-    i = self.mix.species["Ar"].indices
-    f[i] = omega_exc - torch.sum(omega_ion, dim=1)
+    f_nn = omega_exc - torch.sum(omega_ion, dim=1)
     # > Argon ion nd
-    i = self.mix.species["Arp"].indices
-    f[i] = torch.sum(omega_ion, dim=0)
+    f_ni = torch.sum(omega_ion, dim=0)
     # > Electron nd
-    i = self.mix.species["em"].indices
-    f[i] = torch.sum(omega_ion)
+    f_ne = torch.sum(omega_ion).reshape(1)
+    # > Concatenate
+    f = torch.cat([f_nn, f_ni, f_ne])
     # > Convert: [1/(m^3 s)] -> [1/s]
-    f[:-2] = self.mix.get_w(rho, f[:-2])
+    f = self.mix.get_w(rho, f)
     # Compose RHS - Energy
     # -------------
-    self._omega_energies(rho, T, Te, kin_ops, f)
+    f_e, f_ee = self._omega_energies(rho, T, Te, kin_ops, f)
+    # > Concatenate
+    f = torch.cat([f, f_e, f_ee])
     return f
 
   def _get_prim(self, y, rho):
@@ -245,18 +246,21 @@ class ArgonCR(object):
     # Electron energy production term
     omega_ee = self._omega_energy_e(T, Te, kin_ops)
     # Translational temperature
-    f[-2] = omega_e - (omega_ee + rho*self.mix._e_h(f))
-    f[-2] = f[-2] / (rho * self.mix.cv_h)
+    f_e = omega_e - (omega_ee + rho*self.mix._e_h(f))
+    f_e = f_e / (rho * self.mix.cv_h)
+    f_e = f_e.reshape(1)
     # Electron pressure/temperature
     s = self.mix.species["em"]
     if self.use_pe:
       # > Pressure
       # See: Eq. (2.52) - Kapper's PhD thesis, The Ohio State University, 2009
-      f[-1] = (s.gamma - 1.0) * omega_ee
+      f_ee = (s.gamma - 1.0) * omega_ee
     else:
       # > Temperature
-      f[-1] = omega_ee - s.e * rho * f[s.indices]
-      f[-1] = f[-1] / (s.w * rho * s.cv)
+      f_ee = omega_ee - s.e * rho * f[s.indices]
+      f_ee = f_ee / (s.w * rho * s.cv)
+    f_ee = f_ee.reshape(1)
+    return f_e, f_ee
 
   def _omega_energy(self):
     return 0.0

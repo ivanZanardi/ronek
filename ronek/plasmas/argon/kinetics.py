@@ -1,5 +1,6 @@
 import copy
 import torch
+import numpy as np
 import dill as pickle
 
 from .. import chem_eq
@@ -114,8 +115,8 @@ class Kinetics(object):
         i += 1
     # Transpose backward rates
     shifts = -reaction["param"]["nb_reactants"]
-    dims = torch.arange(nb_species)
-    dims = torch.roll(dims, shifts=shifts).tolist()
+    dims = np.arange(nb_species)
+    dims = np.roll(dims, shift=shifts).tolist()
     return torch.permute(kb, dims=dims)
 
   # Collisional processes - Zeroth order moment

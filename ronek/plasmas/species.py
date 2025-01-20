@@ -113,7 +113,7 @@ class Species(object):
   # Partition functions
   # ===================================
   def _Q(self):
-    return torch.sum(self.q, dim=None, keepdim=True)
+    return torch.sum(self.q).reshape(1)
 
   def _q(self, T):
     return self._q_zero() * self._q_tr(T) * self._q_int()
