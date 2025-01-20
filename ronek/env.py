@@ -6,7 +6,7 @@ def set(
   device="cpu",
   device_idx=1,
   nb_threads=4,
-  epsilon=1e-10,
+  epsilon=None,
   floatx="float64"
 ):
   nb_threads = int(nb_threads)

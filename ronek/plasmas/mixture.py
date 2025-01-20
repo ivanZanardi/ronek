@@ -1,5 +1,6 @@
 import torch
 
+from .. import const
 from .species import Species
 
 
@@ -16,6 +17,8 @@ class Mixture(object):
     self.species_order = tuple(species_order)
     self.use_factorial = bool(use_factorial)
     self._init_species(species)
+    # Mixture density
+    self.rho = 1.0
 
   def _init_species(self, species):
     # Initialize species
@@ -62,9 +65,9 @@ class Mixture(object):
 
   # Update
   # ===================================
-  def update(self, rho, w, T, Te=None):
+  def update(self, n, T, Te=None):
     # Update composition
-    self.update_composition(rho, w)
+    self.update_composition(n)
     # Update species thermo
     self.update_species_thermo(T, Te)
     # Update mixture thermo
@@ -72,14 +75,14 @@ class Mixture(object):
 
   # Composition
   # -----------------------------------
-  def update_composition(self, rho, w):
-    n = self.get_n(rho, w)
-    x = (1.0/torch.sum(n)) * n
+  def update_composition(self, n):
+    x = n / torch.sum(n)
+    w = self.get_w(n)
     for s in self.species.values():
       s.x = x[s.indices]
       s.n = n[s.indices]
       s.w = w[s.indices]
-      s.rho = rho * s.w
+      s.rho = self.rho * s.w
     self._M()
     self._R()
 
@@ -105,25 +108,27 @@ class Mixture(object):
 
   # Conversions
   # ===================================
-  def get_w(self, rho, n):
-    return (1.0/rho) * self.m_mat @ n
-
-  def get_n(self, rho, w):
-    return rho * self.m_inv_mat @ w
+  def get_n(self, w):
+    return self.rho * self.m_inv_mat @ w
 
   def get_rho(self, n):
-    return self.m @ n
+    return self.m_mat @ n
 
-  def get_Te(self, rho, pe, w):
-    s = self.species["em"]
-    return pe / (rho * w[s.indices] * s.R)
+  def get_w(self, n):
+    return self.ov_rho * self.get_rho(n)
 
-  def get_pe(self, rho, Te, w):
-    s = self.species["em"]
-    return rho * w[s.indices] * s.R * Te
+  def get_Te(self, pe, ne):
+    return pe / (ne * const.UKB)
+
+  def get_pe(self, Te, ne):
+    return ne * const.UKB * Te
 
   # Mixture properties
   # ===================================
+  def _rho(self, n):
+    self.rho = self.m @ n
+    self.ov_rho = 1.0/self.rho
+
   def _M(self, qoi_used="w"):
     self.M = torch.zeros(1)
     if (qoi_used == "w"):

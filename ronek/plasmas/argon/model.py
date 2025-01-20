@@ -3,6 +3,7 @@ import numpy as np
 import scipy as sp
 
 from ... import const
+from ... import backend as bkd
 from ..mixture import Mixture
 from .kinetics import Kinetics
 
@@ -16,7 +17,6 @@ class ArgonCR(object):
     species,
     kin_dtb,
     rad_dtb=None,
-    use_pe=True,
     use_rad=False,
     use_proj=False,
     use_factorial=False,
@@ -24,8 +24,6 @@ class ArgonCR(object):
   ):
     # Thermochemistry database
     # -------------
-    # Solve for electron pressure
-    self.use_pe = bool(use_pe)
     # Mixture
     self.species_order = ("Ar", "Arp", "em")
     self.mix = Mixture(
@@ -49,10 +47,8 @@ class ArgonCR(object):
     self.nb_eqs = self.nb_comp + self.nb_temp
     # FOM
     # -------------
-    # Solving
-    self.fun = None
-    self._jac = torch.func.jacrev(self._fun, argnums=1)
-    self.jac = None
+    # Jacobian
+    self._jac = torch.func.jacrev(self._fun)
     # ROM
     # -------------
     # Bases
@@ -96,16 +92,15 @@ class ArgonCR(object):
     s.x = (1.0-2.0*x) * s.q / s.Q
     # Number densities
     n = n * torch.cat([self.mix.species[k].x for k in self.species_order])
-    # Mass fractions and density
+    # Density
     rho = self.mix.get_rho(n)
-    w = self.mix.get_w(rho, n)
-    return w, rho
+    return n, rho
 
   # Initial composition
   # ===================================
   def get_init_composition(self, p, T, noise=False, sigma=1e-2):
     # Compute equilibrium mass fractions
-    w, rho = self.compute_eq_comp(p, T)
+    n, rho = self.compute_eq_comp(p, T)
     # Add random noise
     if noise:
       # > Electron
@@ -119,13 +114,10 @@ class ArgonCR(object):
       # > Argon
       s = self.mix.species["Ar"]
       s.x = (1.0-2.0*x) * self._add_norm_noise(s, sigma)
-      # Set mass fractions
-      self.mix._M("x")
-      self.mix._set_ws()
-      # Mass densities
-      w = torch.cat([self.mix.species[k].w for k in self.species_order])
-    # Return mass densities
-    return w, rho
+      # Number densities
+      n = torch.sum(n)
+      n = n * torch.cat([self.mix.species[k].x for k in self.species_order])
+    return n, rho
 
   def _add_norm_noise(self, species, sigma, use_q=True):
     f = 1.0 + sigma * torch.rand(species.nb_comp)
@@ -145,11 +137,27 @@ class ArgonCR(object):
 
   # FOM
   # ===================================
-  def _fun(self, t, y, rho):
-    # Extract mass fractions and temperatures
-    w, T, Te = self._get_prim(y, rho)
+  def fun(self, t, y):
+    f = self._fun(bkd.to_torch(y))
+    return bkd.to_numpy(f)
+
+  def jac(self, t, y):
+    j = self._jac(bkd.to_torch(y))
+    if (j.isnan().any() or j.isinf().any()):
+      # Finite difference Jacobian
+      return sp.optimize.approx_fprime(
+        xk=y,
+        f=lambda y: self.fun(0.0, y),
+        epsilon=bkd.epsilon()
+      )
+    else:
+      return bkd.to_numpy(j)
+
+  def _fun(self, y):
+    # Extract number densities and temperatures
+    n, T, Te = self._get_prim(y)
     # Update mixture
-    self.mix.update(rho, w, T, Te)
+    self.mix.update(n, T, Te)
     # Kinetics
     # -------------
     # > Operators
@@ -157,7 +165,7 @@ class ArgonCR(object):
     # > Production terms
     omega_exc = self._compute_kin_omega_exc(kin_ops)
     omega_ion = self._compute_kin_omega_ion(kin_ops)
-    # Compose RHS - Mass
+    # Compose RHS - Number densities
     # -------------
     # > Argon nd
     f_nn = omega_exc - torch.sum(omega_ion, dim=1)
@@ -166,24 +174,27 @@ class ArgonCR(object):
     # > Electron nd
     f_ne = torch.sum(omega_ion).reshape(1)
     # > Concatenate
-    f = torch.cat([f_nn, f_ni, f_ne])
-    # > Convert: [1/(m^3 s)] -> [1/s]
-    f = self.mix.get_w(rho, f)
-    # Compose RHS - Energy
+    f_n = torch.cat([f_nn, f_ni, f_ne])
+    # Compose RHS - Energies
     # -------------
-    f_e, f_ee = self._omega_energies(rho, T, Te, kin_ops, f)
+    f_e, f_ee = self._omega_energies(T, Te, kin_ops, f_n)
     # > Concatenate
-    f = torch.cat([f, f_e, f_ee])
+    f = torch.cat([f_n/const.UNA, f_e, f_ee])
     return f
 
-  def _get_prim(self, y, rho):
-    if self.use_pe:
-      w, T, pe = y[:-2], y[-2], y[-1]
-      Te = self.mix.get_Te(rho, pe, w)
-    else:
-      w, T, Te = y[:-2], y[-2], y[-1]
+  def _get_prim(self, y):
+    # Unpacking:
+    # - c  [mol/m^3] : Molar concentrations
+    # - T  [K]       : Translational temperature
+    # - pe [Pa]      : Electron pressure
+    c, T, pe = y[:-2], y[-2], y[-1]
+    # Get number densities
+    n = c * const.UNA
+    # Get electron temperature
+    Te = self.mix.get_Te(pe, ne=n[-1])
+    # Clip temperatures
     T, Te = [self._clip_temp(z) for z in (T, Te)]
-    return w, T, Te
+    return n, T, Te
 
   def _clip_temp(self, T):
     return torch.clip(T, const.TMIN, const.TMAX)
@@ -240,25 +251,20 @@ class ArgonCR(object):
 
   # Energies
   # -----------------------------------
-  def _omega_energies(self, rho, T, Te, kin_ops, f):
+  def _omega_energies(self, T, Te, kin_ops, f_n):
+    # Convert mass source term: [1/(m^3 s)] -> [kg/(m^3 s)]
+    f_rho = self.mix.get_rho(f_n)
     # Total energy production term
     omega_e = self._omega_energy()
     # Electron energy production term
     omega_ee = self._omega_energy_e(T, Te, kin_ops)
     # Translational temperature
-    f_e = omega_e - (omega_ee + rho*self.mix._e_h(f))
-    f_e = f_e / (rho * self.mix.cv_h)
+    f_e = omega_e - (omega_ee + self.mix._e_h(f_rho))
+    f_e = f_e / (self.mix.rho * self.mix.cv_h)
     f_e = f_e.reshape(1)
-    # Electron pressure/temperature
-    s = self.mix.species["em"]
-    if self.use_pe:
-      # > Pressure
-      # See: Eq. (2.52) - Kapper's PhD thesis, The Ohio State University, 2009
-      f_ee = (s.gamma - 1.0) * omega_ee
-    else:
-      # > Temperature
-      f_ee = omega_ee - s.e * rho * f[s.indices]
-      f_ee = f_ee / (s.w * rho * s.cv)
+    # Electron pressure
+    gamma = self.mix.species["em"].gamma
+    f_ee = (gamma - 1.0) * omega_ee
     f_ee = f_ee.reshape(1)
     return f_e, f_ee
 
@@ -285,29 +291,35 @@ class ArgonCR(object):
   def solve(
     self,
     t: np.ndarray,
-    y0: np.ndarray,
-    rho: float
+    y0: np.ndarray
   ) -> np.ndarray:
-    self.pre_proc(y0, rho)
+    self.pre_proc(y0)
     y = sp.integrate.solve_ivp(
-      fun=self._fun,
+      fun=self.fun,
       t_span=[0.0,t[-1]],
       y0=y0,
-      method="LSODA",
+      method="BDF",
       t_eval=t,
-      args=(rho,),
       first_step=1e-14,
       rtol=1e-8,
       atol=0.0,
-      jac=None,
+      jac=self.jac
     ).y
-    self.post_proc(y, rho)
+    self.post_proc(y)
     return y
 
-  def pre_proc(self, y, rho):
-    if self.use_pe:
-      y[-1] = self.mix.get_pe(rho=rho, Te=y[-1], w=y[:-2])
+  def pre_proc(self, y):
+    # Unpacking
+    n, T, Te = y[:-2], y[-2], y[-1]
+    # Mixture density
+    self.mix._rho(bkd.to_torch(n))
+    # Electron pressure
+    y[-1] = self.mix.get_pe(Te=Te, ne=n[-1])
+    # Molar concentrations
+    y[:-2] /= const.UNA
 
-  def post_proc(self, y, rho):
-    if self.use_pe:
-      y[-1] = self.mix.get_Te(rho=rho, pe=y[-1], w=y[:-2])
+  def post_proc(self, y):
+    # Number densities
+    y[:-2] *= const.UNA
+    # Electron temperature
+    y[-1] = self.mix.get_Te(pe=y[-1], ne=y[-3])
