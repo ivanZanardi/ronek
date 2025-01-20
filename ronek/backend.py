@@ -50,7 +50,10 @@ def to_torch(x):
     if torch.is_tensor(x):
       return x
     else:
-      return torch.as_tensor(to_numpy(x), dtype=floatx("torch"))
+      x = to_numpy(x)
+      if isinstance(x, np.ndarray):
+        x = torch.as_tensor(x, dtype=floatx("torch"))
+      return x
 
 def to_backend(x):
   if (x is not None):

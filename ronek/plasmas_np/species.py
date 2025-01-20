@@ -1,8 +1,7 @@
 import json
-import torch
+import numpy as np
 
 from .. import const
-from .. import backend as bkd
 
 
 class Species(object):
@@ -21,13 +20,11 @@ class Species(object):
     # Set properties
     for (k, v) in properties.items():
       setattr(self, k, v)
-    for (k, v) in self.lev.items():
-      self.lev[k] = bkd.to_torch(v).reshape(-1)
-    self.nb_comp = len(self.lev["E"])
+    self.lev = {k: np.array(v).reshape(-1) for (k, v) in self.lev.items()}
     # Control variables
-    self.use_factorial = bool(use_factorial)
+    self.use_factorial = use_factorial
     # Indexing
-    self.indices = []
+    self.indices = None
 
   # Properties
   # ===================================
@@ -69,17 +66,17 @@ class Species(object):
     e = self.lev["E"] / const.UE
     if (n.shape[-1] != self.nb_comp):
       n = n.T
-    return torch.sum(n * e**m, dim=-1)
+    return np.sum(n * e**m, axis=-1)
 
   def compute_mom_basis(self, max_mom):
     e = self.lev["E"] / const.UE
-    m = [torch.ones_like(e)]
+    m = [np.ones_like(e)]
     for i in range(max_mom-1):
       mi = m[-1]*e
       if self.use_factorial:
         mi /= (i+1)
       m.append(mi)
-    return torch.vstack(m) / self.M
+    return np.vstack(m) / self.M
 
   # Build and update
   # ===================================
@@ -92,7 +89,7 @@ class Species(object):
     # > Specific gas constants [J/(kg K)]
     self.R = const.URG / self.M
     # Translational partition function factor
-    self.q_tr_fac = 2.0 * torch.pi * self.m * const.UKB / (const.UH * const.UH)
+    self.q_tr_fac = 2.0 * np.pi * self.m * const.UKB / (const.UH * const.UH)
     # Constant-volume and -pressure specific heats [J/(kg K)]
     self.cv = self.cv_tr = 1.5 * self.R
     self.cp = self.cv_tr + self.R
@@ -113,16 +110,16 @@ class Species(object):
   # Partition functions
   # ===================================
   def _Q(self):
-    return torch.sum(self.q, dim=None, keepdim=True)
+    return np.sum(self.q, keepdims=True)
 
   def _q(self, T):
     return self._q_zero() * self._q_tr(T) * self._q_int()
 
   def _q_zero(self):
-    return torch.exp(-self.Hf * self.ov_kT)
+    return np.exp(-self.Hf * self.ov_kT)
 
   def _q_tr(self, T):
-    return torch.pow(self.q_tr_fac * T, 1.5)
+    return np.power(self.q_tr_fac * T, 1.5)
 
   def _q_int(self):
-    return self.lev["g"] * torch.exp(-self.lev["E"] * self.ov_kT)
+    return self.lev["g"] * np.exp(-self.lev["E"] * self.ov_kT)

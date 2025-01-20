@@ -1,12 +1,11 @@
 import copy
-import torch
+import numpy as np
+import scipy as sp
 import dill as pickle
 
-from .. import chem_eq
 from ... import const
 from ... import utils
-from ... import backend as bkd
-from pyharm import PolyHarmInterpolator
+from .. import chem_eq
 
 
 class Kinetics(object):
@@ -24,32 +23,21 @@ class Kinetics(object):
     self.mix_e = copy.deepcopy(mixture) # Electron temperature-based thermo mixture
     # Collision integrals fit
     self.use_fit = use_fit
-    # Initialize reactions rates
+    # Load reactions rates
     self._init_reactions(reactions)
 
   def _init_reactions(self, reactions):
-    # Load reactions
     self.reactions = reactions
     if (not isinstance(self.reactions, dict)):
       self.reactions = pickle.load(open(self.reactions, "rb"))
-    # Convert reactions
-    self.reactions = utils.map_nested_dict(self.reactions, bkd.to_torch)
-    # Get reaction parameters
     for (name, reaction) in self.reactions.items():
       if (name not in ("T", "EN", "EI")):
         self.reactions[name]["param"] = chem_eq.get_param(reaction["equation"])
-    self._init_en_rate()
-
-  def _init_en_rate(self):
     # Electron-neutral collision rate (EN)
     if (("EN" in self.reactions) and (not self.use_fit)):
-      self.reactions["EN"]["interp"] = PolyHarmInterpolator(
-        c=self.reactions["T"].reshape(1,-1,1),
-        f=self.reactions["EN"]["values"].reshape(1,-1,1),
-        order=1,
-        smoothing=0.0,
-        dtype=bkd.floatx(bkd="torch")
-      )
+      x = self.reactions["T"].reshape(-1)
+      y = self.reactions["EN"]["values"].reshape(-1)
+      self.reactions["EN"]["interp"] = sp.interpolate.interp1d(x, y, "linear")
 
   # Rates
   # ===================================
@@ -73,21 +61,21 @@ class Kinetics(object):
       self.rates["EN"] = self._compute_en_rate(Te, ve)
       self.rates["EI"] = self._compute_ei_rate(T, Te, ve)
     # Squeeze tensors
-    self.rates = utils.map_nested_dict(self.rates, torch.squeeze)
+    self.rates = utils.map_nested_dict(self.rates, np.squeeze)
 
   def _compute_ve(self, Te):
     """Electron mean thermal velocity"""
-    return torch.sqrt((8.0*const.UKB*Te)/(torch.pi*const.UME))
+    return np.sqrt((8.0*const.UKB*Te)/(np.pi*const.UME))
 
   # Forward and backward rates
   # -----------------------------------
   def _compute_fwd_rates(self, T, A, beta, Ta):
     # Arrhenius law
-    return A * torch.exp(beta*torch.log(T) - Ta/T)
+    return A * np.exp(beta*np.log(T) - Ta/T)
 
   def _compute_bwd_rates(self, reaction, mixture, kf):
     # Initialize backward rates
-    kb = torch.clone(kf)
+    kb = copy.deepcopy(kf)
     # Set shapes
     k_shape = kb.shape
     nb_species = len(k_shape)
@@ -113,10 +101,9 @@ class Kinetics(object):
         # Update species counter
         i += 1
     # Transpose backward rates
-    shifts = -reaction["param"]["nb_reactants"]
-    dims = torch.arange(nb_species)
-    dims = torch.roll(dims, shifts=shifts).tolist()
-    return torch.permute(kb, dims=dims)
+    axes = np.arange(nb_species)
+    shift = -reaction["param"]["nb_reactants"]
+    return np.transpose(kb, axes=np.roll(axes, shift=shift))
 
   # Collisional processes - Zeroth order moment
   # -----------------------------------
@@ -179,16 +166,16 @@ class Kinetics(object):
     else:
       # Look-up table
       # > See: Kapper's PhD thesis, The Ohio State University, 2009
-      return 2.0 * self.reactions["EN"]["interp"](Te.reshape(1,1,1)).squeeze()
+      return 2.0 * self.reactions["EN"]["interp"](Te)
 
   def _compute_en_Q11_capitelli(self, Te):
     c = self.reactions["EN"]["Q11_fit"]
-    lnT = torch.log(Te)
-    fac = torch.exp((lnT - c[0])/c[1])
+    lnT = np.log(Te)
+    fac = np.exp((lnT - c[0])/c[1])
     Q11 = c[2]*lnT**c[5]*fac/(fac + 1.0/fac) \
-        + c[6]*torch.exp(-((lnT - c[7])/c[8])**2) \
+        + c[6]*np.exp(-((lnT - c[7])/c[8])**2) \
         + c[3] + c[9]*lnT**c[4]
-    Q11 *= torch.pi
+    Q11 *= np.pi
     # Conversion: A^2 -> m^2
     return 1e-20 * Q11
 
@@ -196,7 +183,7 @@ class Kinetics(object):
     """Electron-ion collision rate (EI)"""
     # Electron and ion number densities
     ne = self.mix.species["em"].n.reshape(1)
-    ni = torch.sum(self.mix.species["Arp"].n).reshape(1)
+    ni = np.sum(self.mix.species["Arp"].n).reshape(1)
     if self.use_fit:
       # Curve fit model
       return 8.0/3.0 * ve * self._compute_ei_Q11_magin(ne, ni, T, Te)
@@ -209,24 +196,23 @@ class Kinetics(object):
     See: Magin's PhD thesis, ULB, 2004
     """
     # Average closest impact parameters for 'em-Arp' and 'em-em' interactions
-    f0 = const.UE*const.UE/(8.0*torch.pi*const.UEPS0*const.UKB)
+    f0 = const.UE*const.UE/(8.0*np.pi*const.UEPS0*const.UKB)
     bh = f0/T
     be = f0/Te
     # Debye shielding distance (em and Arp contributions)
     Ds = self._compute_Ds(ne, ni, T, Te)
-    Ds = torch.minimum(Ds,10000.0*(be + bh))
+    Ds = np.minimum(Ds,10000.0*(be + bh))
     # Non-dimensional temperature for charge-charge interactions
-    Tse = torch.maximum(Ds/(2.0*be), torch.tensor(0.1))
+    Tse = np.maximum(Ds/(2.0*be),0.1)
     # Common factors
-    lnT1 = torch.log(Tse)
+    lnT1 = np.log(Tse)
     lnT2 = lnT1*lnT1
     lnT3 = lnT2*lnT1
     lnT4 = lnT3*lnT1
-    efac = torch.pi*Ds*Ds/(Tse*Tse)
+    efac = np.pi*Ds*Ds/(Tse*Tse)
     # Collision integral for 'em-Arp' and 'em-em' interactions
     c = self.reactions["EI"]["Q11_fit"]
-    Q11 = torch.exp(c[0]*lnT4 + c[1]*lnT3 + c[2]*lnT2 + c[3]*lnT1 + c[4])
-    return efac * Q11
+    return efac * np.exp(c[0]*lnT4 + c[1]*lnT3 + c[2]*lnT2 + c[3]*lnT1 + c[4])
 
   def _compute_ei_Q11_kapper(self, ne, Te):
     """
@@ -236,11 +222,11 @@ class Kinetics(object):
     T2 = Te*Te
     T3 = T2*Te
     # Compute Coulomb logarithm
-    lam = 1.24e7*torch.sqrt(T3/ne)
+    lam = 1.24e7*np.sqrt(T3/ne)
     # Compute momentum-averaged cross section
-    return 5.85e-10*torch.log(lam)/T2
+    return 5.85e-10*np.log(lam)/T2
 
   def _compute_Ds(self, ne, ni, T, Te):
     """Debye shielding distance"""
     f = (const.UEPS0*const.UKB)/(const.UE*const.UE)
-    return torch.sqrt(f/(ne/Te + ni/T))
+    return np.sqrt(f/(ne/Te + ni/T))

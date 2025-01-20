@@ -74,7 +74,7 @@ def get_param(
     param[side] = side_param[0]
     species.append(side_param[1])
     param[f"nb_{side}"] = len(side_param[0])
-  param["species"] = np.unique(sum(species, [])).tolist()
+  param["species"] = list(np.unique(sum(species, [])))
   return param
 
 def _get_side(
