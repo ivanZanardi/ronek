@@ -2,4 +2,4 @@ __all__ = [
   "ArgonCR"
 ]
 
-from .model import ArgonCR
+from .argoncr import ArgonCR

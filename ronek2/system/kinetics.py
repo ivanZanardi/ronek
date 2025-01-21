@@ -3,10 +3,10 @@ import torch
 import numpy as np
 import dill as pickle
 
-from .. import chem_eq
-from ... import const
-from ... import utils
-from ... import backend as bkd
+from . import chem_eq
+from .. import const
+from .. import utils
+from .. import backend as bkd
 from pyharm import PolyHarmInterpolator
 
 

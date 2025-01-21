@@ -1,6 +1,6 @@
 import torch
 
-from ... import const
+from .. import const
 
 
 class Sources(object):

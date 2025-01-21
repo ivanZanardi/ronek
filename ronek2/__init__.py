@@ -16,7 +16,7 @@ __all__ = [
   "env",
   "postproc",
   "roms",
-  "systems"
+  "system"
 ]
 
 # Ignore all warnings

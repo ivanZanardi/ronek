@@ -3,11 +3,11 @@ import torch
 import numpy as np
 import scipy as sp
 
-from ... import const
-from ... import utils
-from ... import backend as bkd
+from .. import const
+from .. import utils
+from .. import backend as bkd
 from .sources import Sources
-from ..mixture import Mixture
+from .mixture import Mixture
 from .kinetics import Kinetics
 from typing import Tuple
 
