@@ -18,13 +18,16 @@ class Kinetics(object):
     self,
     mixture,
     reactions,
-    use_fit=False
+    use_fit=False,
+    active=True
   ):
     # Set mixtures
     self.mix = mixture                  # Reference mixture
     self.mix_e = copy.deepcopy(mixture) # Electron temperature-based thermo mixture
     # Collision integrals fit
     self.use_fit = use_fit
+    # Collision integrals fit
+    self.active = active
     # Initialize reactions rates
     self._init_reactions(reactions)
 

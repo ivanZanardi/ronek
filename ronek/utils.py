@@ -266,3 +266,6 @@ def map_nested_dict(
       return [fun(x) for x in obj]
     else:
       return fun(obj)
+
+def is_nan_inf(x):
+  return (np.isnan(x)+np.isinf(x)).astype(bool)

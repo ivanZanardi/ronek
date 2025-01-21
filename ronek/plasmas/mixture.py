@@ -18,7 +18,8 @@ class Mixture(object):
     self.use_factorial = bool(use_factorial)
     self._init_species(species)
     # Mixture density
-    self.rho = 1.0
+    self.rho = None
+    self.ov_rho = None
 
   def _init_species(self, species):
     # Initialize species
@@ -115,7 +116,7 @@ class Mixture(object):
     return self.m_mat @ n
 
   def get_w(self, n):
-    return self.ov_rho * self.get_rho(n)
+    return self.ov_rho * self.m_mat @ n
 
   def get_Te(self, pe, ne):
     return pe / (ne * const.UKB)
@@ -125,9 +126,9 @@ class Mixture(object):
 
   # Mixture properties
   # ===================================
-  def _rho(self, n):
-    self.rho = self.m @ n
-    self.ov_rho = 1.0/self.rho
+  def set_rho(self, rho):
+    self.rho = rho
+    self.ov_rho = 1.0/rho
 
   def _M(self, qoi_used="w"):
     self.M = torch.zeros(1)

@@ -59,6 +59,13 @@ def to_backend(x):
   if (x is not None):
     return to_torch(x) if (_BKD == "torch") else to_numpy(x)
 
+def make_fun_np(fun_torch):
+  def fun_np(*args):
+    args = [to_torch(x) for x in args]
+    f = fun_torch(*args)
+    return to_numpy(f)
+  return fun_np
+
 # Device
 # -------------------------------------
 def device():
