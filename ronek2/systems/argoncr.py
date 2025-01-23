@@ -9,6 +9,7 @@ from .. import backend as bkd
 from .sources import Sources
 from .mixture import Mixture
 from .kinetics import Kinetics
+from .equilibrium import Equilibrium
 from typing import Tuple
 
 
@@ -58,6 +59,13 @@ class ArgonCR(object):
       radiation=None
     )
     self.isothermal = bool(isothermal)
+    # Equilibrium
+    # -------------
+    self.equil = Equilibrium(
+      solve=self.solve_fom,
+      mixture=self.mix,
+      clipping=False
+    )
     # ROM
     # -------------
     # Bases

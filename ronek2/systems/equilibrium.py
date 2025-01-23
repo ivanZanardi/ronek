@@ -4,7 +4,7 @@ import scipy as sp
 
 from .. import const
 from .. import backend as bkd
-from .argoncr import ArgonCR
+from .mixture import Mixture
 from typing import Dict, Optional
 
 
@@ -14,7 +14,7 @@ class Equilibrium(object):
   Class to compute the equilibrium state (mass fractions and temperature)
   of a system involving argon and its ionized species (Ar, Ar+, and e^-).
 
-  The equilibrium state is determined by solving the following system of 
+  The equilibrium state is determined by solving the following system of
   equations:
   1) **Charge neutrality**:
     \[
@@ -41,21 +41,24 @@ class Equilibrium(object):
   # ===================================
   def __init__(
     self,
-    system: ArgonCR,
+    solve: callable,
+    mixture: Mixture,
     clipping: bool = True
   ) -> None:
     """
     Initialize the equilibrium solver with a given system and
     optional clipping.
 
-    :param system: The `ArgonCR` system that holds the mixture and
-                   species information.
-    :type system: `ArgonCR`
+    :param solve: The callable used to solve the full system of equations.
+    :type solve: callable
+    :param mixture: The `Mixture` object representing the chemical mixture.
+    :type mixture: `Mixture`
     :param clipping: Flag to control whether molar fractions are
                      clipped to avoid numerical issues.
     :type clipping: bool, optional, default is True
     """
-    self.system = system
+    self.solve = solve
+    self.mix = mixture
     self.clipping = clipping
     self.lsq_opts = dict(
       method="trf",
@@ -93,7 +96,7 @@ class Equilibrium(object):
     primitive macroscopic variables, such as density, temperature, and
     electron temperature.
 
-    If the electron temperature (`Te`) is not provided, the assumption 
+    If the electron temperature (`Te`) is not provided, the assumption
     is made that the system is in thermal equilibrium (\(T_e = T\)).
 
     :param rho: Density of the system.
@@ -115,12 +118,11 @@ class Equilibrium(object):
     else:
       # Thermal nonequilibrium assumption
       solve_full_sys = True
-      self.system.isothermal = True
     # Convert to 'torch.Tensor'
     rho, T, Te = [bkd.to_torch(z).reshape(1) for z in (rho, T, Te)]
     # Update mixture
-    self.system.mix.set_rho(rho)
-    self.system.mix.update_species_thermo(T, Te)
+    self.mix.set_rho(rho)
+    self.mix.update_species_thermo(T, Te)
     # Compute electron molar fraction
     x = sp.optimize.least_squares(
       fun=self.from_prim_fun,
@@ -135,12 +137,12 @@ class Equilibrium(object):
     # Update composition
     self._update_composition(x_em)
     # Compose state vector
-    w = self.system.mix.get_qoi_vec("w")
+    w = self.mix.get_qoi_vec("w")
     y = bkd.to_numpy(torch.cat([w, T, Te]))
     if solve_full_sys:
       # Solve the full system to determine the equilibrium state
-      # underthermal nonequilibrium conditions.
-      y = self.system.solve_fom(t=[1e1], y0=y, rho=rho)[0].squeeze()
+      # under thermal nonequilibrium conditions.
+      y = self.solve(t=[1e1], y0=y, rho=rho)[0].squeeze()
     return y
 
   def _from_prim_fun(self, x: torch.Tensor) -> torch.Tensor:
@@ -195,7 +197,7 @@ class Equilibrium(object):
     # Convert to 'torch.Tensor'
     rho, e = [bkd.to_torch(z) for z in (rho, e)]
     # Update mixture
-    self.system.mix.set_rho(rho)
+    self.mix.set_rho(rho)
     # Compute electron molar fraction and temperaure
     x = sp.optimize.least_squares(
       fun=self.from_cons_fun,
@@ -209,11 +211,11 @@ class Equilibrium(object):
     x_em, T = [z.reshape(1) for z in bkd.to_torch(np.exp(x))]
     x_em = self._clipping(x_em)
     # Update species thermo
-    self.system.mix.update_species_thermo(T)
+    self.mix.update_species_thermo(T)
     # Update composition
     self._update_composition(x_em)
     # Compose state vector
-    w = self.system.mix.get_qoi_vec("w")
+    w = self.mix.get_qoi_vec("w")
     y = bkd.to_numpy(torch.cat([w, T, T]))
     return y
 
@@ -245,15 +247,15 @@ class Equilibrium(object):
     # Extract variables
     x_em, T = torch.exp(x)
     # Update species thermo
-    self.system.mix.update_species_thermo(T)
+    self.mix.update_species_thermo(T)
     # Update composition
     self._update_composition(x_em)
     # Update mixture thermo
-    self.system.mix.update_mixture_thermo()
+    self.mix.update_mixture_thermo()
     # Enforce detailed balance
     f0 = self._detailed_balance()
     # Enforce conservation of energy
-    f1 = self.system.mix.e / e - 1.0
+    f1 = self.mix.e / e - 1.0
     return torch.cat([f0,f1])
 
   # Utils
@@ -269,18 +271,18 @@ class Equilibrium(object):
                  electrons in the mixture.
     :type x_em: torch.Tensor
     """
-    x = torch.zeros(self.system.mix.nb_comp)
+    x = torch.zeros(self.mix.nb_comp)
     # Electron
-    s = self.system.mix.species["em"]
+    s = self.mix.species["em"]
     x[s.indices] = x_em
     # Argon ion
-    s = self.system.mix.species["Arp"]
+    s = self.mix.species["Arp"]
     x[s.indices] = x_em * s.q / s.Q
     # Argon neutral
-    s = self.system.mix.species["Ar"]
+    s = self.mix.species["Ar"]
     x[s.indices] = (1.0-2.0*x_em) * s.q / s.Q
     # Update composition
-    self.system.mix.update_composition_x(x)
+    self.mix.update_composition_x(x)
 
   def _detailed_balance(self) -> torch.Tensor:
     r"""
@@ -321,7 +323,7 @@ class Equilibrium(object):
              the corresponding attribute tensors.
     :rtype: Dict[str, torch.Tensor]
     """
-    return {k: getattr(s, attr) for (k, s) in self.system.mix.species.items()}
+    return {k: getattr(s, attr) for (k, s) in self.mix.species.items()}
 
   def _clipping(self, x: torch.Tensor) -> torch.Tensor:
     """
