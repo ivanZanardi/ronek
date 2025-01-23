@@ -40,21 +40,30 @@ class Equilibrium(object):
       gtol=0.0,
       max_nfev=int(1e5)
     )
-    self.set_functions()
+    self.set_fun_jac()
 
-  def set_functions(self):
-    # Primitive variables
-    self.from_prim_fun = bkd.make_fun_np(self._from_prim_fun)
-    self.from_prim_jac = torch.func.jacrev(self._from_prim_fun)
-    self.from_prim_jac = bkd.make_fun_np(self.from_prim_jac)
-    # Primitive variables - Thermal nonequilibrium
-    self.from_prim_th_neq_fun = bkd.make_fun_np(self._from_prim_th_neq_fun)
-    self.from_prim_th_neq_jac = torch.func.jacrev(self._from_prim_th_neq_fun)
-    self.from_prim_th_neq_jac = bkd.make_fun_np(self.from_prim_th_neq_jac)
-    # Conservative variables
-    self.from_cons_fun = bkd.make_fun_np(self._from_cons_fun)
-    self.from_cons_jac = torch.func.jacrev(self._from_cons_fun, argnums=0)
-    self.from_cons_jac = bkd.make_fun_np(self.from_cons_jac)
+  def set_fun_jac(self):
+    for name in ("from_prim", "from_cons", "full_system"):
+      # Function
+      fun = getattr(self, f"_{name}_fun")
+      setattr(self, f"{name}_fun", bkd.make_fun_np(fun))
+      # Jacobian
+      jac = torch.func.jacrev(fun, argnums=0)
+      setattr(self, f"{name}_jac", bkd.make_fun_np(jac))
+
+    #   setattr(self, name[1:], bkd.make_fun_np(jac))
+    # # Primitive variables
+    # self.from_prim_fun = bkd.make_fun_np(self._from_prim_fun)
+    # self.from_prim_jac = torch.func.jacrev(self._from_prim_fun)
+    # self.from_prim_jac = bkd.make_fun_np(self.from_prim_jac)
+    # # Primitive variables - Thermal nonequilibrium
+    # self.from_prim_th_neq_fun = bkd.make_fun_np(self._from_prim_th_neq_fun)
+    # self.from_prim_th_neq_jac = torch.func.jacrev(self._from_prim_th_neq_fun)
+    # self.from_prim_th_neq_jac = bkd.make_fun_np(self.from_prim_th_neq_jac)
+    # # Conservative variables
+    # self.from_cons_fun = bkd.make_fun_np(self._from_cons_fun)
+    # self.from_cons_jac = torch.func.jacrev(self._from_cons_fun, argnums=0)
+    # self.from_cons_jac = bkd.make_fun_np(self.from_cons_jac)
 
   # Primitive variables
   # ===================================
@@ -85,8 +94,8 @@ class Equilibrium(object):
     # Update composition
     self._update_composition(x_em)
     # Compute number densities
-    n = self.system.mix.get_qoi_vec("n")
-    y = torch.cat([n, T, Te])
+    w = self.system.mix.get_qoi_vec("w")
+    y = torch.cat([w, T, Te])
     return bkd.to_numpy(y)
 
   def _from_prim_fun(self, x: torch.Tensor) -> torch.Tensor:
@@ -106,31 +115,26 @@ class Equilibrium(object):
     Te: float
   ) -> np.ndarray:
     """Compute equilibirum state from primritive macrosocpiv variables,
-    such as density, temperarue and electron temperatue.
+    such as density, temperarue and electron temperatue. with thermal nonequlibiurm
     """
-    # Convert to 'torch.Tensor'
-    rho, T, Te = [bkd.to_torch(z).reshape(1) for z in (rho, T, Te)]
-    # Update mixture
-    self.system.mix.set_rho(rho)
-    self.system.mix.update_species_thermo(T, Te)
+    self.system.isothermal = True
+    # Initial guess
+    y0 = self.from_prim(rho, T, Te)
+    # Set bounds
+    bound_min = np.full(len(y0), -np.inf)
+    bound_max = np.full(len(y0), 0.0)
+    bound_max[-2:] = np.log(1e5)
     # Compute electron molar fraction
     x = sp.optimize.least_squares(
-      fun=self.from_prim_fun,
-      x0=np.log([1e-4]),
-      jac=self.from_prim_jac,
-      bounds=(-np.inf, 0.0),
+      fun=self.full_system_fun,
+      x0=np.log(y0),
+      jac=self.full_system_jac,
+      bounds=(bound_min, bound_max),
       **self.lsq_opts
     ).x
-    x_em = bkd.to_torch(np.exp(x))
-    x_em = self._clipping(x_em)
-    # Update composition
-    self._update_composition(x_em)
-    # Compute number densities
-    n = self.system.mix.get_qoi_vec("n")
-    y = torch.cat([n, T, Te])
-    return bkd.to_numpy(y)
+    return np.exp(x)
 
-  def _from_prim_th_neq_fun(self, y: torch.Tensor) -> torch.Tensor:
+  def _full_system_fun(self, y: torch.Tensor) -> torch.Tensor:
     return self.system._fun(t=0.0, y=torch.exp(y))
 
   # Conservative variables
