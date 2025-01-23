@@ -269,3 +269,6 @@ def l2_relative_error(y_true, y_pred, axis=-1, eps=1e-7):
   err = np.linalg.norm(y_true-y_pred, axis=axis)
   err /= (np.linalg.norm(y_true, axis=axis) + eps)
   return err
+
+# Decorators
+# =====================================
