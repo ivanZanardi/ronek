@@ -1,5 +1,5 @@
 __all__ = [
-  "CoBRAS"
+  "LinCoBRAS"
 ]
 
-from .cobras import CoBRAS
+from .lin_cobras import LinCoBRAS

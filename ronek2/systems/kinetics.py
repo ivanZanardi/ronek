@@ -23,7 +23,7 @@ class Kinetics(object):
   ):
     # Set mixtures
     self.mix = mixture                  # Reference mixture
-    self.mix_e = copy.deepcopy(mixture) # Electron temperature-based thermo mixture
+    self.mix_e = copy.deepcopy(mixture) # Te-based thermo mixture
     # Collision integrals fit
     self.use_fit = use_fit
     # Collision integrals fit

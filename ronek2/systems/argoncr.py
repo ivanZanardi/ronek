@@ -2,6 +2,7 @@ import time
 import torch
 import numpy as np
 import scipy as sp
+from typing import Tuple
 
 from .. import const
 from .. import utils
@@ -10,7 +11,6 @@ from .sources import Sources
 from .mixture import Mixture
 from .kinetics import Kinetics
 from .equilibrium import Equilibrium
-from typing import Tuple
 
 
 class ArgonCR(object):
