@@ -43,27 +43,13 @@ class Equilibrium(object):
     self.set_fun_jac()
 
   def set_fun_jac(self):
-    for name in ("from_prim", "from_cons", "full_system"):
+    for name in ("from_prim", "from_cons"):
       # Function
       fun = getattr(self, f"_{name}_fun")
       setattr(self, f"{name}_fun", bkd.make_fun_np(fun))
       # Jacobian
       jac = torch.func.jacrev(fun, argnums=0)
       setattr(self, f"{name}_jac", bkd.make_fun_np(jac))
-
-    #   setattr(self, name[1:], bkd.make_fun_np(jac))
-    # # Primitive variables
-    # self.from_prim_fun = bkd.make_fun_np(self._from_prim_fun)
-    # self.from_prim_jac = torch.func.jacrev(self._from_prim_fun)
-    # self.from_prim_jac = bkd.make_fun_np(self.from_prim_jac)
-    # # Primitive variables - Thermal nonequilibrium
-    # self.from_prim_th_neq_fun = bkd.make_fun_np(self._from_prim_th_neq_fun)
-    # self.from_prim_th_neq_jac = torch.func.jacrev(self._from_prim_th_neq_fun)
-    # self.from_prim_th_neq_jac = bkd.make_fun_np(self.from_prim_th_neq_jac)
-    # # Conservative variables
-    # self.from_cons_fun = bkd.make_fun_np(self._from_cons_fun)
-    # self.from_cons_jac = torch.func.jacrev(self._from_cons_fun, argnums=0)
-    # self.from_cons_jac = bkd.make_fun_np(self.from_cons_jac)
 
   # Primitive variables
   # ===================================
@@ -76,6 +62,15 @@ class Equilibrium(object):
     """Compute equilibirum state from primritive macrosocpiv variables,
     such as density, temperarue and electron temperatue.
     """
+    # Setting up
+    if (Te is None):
+      # Thermal equilibrium assumption
+      solve_full_sys = False
+      Te = T
+    else:
+      # Thermal nonequilibrium assumption
+      solve_full_sys = True
+      self.system.isothermal = True
     # Convert to 'torch.Tensor'
     rho, T, Te = [bkd.to_torch(z).reshape(1) for z in (rho, T, Te)]
     # Update mixture
@@ -84,19 +79,24 @@ class Equilibrium(object):
     # Compute electron molar fraction
     x = sp.optimize.least_squares(
       fun=self.from_prim_fun,
-      x0=np.log([1e-4]),
+      x0=np.log([1e-2]),
       jac=self.from_prim_jac,
       bounds=(-np.inf, 0.0),
       **self.lsq_opts
     ).x
+    # Extract variables
     x_em = bkd.to_torch(np.exp(x))
     x_em = self._clipping(x_em)
     # Update composition
     self._update_composition(x_em)
-    # Compute number densities
+    # Compose state vector
     w = self.system.mix.get_qoi_vec("w")
-    y = torch.cat([w, T, Te])
-    return bkd.to_numpy(y)
+    y = bkd.to_numpy(torch.cat([w, T, Te]))
+    if solve_full_sys:
+      # Solve the full system to determine the equilibrium state
+      # underthermal nonequilibrium conditions.
+      y = self.system.solve_fom(t=[1e1], y0=y, rho=rho)[0].squeeze()
+    return y
 
   def _from_prim_fun(self, x: torch.Tensor) -> torch.Tensor:
     # Extract variables
@@ -105,37 +105,6 @@ class Equilibrium(object):
     self._update_composition(x_em)
     # Enforce detailed balance
     return self._detailed_balance()
-
-  # Primitive variables - Thermal nonequilibrium
-  # ===================================
-  def from_prim_th_neq(
-    self,
-    rho: float,
-    T: float,
-    Te: float
-  ) -> np.ndarray:
-    """Compute equilibirum state from primritive macrosocpiv variables,
-    such as density, temperarue and electron temperatue, assuming with thermal nonequlibiurm meaning T != Te
-    """
-    self.system.isothermal = True
-    # Initial guess
-    y0 = self.from_prim(rho, T, Te)
-    # Set bounds
-    bound_min = np.full(len(y0), -np.inf)
-    bound_max = np.full(len(y0), 0.0)
-    bound_max[-2:] = np.log(1e5)
-    # Compute electron molar fraction
-    x = sp.optimize.least_squares(
-      fun=self.full_system_fun,
-      x0=np.log(y0),
-      jac=self.full_system_jac,
-      bounds=(bound_min, bound_max),
-      **self.lsq_opts
-    ).x
-    return np.exp(x)
-
-  def _full_system_fun(self, y: torch.Tensor) -> torch.Tensor:
-    return self.system._fun(t=0.0, y=torch.exp(y))
 
   # Conservative variables
   # ===================================
@@ -148,7 +117,7 @@ class Equilibrium(object):
     such as density and total energy.
     """
     # Convert to 'torch.Tensor'
-    rho, e = [bkd.to_torch(z).reshape(1) for z in (rho, e)]
+    rho, e = [bkd.to_torch(z) for z in (rho, e)]
     # Update mixture
     self.system.mix.set_rho(rho)
     # Compute electron molar fraction and temperaure
@@ -167,10 +136,10 @@ class Equilibrium(object):
     self.system.mix.update_species_thermo(T)
     # Update composition
     self._update_composition(x_em)
-    # Compute number densities
-    n = self.system.mix.get_qoi_vec("n")
-    y = torch.cat([n, T, T])
-    return bkd.to_numpy(y)
+    # Compose state vector
+    w = self.system.mix.get_qoi_vec("w")
+    y = bkd.to_numpy(torch.cat([w, T, T]))
+    return y
 
   def _from_cons_fun(
     self,
@@ -187,7 +156,7 @@ class Equilibrium(object):
     self.system.mix.update_mixture_thermo()
     # Enforce detailed balance
     f0 = self._detailed_balance()
-    # Enforce consrvation of energy
+    # Enforce conservation of energy
     f1 = self.system.mix.e / e - 1.0
     return torch.cat([f0,f1])
 

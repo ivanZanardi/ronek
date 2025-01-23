@@ -312,16 +312,16 @@ class ArgonCR(object):
 
   def _encode(self, y):
     # Split variables
-    w, T_pe = y[...,:-2], y[...,-2:]
+    w, e = y[...,:-2], y[...,-2:]
     # Encode
     z = w @ self.P.T if self.use_proj else w @ self.psi
     # Concatenate
-    return torch.cat([z, T_pe], dim=-1)
+    return torch.cat([z, e], dim=-1)
 
   def _decode(self, y):
     # Split variables
-    z, T_pe = y[...,:-2], y[...,-2:]
+    z, e = y[...,:-2], y[...,-2:]
     # Decode
     w = z @ self.P.T if self.use_proj else z @ self.phi.T
     # Concatenate
-    return torch.cat([w, T_pe], dim=-1)
+    return torch.cat([w, e], dim=-1)
