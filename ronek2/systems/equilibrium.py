@@ -106,7 +106,7 @@ class Equilibrium(object):
     # Enforce detailed balance
     return self._detailed_balance()
 
-  # Primitive variables
+  # Primitive variables - Thermal nonequilibrium
   # ===================================
   def from_prim_th_neq(
     self,
@@ -115,7 +115,7 @@ class Equilibrium(object):
     Te: float
   ) -> np.ndarray:
     """Compute equilibirum state from primritive macrosocpiv variables,
-    such as density, temperarue and electron temperatue. with thermal nonequlibiurm
+    such as density, temperarue and electron temperatue, assuming with thermal nonequlibiurm meaning T != Te
     """
     self.system.isothermal = True
     # Initial guess
