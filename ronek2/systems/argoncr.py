@@ -80,44 +80,6 @@ class ArgonCR(object):
     self.output_lin = True
     self.C = None
 
-  # # Equilibrium composition
-  # # ===================================
-  # def compute_eq_comp(self, p, T):
-  #   # Solve this system of equations:
-  #   # -------------
-  #   # 1) Charge neutrality:
-  #   #    x_em = x_Arp
-  #   # 2) Mole conservation:
-  #   #    x_em + x_Arp + x_Ar = 1
-  #   # 3) Detailed balance:
-  #   #    (n_Arp*n_em)/n_Ar = (Q_Arp*Q_em)/Q_Ar
-  #   # -------------
-  #   # Update thermo
-  #   self.mix.update_species_thermo(T)
-  #   # Compute number density
-  #   n = p / (const.UKB*T)
-  #   # Compute coefficient for quadratic system
-  #   f = self.mix.species["Arp"].Q * self.mix.species["em"].Q
-  #   f /= (self.mix.species["Ar"].Q * n)
-  #   # Solve quadratic system for 'x_em'
-  #   a = 1.0
-  #   b = 2.0 * f
-  #   c = -f
-  #   x = (-b+torch.sqrt(b**2-4*a*c))/(2*a)
-  #   x = torch.clip(x, const.XMIN, 1.0)
-  #   # Set molar fractions
-  #   s = self.mix.species["em"]
-  #   s.x = x
-  #   s = self.mix.species["Arp"]
-  #   s.x = x * s.q / s.Q
-  #   s = self.mix.species["Ar"]
-  #   s.x = (1.0-2.0*x) * s.q / s.Q
-  #   # Number densities
-  #   n = n * torch.cat([self.mix.species[k].x for k in self.species_order])
-  #   # Density
-  #   rho = self.mix.get_rho(n)
-  #   return n, rho
-
   # # Initial composition
   # # ===================================
   # def get_init_composition(self, p, T, noise=False, sigma=1e-2):
