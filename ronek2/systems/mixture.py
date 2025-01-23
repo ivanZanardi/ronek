@@ -142,8 +142,8 @@ class Mixture(object):
   # Mixture properties
   # ===================================
   def set_rho(self, rho):
-    self.rho = rho
-    self.ov_rho = 1.0/rho
+    self.rho = torch.tensor(rho)
+    self.ov_rho = 1.0/self.rho
 
   def _M(self, qoi_used="w"):
     self.M = torch.zeros(1)
