@@ -87,6 +87,20 @@ class Mixture(object):
     self._M()
     self._R()
 
+  def update_composition_x(self, x):
+    # Set molar and mass fractions
+    for s in self.species.values():
+      s.x = x[s.indices]
+    self._M("x")
+    self._set_ws()
+    # Compute number densities
+    w = self.get_qoi_vec("w")
+    n = self.get_n(w)
+    # Set mass and number densities
+    for s in self.species.values():
+      s.n = n[s.indices]
+      s.rho = self.rho * s.w
+
   # Thermodynamics
   # -----------------------------------
   def update_species_thermo(self, T, Te=None):
@@ -104,8 +118,9 @@ class Mixture(object):
     # Energies
     self.e_e = self._e_e()
     self.e_h = self._e_h()
-    self.e_int_h = self._e_int_h()
     self.e = self.e_e + self.e_h
+    self.e_int = self._e_int()
+    self.e_int_h = self._e_int_h()
 
   # Conversions
   # ===================================
@@ -163,6 +178,10 @@ class Mixture(object):
     # Default: Mass fractions
     return species.w if (y is None) else y[species.indices]
 
+  def get_qoi_vec(self, qoi="x"):
+    z = [getattr(self.species[k], qoi) for k in self.species_order]
+    return torch.cat(z)
+
   # Constant-volume specific heats
   # -----------------------------------
   def _cv(self, y=None):
@@ -197,6 +216,14 @@ class Mixture(object):
       ys = self._get_ys(s, y)
       e += torch.sum(ys * s.e)
     return e
+
+  def _e_int(self, y=None):
+    # Heavy particle internal energy [J/kg]
+    e_int = torch.zeros(1)
+    for s in self.species.values():
+      ys = self._get_ys(s, y)
+      e_int += torch.sum(ys * s.e_int)
+    return e_int
 
   def _e_e(self, y=None):
     # Electron energy [J/kg]

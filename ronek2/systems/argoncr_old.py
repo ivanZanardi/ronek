@@ -24,8 +24,7 @@ class ArgonCR(object):
     use_rad=False,
     use_proj=False,
     use_factorial=False,
-    use_coll_int_fit=False,
-    isothermal=False
+    use_coll_int_fit=False
   ):
     # Thermochemistry database
     # -------------
@@ -71,9 +70,6 @@ class ArgonCR(object):
     self.output_lin = True
     self.C = None
 
-
-    self.isothermal = bool(isothermal)
-
   # Equilibrium composition
   # ===================================
   def compute_eq_comp(self, p, T):
@@ -108,9 +104,9 @@ class ArgonCR(object):
     s.x = (1.0-2.0*x) * s.q / s.Q
     # Number densities
     n = n * torch.cat([self.mix.species[k].x for k in self.species_order])
-    # # Density
-    # rho = self.mix.get_rho(n)
-    return n#, rho
+    # Density
+    rho = self.mix.get_rho(n)
+    return n, rho
 
   # Initial composition
   # ===================================
@@ -180,30 +176,28 @@ class ArgonCR(object):
     n, T, Te = self.get_prim(y)
     # Compute sources
     # > Conservative variables
-    f_rho, f_et, f_ee = self.sources(n, T, Te)
+    f_rho, f_e, f_ee = self.sources(n, T, Te)
     # > Primitive variables
-    f_n = self.mix.m_inv_mat @ f_rho
-    if self.isothermal:
-      f_e = torch.zeros(2)
-    else:
-      f_e = torch.cat([
-        self.omega_T(f_rho, f_et, f_ee),
-        self.omega_pe(f_ee)]
-      )
+    f_w = self.mix.ov_rho * f_rho
+    f_T = self.omega_T(f_rho, f_e, f_ee)
+    f_pe = self.omega_pe(f_ee)
     # > Concatenate
-    f = torch.cat([f_n/const.UNA, f_e])
+    f = torch.cat([f_w, f_T, f_pe])
     # ROM activated
     if self.use_rom:
       f = self._encode(f)
     return f
 
   def get_prim(self, y):
-    # Unpacking
-    c, T, Tpe = y[:-2], y[-2], y[-1]
+    # Unpacking:
+    # - w  []   : Mass fractions
+    # - T  [K]  : Translational temperature
+    # - pe [Pa] : Electron pressure
+    w, T, pe = y[:-2], y[-2], y[-1]
     # Get number densities
-    n = const.UNA * c
+    n = self.mix.get_n(w)
     # Get electron temperature
-    Te = Tpe if self.isothermal else self.mix.get_Te(pe=Tpe, ne=n[-1])
+    Te = self.mix.get_Te(pe, ne=n[-1])
     # Clip temperatures
     T, Te = [self.clip_temp(z) for z in (T, Te)]
     return n, T, Te
@@ -275,7 +269,7 @@ class ArgonCR(object):
       fun=self.fun,
       t_span=[0.0,t[-1]],
       y0=y0,
-      method="LSODA",
+      method="BDF",
       t_eval=t,
       first_step=1e-14,
       rtol=1e-6,

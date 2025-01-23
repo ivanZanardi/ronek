@@ -7,7 +7,8 @@ import scipy as sp
 from .. import utils
 from .. import backend as bkd
 from ronek.ops import svd_lowrank
-from silx.io.dictdump import dicttoh5, h5todict
+from silx.io.dictdump import dicttoh5
+from typing import Tuple, Optional
 
 
 class CoBRAS(object):
@@ -30,78 +31,25 @@ class CoBRAS(object):
     verbose=True
   ):
     self.verbose = verbose
-    # Initialize operators (A, C, and M)
-    # -------------
+    # System
     self.system = system
     self.quad = quadrature
-    # Nb. of equations
-    self.nb_eqs = None if (self.ops is None) else self.ops["A"].shape[0]
     # Saving
-    # -------------
     self.saving = saving
     self.path_to_saving = path_to_saving
     os.makedirs(self.path_to_saving, exist_ok=True)
-    # Properties
-    # -------------
-    self.eiga = None
-    self.runtime = {}
-
-  # Properties
-  # ===================================
-  # Operators
-  @property
-  def ops(self):
-    return self._ops
-
-  @ops.setter
-  def ops(self, value):
-    self._ops = None
-    if (value is not None):
-      self._ops = {}
-      for (k, op) in value.items():
-        if (len(op.shape) == 1):
-          op = op.reshape(-1,1)
-        self._ops[k] = bkd.to_torch(op)
-
-  # Quadrature points
-  @property
-  def quad(self):
-    return self._quad
-
-  @quad.setter
-  def quad(self, value):
-    self._quad = None
-    if (value is not None):
-      self._quad = utils.map_nested_dict(
-        value, lambda x: bkd.to_torch(x.reshape(-1))
-      )
-
-  # Eigendecomposition of operator A
-  @property
-  def eiga(self):
-    return self._eiga
-
-  @eiga.setter
-  def eiga(self, value):
-    self._eiga = None
-    if (value is not None):
-      self._eiga = {k: bkd.to_torch(x) for (k, x) in value.items()}
 
   # Calling
   # ===================================
   def __call__(
     self,
-    X=None,
-    Y=None,
-    xnot=None,
-    modes=True,
-    pod=False,
-    runtime={}
-  ):
-    self.runtime = runtime
-    if ((X is None) or (Y is None)):
-      self.compute_eiga()
-      X, Y = self.compute_cov_mats()
+    l: int,
+    M: np.ndarray,
+    xnot: Optional[list] = None,
+    modes: bool = True,
+    pod: bool = False
+  ) -> None:
+    X, Y = self.compute_cov_mats(l, M)
     if (xnot is not None):
       mask = self.make_mask(xnot)
       X, Y = X[mask], Y[mask]
@@ -112,78 +60,134 @@ class CoBRAS(object):
 
   def make_mask(self, xnot):
     xnot = np.array(xnot).astype(int).reshape(-1)
-    mask = np.ones(self.nb_eqs)
+    mask = np.ones(self.system.nb_eqs)
     mask[xnot] = 0
     return mask.astype(bool)
 
-  def compute_eiga(self, real_only=True):
-    if (self.eiga is None):
-      filename = self.path_to_saving + "/eiga.hdf5"
-      if os.path.exists(filename):
-        eiga = h5todict(filename)
-      else:
-        if self.verbose:
-          print("Performing eigendecomposition of matrix A ...")
-        a = bkd.to_numpy(self.ops["A"])
-        runtime = time.time()
-        l, v = sp.linalg.eig(a)
-        vinv = sp.linalg.inv(v)
-        self.runtime["eiga"] = time.time()-runtime
-        eiga = {"l": l, "v": v, "vinv": vinv}
-        # Save eigendecomposition
-        if self.saving:
-          dicttoh5(
-            treedict=eiga,
-            h5file=filename,
-            overwrite_data=True
-          )
-      # Only real part
-      if real_only:
-        eiga = {k: x.real for (k, x) in eiga.items()}
-      self.eiga = eiga
-
   # Covariance matrices computation
   # -----------------------------------
-  def compute_cov_mats(self):
-    if self.verbose:
-      print("Computing covariance matrices ...")
-    # Compute the empirical controllability Gramian
-    op = self.ops["M"]
-    X, runtime = self.compute_cov_mat(op)
-    self.runtime["Ws_mean"] = runtime / op.shape[1]
-    # Compute the empirical observability Gramian
-    op = self.ops["C"].T
-    Y, runtime = self.compute_cov_mat(op, adjoint=True)
-    self.runtime["Wg_mean"] = runtime / op.shape[1]
-    return [bkd.to_numpy(z) for z in (X, Y)]
+  def compute_cov_mats(
+    self,
+    l: int,
+    M: np.ndarray
+  ) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Compute covariance matrices for a given number of measurements and 
+    initial conditions.
 
-  def compute_cov_mat(self, op, adjoint=False):
-    runtime = time.time()
-    # Allocate Gramian's memory
-    shape = [len(self.quad["t"]["x"])] + list(op.shape)
-    g = torch.zeros(shape, dtype=bkd.floatx(), device="cpu")
-    # Compute tensor
-    x = self.eiga["v"].T @ op if adjoint else self.eiga["vinv"] @ op
-    for (i, ti) in enumerate(self.quad["t"]["x"]):
-      xi = x * torch.exp(ti*self.eiga["l"]).reshape(-1,1)
-      xi = self.eiga["vinv"].T @ xi if adjoint else self.eiga["v"] @ xi
-      if (not adjoint):
-        # Scale by quadrature weights
-        wi = self.quad["mu"]["w"] * self.quad["t"]["w"][i]
-        xi *= wi.reshape(1,-1)
-      g[i] = xi.cpu()
-    # Manipulate tensor
-    g = torch.permute(g, dims=(1,2,0))
-    g = torch.reshape(g, (self.nb_eqs,-1))
-    runtime = time.time()-runtime
-    return g, runtime
+    This function computes both the state and gradient covariance matrices by
+    solving the forward and adjoint problems iteratively and returning the
+    results based on the weighted samples.
+
+    :param l: The number of measurements to consider.
+    :type l: int
+    :param M: Initial conditions matrix, where each row represents the initial
+              state for the forward problem.
+    :type M: np.ndarray
+
+    :return: A tuple containing two covariance matrices:
+             - X: State covariance matrix
+             - Y: Gradient covariance matrix
+    :rtype: Tuple[np.ndarray, np.ndarray]
+    """
+    # Set time grid
+    t = self.quad["t"]["x"]
+    nt = len(t)
+    # Initialize dynamic arrays: state/gradient covariance matrices
+    X, Y = [], []
+    # Loop over 'forward problem' initial conditions (mu)
+    # -------------
+    for (i, mui) in enumerate(self.quad["mu"]["x"]):
+      # > Compute initial condition for 'forward problem'
+      y0 = self.system.get_init_sol(mui)
+      # > Solve 'forward problem'
+      y = self.system.solve_fom(t, y0).T
+      # > Build interpolator for 'forward problem' solution
+      self.build_sol_interp(t, y)
+      # Loop over sampling initial times (t0)
+      # -------------
+      for j in range(nt-1):
+        # > Define j-th backward time grid
+        si, ei = j, np.minimum(j+l, nt-1)
+        tj = np.flip(t[si:ei+1])
+        fj = 1.0 / np.sqrt(len(tj))
+        # Loop over 'adjoint problem' initial conditions
+        # -------------
+        # > Compute output Jacobian
+        G = self.system.output_jac(y[ei])
+        # > Solve 'adjoint problem'
+        Yij = [self.solve_adjoint(tj, g0).T for g0 in G]
+        Yij = fj * np.vstack(Yij)
+        # Store samples
+        # -------------
+        # Quadrature weight
+        wij = self.quad["mu"]["w"][i] * self.quad["t"]["w"][j]
+        X.append(wij * y[j])
+        Y.append(wij * Yij)
+    # Return covariance matrices
+    X = np.vstack(X).T
+    Y = np.vstack(Y).T
+    return X, Y
+
+  # Adjoint model
+  # -----------------------------------
+  def solve_adjoint(
+    self,
+    t: np.ndarray,
+    g0: np.ndarray
+  ) -> np.ndarray:
+    return sp.integrate.solve_ivp(
+      fun=self.adjoint_fun,
+      t_span=[t[0],t[-1]],
+      y0=g0,
+      method="BDF",
+      # t_eval=t,
+      first_step=1e-6,
+      rtol=1e-6,
+      atol=0.0,
+      jac=self.adjoint_jac
+    ).y
+
+  def adjoint_fun(
+    self,
+    t: np.ndarray,
+    g: np.ndarray
+  ) -> np.ndarray:
+    # return self.adjoint_jac(t, g) @ g
+    dy = self.adjoint_jac(t, g) @ g
+    print(t)
+    print(np.abs(dy).max())
+    return dy
+
+  def adjoint_jac(
+    self,
+    t: np.ndarray,
+    g: np.ndarray
+  ) -> np.ndarray:
+    x = self.sol_interp(np.abs(t))
+    j = self.system.jac(t, x)
+    return - j.T
+
+  def build_sol_interp(
+    self,
+    t: np.ndarray,
+    x: np.ndarray
+  ) -> None:
+    axis = 0 if (x.shape[0] == len(t)) else 1
+    self.sol_interp = sp.interpolate.interp1d(t, x, kind="linear", axis=axis)
 
   # Balancing modes
   # -----------------------------------
-  def compute_modes(self, X, Y, pod=False, rank=100, niter=30):
+  def compute_modes(
+    self,
+    X: np.ndarray,
+    Y: np.ndarray,
+    pod: bool = False,
+    rank: int = 100,
+    niter: int = 30
+  ) -> None:
     if self.verbose:
-      print("Computing balanced CoBRAS modes ...")
-    runtime = time.time()
+      print("Computing CoBRAS modes ...")
     # Perform randomized SVD
     X, Y = [bkd.to_torch(z) for z in (X, Y)]
     U, s, V = svd_lowrank(
@@ -193,10 +197,9 @@ class CoBRAS(object):
       niter=niter
     )
     # Compute balancing transformation
-    sqrt_s = torch.diag(torch.sqrt(1/s))
+    sqrt_s = torch.diag(torch.sqrt(1.0/s))
     phi = X @ V @ sqrt_s
     psi = Y @ U @ sqrt_s
-    self.runtime["modes"] = time.time()-runtime
     # Save balancing modes
     s, phi, psi = [bkd.to_numpy(z) for z in (s, phi, psi)]
     dicttoh5(

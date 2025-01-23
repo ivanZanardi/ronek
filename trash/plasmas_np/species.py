@@ -76,7 +76,7 @@ class Species(object):
       if self.use_factorial:
         mi /= (i+1)
       m.append(mi)
-    return np.vstack(m) / self.M
+    return np.vstack(m) #/ self.M
 
   # Build and update
   # ===================================

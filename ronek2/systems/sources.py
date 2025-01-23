@@ -46,12 +46,12 @@ class Sources(object):
     # Energies [J/(kg s)]
     # -------------
     # > Total energy
-    f_e = self.omega_energy()
+    f_et = self.omega_energy()
     # > Electron energy
     f_ee = self.omega_energy_el(T, Te, kin_ops)
     # Return
     # -------------
-    return f_rho, f_e, f_ee
+    return f_rho, f_et, f_ee
 
   # Kinetics
   # ===================================
