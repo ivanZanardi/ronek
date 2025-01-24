@@ -1,6 +1,8 @@
 import torch
 
 from .. import const
+from .mixture import Mixture
+from .kinetics import Kinetics
 
 
 class Sources(object):
@@ -9,29 +11,36 @@ class Sources(object):
   # ===================================
   def __init__(
     self,
-    mixture,
-    kinetics,
+    mixture: Mixture,
+    kinetics: Kinetics,
     radiation=None
   ):
     self.mix = mixture
     self.kin = kinetics
     self.rad = radiation
+    self.kin_ops = None
+    self.rad_ops = None
 
   # Calling
   # ===================================
-  def __call__(self, n, T, Te):
+  # Adiabatic case
+  # -----------------------------------
+  def init_ad(self, rho, T, Te):
+    # Mixture
+    self.mix.set_rho(rho)
+
+  def call_ad(self, n, T, Te):
     # Mixture
     # -------------
     self.mix.update(n, T, Te)
     # Kinetics
     # -------------
-    self.kin.update(T, Te)
     # > Operators
-    kin_ops = self.compose_kin_ops()
+    kin_ops = self.compose_kin_ops(T, Te)
     # > Production terms
     omega_exc = self.omega_kin_exc(kin_ops)
     omega_ion = self.omega_kin_ion(kin_ops)
-    # Mass fractions [1/s]
+    # Partial densities [kg/(m^3 s)]
     # -------------
     # > Argon nd
     f_nn = omega_exc - torch.sum(omega_ion, dim=1)
@@ -53,10 +62,42 @@ class Sources(object):
     # -------------
     return f_rho, f_et, f_ee
 
+  # Isothermal case
+  # -----------------------------------
+  def init_iso(self, rho, T, Te):
+    # Mixture
+    self.mix.set_rho(rho)
+    self.mix.update_species_thermo(T, Te)
+    # Kinetics
+    self.kin_ops = self.compose_kin_ops(T, Te)
+
+  def call_iso(self, n):
+    # Mixture
+    self.mix.update_composition(n)
+    # Kinetics
+    omega_exc = self.omega_kin_exc(self.kin_ops)
+    omega_ion = self.omega_kin_ion(self.kin_ops)
+    # Partial densities [kg/(m^3 s)]
+    # > Argon nd
+    f_nn = omega_exc - torch.sum(omega_ion, dim=1)
+    # > Argon ion nd
+    f_ni = torch.sum(omega_ion, dim=0)
+    # > Electron nd
+    f_ne = torch.sum(omega_ion).reshape(1)
+    # > Concatenate
+    f_n = torch.cat([f_nn, f_ni, f_ne])
+    # > Convert
+    f_rho = self.mix.get_rho(f_n)
+    # Return
+    return f_rho
+
   # Kinetics
   # ===================================
-  def compose_kin_ops(self):
+  def compose_kin_ops(self, T, Te):
     """Compose kinetics operators"""
+    # Rates
+    self.kin.update(T, Te)
+    # Operators
     ops = {}
     # > Excitation processes
     for k in ("EXh", "EXe"):

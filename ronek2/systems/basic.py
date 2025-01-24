@@ -1,3 +1,4 @@
+import abc
 import time
 import torch
 import numpy as np
@@ -13,7 +14,7 @@ from .kinetics import Kinetics
 from .equilibrium import Equilibrium
 
 
-class ArgonCR(object):
+class Basic(object):
 
   # Initialization
   # ===================================
@@ -25,8 +26,7 @@ class ArgonCR(object):
     use_rad=False,
     use_proj=False,
     use_factorial=False,
-    use_coll_int_fit=False,
-    isothermal=False
+    use_coll_int_fit=False
   ):
     # Thermochemistry database
     # -------------
@@ -56,9 +56,8 @@ class ArgonCR(object):
     self.sources = Sources(
       mixture=self.mix,
       kinetics=self.kin,
-      radiation=None
+      radiation=self.rad
     )
-    self.isothermal = bool(isothermal)
     # Equilibrium
     # -------------
     self.equil = Equilibrium(
@@ -140,62 +139,16 @@ class ArgonCR(object):
       j[j_not] = j_fd[j_not]
     return j
 
-
-  # Adiabatic case
-  # -----------------------------------
-  def _fun_ad(self, t, y):
-    # ROM activated
-    if self.use_rom:
-      y = self._decode(y)
-    # Extract primitive variables
-    n, T, Te = self.get_prim(y)
-    # Compute sources
-    # > Conservative variables
-    f_rho, f_et, f_ee = self.sources(n, T, Te)
-    # > Primitive variables
-    f_w = self.mix.ov_rho * f_rho
-    if self.isothermal:
-      f_e = torch.zeros(2)
-    else:
-      f_e = torch.cat([
-        self.omega_T(f_rho, f_et, f_ee),
-        self.omega_pe(f_ee)]
-      )
-    # > Concatenate
-    f = torch.cat([f_w, f_e])
-    # ROM activated
-    if self.use_rom:
-      f = self._encode(f)
-    return f
-
-  def get_prim(self, y):
-    # Unpacking
-    w, T, Tpe = y[:-2], y[-2], y[-1]
-    # Get number densities
-    n = self.mix.get_n(w)
-    # Get electron temperature
-    Te = Tpe if self.isothermal else self.mix.get_Te(pe=Tpe, ne=n[-1])
-    # Clip temperatures
-    T, Te = [self.clip_temp(z) for z in (T, Te)]
-    return n, T, Te
-
-  def clip_temp(self, T):
-    return torch.clip(T, const.TMIN, const.TMAX)
-
-  def omega_T(self, f_rho, f_e, f_ee):
-    # Translational temperature
-    f_T = f_e - (f_ee + self.mix._e_h(f_rho))
-    f_T = f_T / (self.mix.rho * self.mix.cv_h)
-    return f_T.reshape(1)
-
-  def omega_pe(self, f_ee):
-    # Electron pressure
-    gamma = self.mix.species["em"].gamma
-    f_pe = (gamma - 1.0) * f_ee
-    return f_pe.reshape(1)
+  @abc.abstractmethod
+  def _fun(self, t, w):
+    pass
 
   # Output
   # ===================================
+  @abc.abstractmethod
+  def set_output(self, max_mom=2, linear=True):
+    pass
+
   def output_fun(self, x):
     y = self.C @ x
     return y if self.output_lin else np.log(y)
@@ -207,33 +160,11 @@ class ArgonCR(object):
       y = self.C @ x
       return np.diag(1.0/y) @ self.C
 
-  def set_output(self, max_mom=2, linear=True):
-    # Linear or log-scaled output
-    self.output_lin = bool(linear)
-    # Compose C matrix
-    self.C = np.eye(self.nb_eqs)
-    if (max_mom > 0):
-      self.C[::] = 0.0
-      # > Species
-      si, ei = 0, 0
-      for k in self.species_order:
-        sk = self.mix.species[k]
-        mm = max_mom if (sk.nb_comp > 1) else 1
-        ei += mm
-        self.C[si:ei,sk.indices] = sk.compute_mom_basis(mm)
-        si = ei
-      # > Translational temperature
-      self.C[ei,-2] = 1.0
-      # > Electron pressure
-      self.C[ei+1,-1] = 1.0
-      # > Remove zeros rows
-      self.C = self.C[:ei+2]
-
   # Solving
   # ===================================
-  def _set_up(self):
-    if self.isothermal:
-      self.
+  @abc.abstractmethod
+  def _set_up(self, y0, rho):
+    pass
 
   def _solve(
     self,
@@ -242,8 +173,7 @@ class ArgonCR(object):
     rho: float
   ) -> Tuple[np.ndarray]:
     # Setting up
-    self.mix.set_rho(rho)
-    self.set_fun_jac()
+    y0 = self._set_up(y0, rho)
     # Solving
     runtime = time.time()
     y = sp.integrate.solve_ivp(
@@ -287,18 +217,10 @@ class ArgonCR(object):
     y = self._decode(z.T).T
     return y, runtime
 
+  @abc.abstractmethod
   def _encode(self, y):
-    # Split variables
-    w, e = y[...,:-2], y[...,-2:]
-    # Encode
-    z = w @ self.P.T if self.use_proj else w @ self.psi
-    # Concatenate
-    return torch.cat([z, e], dim=-1)
+    pass
 
+  @abc.abstractmethod
   def _decode(self, y):
-    # Split variables
-    z, e = y[...,:-2], y[...,-2:]
-    # Decode
-    w = z @ self.P.T if self.use_proj else z @ self.phi.T
-    # Concatenate
-    return torch.cat([w, e], dim=-1)
+    pass
