@@ -141,7 +141,7 @@ class Basic(object):
     return j
 
   @abc.abstractmethod
-  def _fun(self, t, y):
+  def _fun(self, t, w):
     pass
 
   # Output

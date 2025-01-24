@@ -1,9 +1,9 @@
 import numpy as np
 
-from basic import Basic
+from .basic import Basic
 
 
-class ArgonCRIso(Basic):
+class BoxIso(Basic):
 
   # Initialization
   # ===================================
@@ -17,7 +17,7 @@ class ArgonCRIso(Basic):
     use_factorial=False,
     use_coll_int_fit=False
   ):
-    super(ArgonCRIso, self).__init__(
+    super(BoxIso, self).__init__(
       species=species,
       kin_dtb=kin_dtb,
       rad_dtb=rad_dtb,

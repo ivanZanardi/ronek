@@ -1,7 +1,7 @@
 __all__ = [
-  "ArgonCR",
-  "ArgonCRIso"
+  "BoxAd",
+  "BoxIso"
 ]
 
-from .argoncr import ArgonCR
-from .argon_cr_iso import ArgonCRIso
+from .box_ad import BoxAd
+from .box_iso import BoxIso

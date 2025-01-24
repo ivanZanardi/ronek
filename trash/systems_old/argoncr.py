@@ -231,10 +231,6 @@ class ArgonCR(object):
 
   # Solving
   # ===================================
-  def _set_up(self):
-    if self.isothermal:
-      self.
-
   def _solve(
     self,
     t: np.ndarray,

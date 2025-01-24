@@ -1,6 +1,6 @@
 import torch
 
-from .. import const
+from ... import const
 from .mixture import Mixture
 from .kinetics import Kinetics
 
@@ -25,7 +25,7 @@ class Sources(object):
   # ===================================
   # Adiabatic case
   # -----------------------------------
-  def init_ad(self, rho, T, Te):
+  def init_ad(self, rho):
     # Mixture
     self.mix.set_rho(rho)
 
@@ -69,7 +69,7 @@ class Sources(object):
     self.mix.set_rho(rho)
     self.mix.update_species_thermo(T, Te)
     # Kinetics
-    self.kin_ops = self.compose_kin_ops(T, Te)
+    self.kin_ops = self.compose_kin_ops(T, Te, isothermal=True)
 
   def call_iso(self, n):
     # Mixture
@@ -93,10 +93,10 @@ class Sources(object):
 
   # Kinetics
   # ===================================
-  def compose_kin_ops(self, T, Te):
+  def compose_kin_ops(self, T, Te, isothermal=False):
     """Compose kinetics operators"""
     # Rates
-    self.kin.update(T, Te)
+    self.kin.update(T, Te, isothermal)
     # Operators
     ops = {}
     # > Excitation processes

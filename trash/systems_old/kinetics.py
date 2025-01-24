@@ -57,7 +57,7 @@ class Kinetics(object):
 
   # Rates
   # ===================================
-  def update(self, T, Te):
+  def update(self, T, Te, isothermal=False):
     # Update electron temperature-based thermo
     self.mix_e.update_species_thermo(Te)
     # Compute reaction rates
@@ -72,7 +72,7 @@ class Kinetics(object):
     if ("Ie" in self.reactions):
       self.rates["Ie"] = self._compute_Ie_rates(Te)
     # > First order moment
-    if ("EN" in self.reactions):
+    if ((not isothermal) and ("EN" in self.reactions)):
       ve = self._compute_ve(Te)
       self.rates["EN"] = self._compute_en_rate(Te, ve)
       self.rates["EI"] = self._compute_ei_rate(T, Te, ve)
