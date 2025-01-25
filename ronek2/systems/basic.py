@@ -146,9 +146,23 @@ class Basic(object):
 
   # Output
   # ===================================
-  @abc.abstractmethod
   def set_output(self, max_mom=2, linear=True):
-    pass
+    # Linear or log-scaled output
+    self.output_lin = bool(linear)
+    # Compose C matrix
+    self.C = np.eye(self.nb_eqs)
+    if (max_mom > 0):
+      self.C[::] = 0.0
+      # > Species
+      si, ei = 0, 0
+      for k in self.species_order:
+        sk = self.mix.species[k]
+        mm = max_mom if (sk.nb_comp > 1) else 1
+        ei += mm
+        self.C[si:ei,sk.indices] = sk.compute_mom_basis(mm)
+        si = ei
+      # > Remove zeros rows
+      self.C = self.C[:ei+1]
 
   def output_fun(self, x):
     y = self.C @ x

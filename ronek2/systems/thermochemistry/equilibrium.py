@@ -142,7 +142,7 @@ class Equilibrium(object):
     if solve_full_sys:
       # Solve the full system to determine the equilibrium state
       # under thermal nonequilibrium conditions.
-      y = self.solve(t=[1e1], y0=y, rho=rho)[0].squeeze()
+      y = self.solve(t=[1e3], y0=y, rho=rho)[0].squeeze()
     return y
 
   def _from_prim_fun(self, x: torch.Tensor) -> torch.Tensor:
