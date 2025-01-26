@@ -68,58 +68,34 @@ class CoBRAS(object):
   # -----------------------------------
   def compute_cov_mats(
     self,
-    l: int,
-    M: np.ndarray
+    nb_meas: int = 10,     # number of output measuremtn (adjoint simulaiton)
+    use_eig: bool = True,  # use eigedecomposiotn for deifinign max time for linear model validity
+    err_max: float = 30.0  # percentrage error between linear and nonlinear model
   ) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Compute covariance matrices for a given number of measurements and
-    initial conditions.
-
-    This function computes both the state and gradient covariance matrices by
-    solving the forward and adjoint problems iteratively and returning the
-    results based on the weighted samples.
-
-    :param l: The number of measurements to consider.
-    :type l: int
-    :param M: Initial conditions matrix, where each row represents the initial
-              state for the forward problem.
-    :type M: np.ndarray
-
-    :return: A tuple containing two covariance matrices:
-             - X: State covariance matrix
-             - Y: Gradient covariance matrix
-    :rtype: Tuple[np.ndarray, np.ndarray]
-    """
-    tmax = 1e-7
-    tmin = 1e-12
-    nb_meas = 5
-    fac = 1.0 / np.sqrt(nb_meas)
-    # Set quadrature points
+    # Set quadrature points/weigths
     t, mu = [self.quad[k]["x"] for k in ("t", "mu")]
+    w_t, w_mu = [self.quad[k]["w"] for k in ("t", "mu")]
+    w_meas = 1.0 / np.sqrt(nb_meas)
     # Initialize dynamic arrays: state/gradient covariance matrices
     X, Y = [], []
     # Loop over 'forward problem' initial conditions (mu)
     # -------------
     for (i, mui) in enumerate(mu):
       # > Compute initial condition for 'forward problem'
-      y0 = self.system.get_init_sol(mui)
-      # > Solve 'forward problem'
+      y0 = self.system.get_init_sol(mui, noise=True)
+      # > Solve nonlinear 'forward problem'
       y = self.system.solve_fom(t, y0).T
+      # > Compute time limits, valid for linear model
+      tlim = self.system.compute_lin_tlim(t, y, use_eig, err_max)
+      # > Get time grid for linear adjoint simulation
+      tadj = self.system.get_tgrid(*tlim, nb_meas)
       # Loop over sampling initial times (t0)
       # -------------
-      for j in range(len(t)-1):
-        t0 = max(t[j], tmin)
-        tf = min(t[j+1], tmax)
-        if t0 == 0.0:
-          t = np.geomspace(t0, tf, num=nb_meas-1)
-          t = np.insert(t, 0, 0.0)
-        else:
-        tj = np.geomspace(t0, tf, nb_meas)
-        Yij = fac * self.solve_lin_adjoint(tj, y[j])
-        # Store samples
-        # -------------
-        # Quadrature weight
-        wij = self.quad["mu"]["w"][i] * self.quad["t"]["w"][j]
+      for j in range(len(t)):
+        Yij = w_meas * self.solve_lin_adjoint(tadj, y[j]).T
+        # > Quadrature weight
+        wij = w_mu[i] * w_t[j]
+        # > Store samples
         X.append(wij * y[j])
         Y.append(wij * Yij)
     # Return covariance matrices
@@ -130,33 +106,23 @@ class CoBRAS(object):
   # Linear adjoint model
   # -----------------------------------
   def solve_lin_adjoint(self, t, y0):
-    # Assembly linear operators
-    C = self.system.C
-    A, _ = self.system.get_lin_ops(y0)
+    # Compute linear operators
+    self.system.compute_lin_fom_ops(0.0, y0)
+    A, C = [getattr(self.system, k) for k in ("A", "C")]
     l, V = sp.linalg.eig(A)
     Vinv = sp.linalg.inv(V)
     # Allocate memory
     shape = [len(t)] + list(C.T.shape)
     g = np.zeros(shape)
     # Compute solution
-    x = V.T @ C.T
+    VC = V.T @ C.T
     for (i, ti) in enumerate(t):
-      Li = np.diag(np.exp(ti*l))
-      g[i] = Vinv.T @ (Li @ x)
+      L = np.diag(np.exp(ti*l))
+      g[i] = Vinv.T @ (L @ VC)
     # Manipulate tensor
     g = np.transpose(g, axes=(1,2,0))
     g = np.reshape(g, (shape[1],-1))
     return g
-
-  def get_tgrid_adjoint(self, t0, tf, tmin, tmax, nb_pts):
-
-    tf = min(tf, tmax)
-    if t0 == 0.0:
-      t = np.geomspace(tmin, tf, num=nb_pts-1)
-      t = np.insert(t, 0, 0.0)
-    else:
-      t = np.geomspace(t0, tf, nb_pts)
-    return t
 
   # Balancing modes
   # -----------------------------------

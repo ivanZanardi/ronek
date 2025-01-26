@@ -27,11 +27,12 @@ class BoxAd(Basic):
       use_factorial=use_factorial,
       use_coll_int_fit=use_coll_int_fit
     )
+    self.nb_eqs = self.nb_comp + self.nb_temp
 
   # Function/Jacobian
   # ===================================
   def _fun(self, t, y):
-    # ROM activated
+    # ROM enabled
     y = self._decode(y) if self.use_rom else y
     # Extract primitive variables
     n, T, Te = self.get_prim(y)
@@ -44,7 +45,7 @@ class BoxAd(Basic):
       self.omega_T(f_rho, f_et, f_ee),
       self.omega_pe(f_ee)
     ])
-    # ROM activated
+    # ROM enabled
     f = self._encode(f) if self.use_rom else f
     return f
 

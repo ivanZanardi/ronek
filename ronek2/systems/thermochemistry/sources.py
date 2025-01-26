@@ -31,17 +31,14 @@ class Sources(object):
 
   def call_ad(self, n, T, Te):
     # Mixture
-    # -------------
     self.mix.update(n, T, Te)
     # Kinetics
-    # -------------
     # > Operators
     kin_ops = self.compose_kin_ops(T, Te)
     # > Production terms
     omega_exc = self.omega_kin_exc(kin_ops)
     omega_ion = self.omega_kin_ion(kin_ops)
     # Partial densities [kg/(m^3 s)]
-    # -------------
     # > Argon nd
     f_nn = omega_exc - torch.sum(omega_ion, dim=1)
     # > Argon ion nd
@@ -53,13 +50,11 @@ class Sources(object):
     # > Convert
     f_rho = self.mix.get_rho(f_n)
     # Energies [J/(kg s)]
-    # -------------
     # > Total energy
     f_et = self.omega_energy()
     # > Electron energy
     f_ee = self.omega_energy_el(T, Te, kin_ops)
     # Return
-    # -------------
     return f_rho, f_et, f_ee
 
   # Isothermal case

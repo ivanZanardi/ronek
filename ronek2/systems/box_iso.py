@@ -26,6 +26,7 @@ class BoxIso(Basic):
       use_coll_int_fit=use_coll_int_fit
     )
     self.fixed_ne = fixed_ne
+    self.nb_eqs = self.nb_comp
 
   # Function/Jacobian
   # ===================================

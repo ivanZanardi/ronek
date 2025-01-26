@@ -5,6 +5,7 @@ import numpy as np
 import scipy as sp
 from typing import Tuple
 
+from .. import const
 from .. import utils
 from .. import backend as bkd
 from .thermochemistry import Sources
@@ -27,7 +28,7 @@ class Basic(object):
     use_factorial=False,
     use_coll_int_fit=False
   ):
-    # Thermochemistry database
+    # Thermochemistry
     # -------------
     # Mixture
     self.species_order = ("Ar", "Arp", "em")
@@ -46,10 +47,6 @@ class Basic(object):
     # Radiation
     self.use_rad = bool(use_rad)
     self.rad = rad_dtb
-    # Dimensions
-    self.nb_comp = self.mix.nb_comp
-    self.nb_temp = 2
-    self.nb_eqs = self.nb_comp + self.nb_temp
     # Sources
     # -------------
     self.sources = Sources(
@@ -77,48 +74,65 @@ class Basic(object):
     # -------------
     self.output_lin = True
     self.C = None
-
+    # Solving
+    # -------------
+    # Dimensions
+    self.nb_comp = self.mix.nb_comp
+    self.nb_temp = 2
+    # Setting up function
     self.set_up = bkd.make_fun_np(self._set_up)
 
-  # # Initial composition
-  # # ===================================
-  # def get_init_composition(self, p, T, noise=False, sigma=1e-2):
-  #   # Compute equilibrium mass fractions
-  #   n, rho = self.compute_eq_comp(p, T)
-  #   # Add random noise
-  #   if noise:
-  #     # > Electron
-  #     s = self.mix.species["em"]
-  #     x = s.x * self._add_norm_noise(s, sigma, use_q=False)
-  #     x = torch.clip(x, const.XMIN, 1.0)
-  #     s.x = x
-  #     # > Argon Ion
-  #     s = self.mix.species["Arp"]
-  #     s.x = x * self._add_norm_noise(s, sigma)
-  #     # > Argon
-  #     s = self.mix.species["Ar"]
-  #     s.x = (1.0-2.0*x) * self._add_norm_noise(s, sigma)
-  #     # Number densities
-  #     n = torch.sum(n)
-  #     n = n * torch.cat([self.mix.species[k].x for k in self.species_order])
-  #   return n, rho
-
-  # def _add_norm_noise(self, species, sigma, use_q=True):
-  #   f = 1.0 + sigma * torch.rand(species.nb_comp)
-  #   if use_q:
-  #     f *= species.q * f
-  #     f /= torch.sum(f)
-  #   return f
-
-  # ROM Basis
+  # Properties
   # ===================================
-  def set_basis(self, phi, psi):
-    self.phi = bkd.to_torch(phi)
-    self.psi = bkd.to_torch(psi)
-    # Biorthogonalize
-    self.phi = self.phi @ torch.linalg.inv(self.psi.T @ self.phi)
-    # Projector
-    self.P = self.phi @ self.psi.T
+  # Linear Model
+  @property
+  def A(self):
+    return self._A
+
+  @A.setter
+  def A(self, value):
+    self._A = value
+
+  @property
+  def b(self):
+    return self._b
+
+  @b.setter
+  def b(self, value):
+    self._b = value
+
+  # Initial solution
+  # ===================================
+  def get_init_sol(self, mu, noise=False, sigma=1e-2):
+    # Unpacking
+    rho, T, Te = mu
+    # Equilibirum at (rho, Te)
+    y = self.equil.from_prim(rho, Te)
+    y[-2] = T
+    # Add random noise
+    if noise:
+      # > Electron
+      s = self.mix.species["em"]
+      x = s.x * self._add_norm_noise(s, sigma, use_q=False)
+      x = self.equil._clipping(x)
+      s.x = x
+      # > Argon Ion
+      s = self.mix.species["Arp"]
+      s.x = x * self._add_norm_noise(s, sigma)
+      # > Argon
+      s = self.mix.species["Ar"]
+      s.x = (1.0-2.0*x) * self._add_norm_noise(s, sigma)
+      # Number densities
+      n = torch.sum(n)
+      n = n * torch.cat([self.mix.species[k].x for k in self.species_order])
+    return n, rho
+
+  def _add_norm_noise(self, species, sigma, use_q=True):
+    f = 1.0 + sigma * torch.rand(species.nb_comp)
+    if use_q:
+      f *= species.q * f
+      f /= torch.sum(f)
+    return f
 
   # Function/Jacobian
   # ===================================
@@ -144,36 +158,162 @@ class Basic(object):
   def _fun(self, t, y):
     pass
 
+  # Linear Model
+  # ===================================
+  def fun_lin(self, t, y):
+    return self.A @ y + self.b
+
+  def jac_lin(self, t, y):
+    return self.A
+
+  def compute_lin_fom_ops(
+    self,
+    t: np.ndarray,
+    y: np.ndarray
+  ) -> None:
+    """
+    Compute the linearized full-order model (FOM) operators.
+
+    This function computes and stores the Jacobian matrix `A` and the residual
+    vector `b` for the system evaluated at the given state `y`.
+
+    :param y: The state vector at which the Jacobian and residual are computed.
+    :type y: np.ndarray
+    """
+    # Disable ROM usage
+    self.use_rom = False
+    # Compute Jacobian matrix
+    self.A = self.jac(t, y)
+    # Compute residual vector
+    self.b = self.fun(t, y)
+
+  def compute_lin_tscale(
+    self,
+    y: np.ndarray,
+    species: str = "Ar",
+    index: int = -2
+  ) -> float:
+    """
+    Compute the characteristic timescale of a given species.
+
+    This function calculates the timescale by linearizing the system,
+    extracting the sub-Jacobian corresponding to the specified species,
+    and evaluating the eigenvalues of the sub-Jacobian.
+
+    :param y: The state vector at which the timescale is computed.
+    :type y: np.ndarray
+    :param species: The species for which the timescale is calculated.
+                    Defaults to "Ar".
+    :type species: str, optional
+    :param index: The index of the timescale to return (sorted by magnitude).
+                  Defaults to -2.
+    :type index: int, optional
+    :return: The computed timescale for the given species.
+    :rtype: float
+    """
+    # Compute linearized operators
+    self.compute_lin_fom_ops(0.0, y)
+    # Extract sub-Jacobian for the specified species
+    s = self.mix.species[species]
+    A = self.A[np.ix_(s.indices, s.indices)]
+    # Compute eigenvalues of the sub-Jacobian
+    l = sp.linalg.eigvals(A)
+    # Compute and return the desired timescale
+    t = np.sort(np.abs(1.0/l))[index]
+    return t
+
+  def compute_lin_tmax(
+    self,
+    t: np.ndarray,
+    y: np.ndarray,
+    use_eig: bool = True,
+    err_max: float = 30.0
+  ) -> float:
+    """
+    Compute the maximum time validity for the linearized model.
+
+    This function determines the time limit up to which the linear model
+    remains valid, either by using eigenvalues of the Jacobian or by
+    comparing the nonlinear with the linearized solution.
+
+    :param t: Time array over which the model is evaluated.
+    :type t: np.ndarray
+    :param y: Solution of the nonlinear model, used as the reference for
+              validation.
+    :type y: np.ndarray
+    :param use_eig: Flag to determine whether to use eigenvalue-based
+                    timescale computation. If False, the function will
+                    use error-based validation. Defaults to True.
+    :type use_eig: bool, optional
+    :param err_max: Maximum allowed percentage error between the nonlinear and
+                    the linearized model for validity. Only used if
+                    `use_eig` is False. Defaults to 30.0.
+    :type err_max: float, optional
+    :return: The maximum time (tmax) up to which the linearized model
+             remains valid.
+    :rtype: float
+    """
+    if (len(t.reshape(-1)) != len(y)):
+      y = y.T
+    if use_eig:
+      # Compute the timescale using eigenvalues of the Jacobian
+      return self.compute_lin_tscale(y[0])
+    else:
+      ylin = self.solve_fom(t, y[0], linear=True).T
+      # Compute the error between nonlinear and linear solutions
+      err = utils.absolute_percentage_error(y, ylin, eps=0.0)
+      # Average the error across the state dimension
+      err = np.mean(err, axis=-1)
+      # Find the last index where the error is within the threshold
+      idx = np.where(err <= err_max)[0][-1]
+      # Return the corresponding time value
+      return t[idx]
+
+  # ROM Model
+  # ===================================
+  def set_basis(self, phi, psi):
+    self.phi = bkd.to_torch(phi)
+    self.psi = bkd.to_torch(psi)
+    # Biorthogonalize
+    self.phi = self.phi @ torch.linalg.inv(self.psi.T @ self.phi)
+    # Projector
+    self.P = self.phi @ self.psi.T
+
   # Output
   # ===================================
-  def set_output(self, max_mom=2, linear=True):
-    # Linear or log-scaled output
-    self.output_lin = bool(linear)
-    # Compose C matrix
+  def compute_c_mat(
+    self,
+    max_mom: int
+  ) -> None:
+    """
+    Compute the observation matrix for a linear output model.
+
+    This function constructs the `C` matrix that maps the state vector to
+    the output vector. It includes species contributions and their moments,
+    up to a specified maximum moment order.
+
+    :param max_mom: The maximum number of moments to include for each species.
+    :type max_mom: int
+    """
+    # Compose C matrix for a linear output
     self.C = np.eye(self.nb_eqs)
     if (max_mom > 0):
+      # Reset the C matrix to all zeros
       self.C[::] = 0.0
-      # > Species
+      # Variables to track row indices in C
       si, ei = 0, 0
+      # Loop over species in the defined order
       for k in self.species_order:
+        # Get species object
         sk = self.mix.species[k]
+        # Determine the number of moments to compute
         mm = max_mom if (sk.nb_comp > 1) else 1
+        # Compute the moment basis for the species and populate C
         ei += mm
         self.C[si:ei,sk.indices] = sk.compute_mom_basis(mm)
         si = ei
-      # > Remove zeros rows
+      # Remove zero rows from the C matrix
       self.C = self.C[:ei+1]
-
-  def output_fun(self, x):
-    y = self.C @ x
-    return y if self.output_lin else np.log(y)
-
-  def output_jac(self, x):
-    if self.output_lin:
-      return self.C
-    else:
-      y = self.C @ x
-      return np.diag(1.0/y) @ self.C
 
   # Solving
   # ===================================
@@ -185,23 +325,30 @@ class Basic(object):
     self,
     t: np.ndarray,
     y0: np.ndarray,
-    rho: float
+    rho: float,
+    linear: bool = False
   ) -> Tuple[np.ndarray]:
     # Setting up
     y0 = self.set_up(y0, rho)
+    # Linear model
+    if linear:
+      self.compute_lin_fom_ops(0.0, y0)
     # Solving
     runtime = time.time()
     y = sp.integrate.solve_ivp(
-      fun=self.fun,
+      fun=self.fun_lin if linear else self.fun,
       t_span=[0.0,t[-1]],
-      y0=y0,
+      y0=np.zeros_like(y0) if linear else y0,
       method="LSODA",
       t_eval=t,
       first_step=1e-14,
       rtol=1e-6,
-      atol=0.0,
-      jac=self.jac
+      atol=1e-20,
+      jac=self.jac_lin if linear else self.jac,
     ).y
+    # Linear model
+    if linear:
+      y += y0.reshape(-1,1)
     runtime = time.time()-runtime
     runtime = np.array(runtime).reshape(1)
     return y, runtime
@@ -210,24 +357,26 @@ class Basic(object):
     self,
     t: np.ndarray,
     y0: np.ndarray,
-    rho: float
+    rho: float,
+    linear: bool = False
   ) -> Tuple[np.ndarray]:
     """Solve FOM."""
     self.use_rom = False
-    return self._solve(t, y0, rho)
+    return self._solve(t, y0, rho, linear)
 
   def solve_rom(
     self,
     t: np.ndarray,
     y0: np.ndarray,
-    rho: float
+    rho: float,
+    linear: bool = False
   ) -> Tuple[np.ndarray]:
     """Solve ROM."""
     self.use_rom = True
     # Encode initial conditions
     z0 = self._encode(y0)
     # Solve
-    z, runtime = self._solve(t, z0, rho)
+    z, runtime = self._solve(t, z0, rho, linear)
     # Decode solution
     y = self._decode(z.T).T
     return y, runtime
@@ -239,3 +388,13 @@ class Basic(object):
   @abc.abstractmethod
   def _decode(self, y):
     pass
+
+  def get_tgrid(
+    self,
+    start: float,
+    stop: float,
+    num: int
+  ) -> np.ndarray:
+    t = np.geomspace(start, stop, num=num-1)
+    t = np.insert(t, 0, 0.0)
+    return t
