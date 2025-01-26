@@ -25,10 +25,6 @@ class Sources(object):
   # ===================================
   # Adiabatic case
   # -----------------------------------
-  def init_ad(self, rho):
-    # Mixture
-    self.mix.set_rho(rho)
-
   def call_ad(self, n, T, Te):
     # Mixture
     self.mix.update(n, T, Te)
@@ -59,9 +55,8 @@ class Sources(object):
 
   # Isothermal case
   # -----------------------------------
-  def init_iso(self, rho, T, Te):
+  def init_iso(self, T, Te):
     # Mixture
-    self.mix.set_rho(rho)
     self.mix.update_species_thermo(T, Te)
     # Kinetics
     self.kin_ops = self.compose_kin_ops(T, Te, isothermal=True)

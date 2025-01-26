@@ -79,8 +79,10 @@ class Basic(object):
     # Dimensions
     self.nb_comp = self.mix.nb_comp
     self.nb_temp = 2
-    # Setting up function
+    # Class methods
+    # -------------
     self.set_up = bkd.make_fun_np(self._set_up)
+    self.get_init_sol = self.equil.get_init_sol
 
   # Properties
   # ===================================
@@ -100,39 +102,6 @@ class Basic(object):
   @b.setter
   def b(self, value):
     self._b = value
-
-  # Initial solution
-  # ===================================
-  def get_init_sol(self, mu, noise=False, sigma=1e-2):
-    # Unpacking
-    rho, T, Te = mu
-    # Equilibirum at (rho, Te)
-    y = self.equil.from_prim(rho, Te)
-    y[-2] = T
-    # Add random noise
-    if noise:
-      # > Electron
-      s = self.mix.species["em"]
-      x = s.x * self._add_norm_noise(s, sigma, use_q=False)
-      x = self.equil._clipping(x)
-      s.x = x
-      # > Argon Ion
-      s = self.mix.species["Arp"]
-      s.x = x * self._add_norm_noise(s, sigma)
-      # > Argon
-      s = self.mix.species["Ar"]
-      s.x = (1.0-2.0*x) * self._add_norm_noise(s, sigma)
-      # Number densities
-      n = torch.sum(n)
-      n = n * torch.cat([self.mix.species[k].x for k in self.species_order])
-    return n, rho
-
-  def _add_norm_noise(self, species, sigma, use_q=True):
-    f = 1.0 + sigma * torch.rand(species.nb_comp)
-    if use_q:
-      f *= species.q * f
-      f /= torch.sum(f)
-    return f
 
   # Function/Jacobian
   # ===================================
@@ -168,7 +137,6 @@ class Basic(object):
 
   def compute_lin_fom_ops(
     self,
-    t: np.ndarray,
     y: np.ndarray
   ) -> None:
     """
@@ -183,9 +151,9 @@ class Basic(object):
     # Disable ROM usage
     self.use_rom = False
     # Compute Jacobian matrix
-    self.A = self.jac(t, y)
+    self.A = self.jac(0.0, y)
     # Compute residual vector
-    self.b = self.fun(t, y)
+    self.b = self.fun(0.0, y)
 
   def compute_lin_tscale(
     self,
@@ -212,7 +180,7 @@ class Basic(object):
     :rtype: float
     """
     # Compute linearized operators
-    self.compute_lin_fom_ops(0.0, y)
+    self.compute_lin_fom_ops(y)
     # Extract sub-Jacobian for the specified species
     s = self.mix.species[species]
     A = self.A[np.ix_(s.indices, s.indices)]
@@ -325,11 +293,8 @@ class Basic(object):
     self,
     t: np.ndarray,
     y0: np.ndarray,
-    rho: float,
     linear: bool = False
   ) -> Tuple[np.ndarray]:
-    # Setting up
-    y0 = self.set_up(y0, rho)
     # Linear model
     if linear:
       self.compute_lin_fom_ops(0.0, y0)
@@ -357,26 +322,29 @@ class Basic(object):
     self,
     t: np.ndarray,
     y0: np.ndarray,
-    rho: float,
     linear: bool = False
   ) -> Tuple[np.ndarray]:
     """Solve FOM."""
+    # Setting up
+    y0 = self.set_up(y0)
     self.use_rom = False
-    return self._solve(t, y0, rho, linear)
+    # Solving
+    return self._solve(t, y0, linear)
 
   def solve_rom(
     self,
     t: np.ndarray,
     y0: np.ndarray,
-    rho: float,
     linear: bool = False
   ) -> Tuple[np.ndarray]:
     """Solve ROM."""
+    # Setting up
+    y0 = self.set_up(y0)
     self.use_rom = True
     # Encode initial conditions
     z0 = self._encode(y0)
-    # Solve
-    z, runtime = self._solve(t, z0, rho, linear)
+    # Solving
+    z, runtime = self._solve(t, z0, linear)
     # Decode solution
     y = self._decode(z.T).T
     return y, runtime

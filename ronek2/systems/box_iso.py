@@ -1,3 +1,5 @@
+import torch
+
 from .basic import Basic
 
 
@@ -48,11 +50,20 @@ class BoxIso(Basic):
 
   # Solving
   # ===================================
-  def _set_up(self, y0, rho):
-    w0, T, Te = y0[:-2], y0[-2], y0[-1]
-    self.sources.init_iso(rho, T, Te)
+  def _set_up(self, y0):
+    # Unpack the state vector
+    rho = torch.sum(y0[:-2])
+    w, T, pe = y0[:-2]/rho, y0[-2], y0[-1]
+    # Set density
+    self.mix.set_rho(rho)
+    # Compute the electron temperature
+    n = self.mix.get_n(w)
+    Te = self.mix.get_Te(pe, ne=n[-1])
+    # Initialize the sources
+    self.sources.init_iso(T, Te)
+    # Set the function and Jacobian
     self.set_fun_jac()
-    return w0
+    return w
 
   def _encode(self, y):
     return y @ self.P.T if self.use_proj else y @ self.psi
