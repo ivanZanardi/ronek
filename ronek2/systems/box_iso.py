@@ -50,10 +50,9 @@ class BoxIso(Basic):
 
   # Solving
   # ===================================
-  def _set_up(self, y0):
+  def _set_up(self, y0, rho):
     # Unpack the state vector
-    rho = torch.sum(y0[:-2])
-    w, T, pe = y0[:-2]/rho, y0[-2], y0[-1]
+    w, T, pe = y0[:-2], y0[-2], y0[-1]
     # Set density
     self.mix.set_rho(rho)
     # Compute the electron temperature

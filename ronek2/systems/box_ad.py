@@ -27,6 +27,7 @@ class BoxAd(Basic):
       use_factorial=use_factorial,
       use_coll_int_fit=use_coll_int_fit
     )
+    self.nb_eqs = self.nb_temp + self.nb_comp
 
   # Function/Jacobian
   # ===================================
@@ -76,10 +77,7 @@ class BoxAd(Basic):
 
   # Solving
   # ===================================
-  def _set_up(self, y0):
-    # Compute density
-    rho = torch.sum(y0[:-2])
-    y0[:-2] /= rho
+  def _set_up(self, y0, rho):
     # Set density
     self.mix.set_rho(rho)
     # Set function and Jacobian

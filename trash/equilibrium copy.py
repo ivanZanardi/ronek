@@ -2,9 +2,10 @@ import torch
 import numpy as np
 import scipy as sp
 
+from ... import const
+from ... import backend as bkd
 from .mixture import Mixture
 from .species import Species
-from ... import backend as bkd
 from typing import Dict, Tuple
 
 
@@ -84,7 +85,7 @@ class Equilibrium(object):
     self,
     mu: np.ndarray,
     noise: bool = False,
-    sigma: float = 1e-1
+    sigma: float = 1e-2
   ) -> Tuple[np.ndarray, float]:
     """
     Generates an initial solution for heat bath simulations based on the input
@@ -112,17 +113,17 @@ class Equilibrium(object):
     # Unpack the input array into individual parameters
     rho, T, Te = mu
     # Compute the equilibrium state based on rho and Te
-    y, _ = self.from_prim(rho, Te)
+    y, _ = self.from_prim(rho=rho, T=Te)
     # If noise requested, update the composition and recompute the state vector
     if noise:
       self._update_composition(
-        ze=self.mix.species["em"].x,
+        xe=self.mix.species["em"].x,
         noise=noise,
         sigma=sigma
       )
       y = self._compose_state_vector(
-        T=bkd.to_torch(Te).reshape(1),
-        ze=self.mix.species["em"].x
+        T=bkd.to_torch(Te),
+        xe=self.mix.species["em"].x
       )
     # Replace the equilibrium temperature Te with T for heat bath simulation
     y[-2] = T
@@ -130,6 +131,70 @@ class Equilibrium(object):
 
   # Primitive variables
   # ===================================
+  # def from_prim(
+  #   self,
+  #   rho: float,
+  #   T: float
+  # ) -> Tuple[np.ndarray, float]:
+  #   """
+  #   Compute the equilibrium state from primitive macroscopic variables
+  #   such as density and temperature.
+
+  #   :param rho: Density of the system.
+  #   :type rho: float
+  #   :param T: Temperature of the system.
+  #   :type T: float
+
+  #   :return: The equilibrium state vector, including partial densities,
+  #            translational temperature, and electron pressure.
+  #   :rtype: np.ndarray
+  #   """
+  #   # Convert to 'torch.Tensor'
+  #   rho, T = [bkd.to_torch(z).reshape(1) for z in (rho, T)]
+  #   # Update mixture
+  #   self.mix.set_rho(rho)
+  #   self.mix.update_species_thermo(T)
+  #   # Compute electron molar fraction
+  #   x = sp.optimize.least_squares(
+  #     fun=self.from_prim_fun,
+  #     x0=np.log([1e-2]),
+  #     jac=self.from_prim_jac,
+  #     bounds=(-np.inf, np.log(0.5)),
+  #     **self.lsq_opts
+  #   ).x
+  #   # Extract variables
+  #   xe = bkd.to_torch(np.exp(x))
+  #   xe = self._clip_x(xe)
+  #   # Compose state vector
+  #   y = self._compose_state_vector(T, xe)
+  #   return bkd.to_numpy(y), float(rho)
+
+  # def _from_prim_fun(self, x: torch.Tensor) -> torch.Tensor:
+  #   """
+  #   Compute the residuals of the detailed balance condition based on the
+  #   electron molar fraction.
+
+  #   This method takes the electron molar fraction (as the logarithm of
+  #   the fraction), updates the species composition based on the value,
+  #   and enforces the detailed balance condition for the reaction:
+  #   \[
+  #   \text{Ar} \rightleftharpoons \text{Ar}^+ + e^-
+  #   \]
+
+  #   :param x: Logarithm of the electron molar fraction.
+  #   :type x: torch.Tensor
+
+  #   :return: The residuals of the detailed balance condition.
+  #   :rtype: torch.Tensor
+  #   """
+  #   # Extract variables
+  #   xe = torch.exp(x)
+  #   print(xe.dtype)
+  #   # Update composition
+  #   self._update_composition(xe)
+  #   # Enforce detailed balance
+  #   return self._detailed_balance()
+
   def from_prim(
     self,
     rho: float,
@@ -320,6 +385,43 @@ class Equilibrium(object):
     x = self.mix.get_x_from_w(z) if by_mass else z
     self.mix.update_composition_x(x)
 
+  # def _update_composition(
+  #   self,
+  #   xe: torch.Tensor,
+  #   noise: bool = False,
+  #   sigma: float = 1e-2
+  # ) -> None:
+  #   """
+  #   Updates the species composition based on the electron molar fraction
+  #   and optionally adds random noise to the composition.
+
+  #   This method modifies the composition vector using the electron molar
+  #   fraction `xe`, applying noise if specified, and updates the species
+  #   states for various elements like "Ar" and "Arp".
+
+  #   :param xe: Electron molar fraction of the species.
+  #   :type xe: torch.Tensor
+  #   :param noise: Whether to add random noise to the composition.
+  #   :type noise: bool, optional, default is False
+  #   :param sigma: Standard deviation of the noise if `noise` is True.
+  #   :type sigma: float, optional, default is 1e-2
+  #   """
+  #   x = torch.zeros(self.mix.nb_comp)
+  #   # Electron
+  #   s = self.mix.species["em"]
+  #   if noise:
+  #     xe *= self._add_norm_noise(s, sigma, use_pf=False)
+  #   xe = self._clip_x(xe)
+  #   x[s.indices] = xe
+  #   # Argon neutral/ion
+  #   for k in ("Ar", "Arp"):
+  #     sk = self.mix.species[k]
+  #     xk = xe if (k == "Arp") else 1.0-2.0*xe
+  #     fk = self._add_norm_noise(sk, sigma) if noise else sk.q / sk.Q
+  #     x[sk.indices] = xk * fk
+  #   # Update composition
+  #   self.mix.update_composition_x(x)
+
   def _add_norm_noise(
     self,
     species: Species,
@@ -383,6 +485,24 @@ class Equilibrium(object):
     :rtype: Dict[str, torch.Tensor]
     """
     return {k: getattr(s, attr) for (k, s) in self.mix.species.items()}
+
+  # def _clip(self, ze: torch.Tensor) -> torch.Tensor:
+  #   """
+  #   Clip molar fractions to avoid values that are too small, ensuring
+  #   numerical stability.
+
+  #   This method ensures that the molar fractions remain within a valid range.
+  #   If clipping is enabled, the values are constrained between a predefined
+  #   minimum (`const.XMIN`) and a maximum of 1.0. If clipping is disabled,
+  #   the input tensor is returned unchanged.
+
+  #   :param x: Tensor of molar fractions to be clipped.
+  #   :type x: torch.Tensor
+
+  #   :return: Tensor of molar fractions after applying clipping (if enabled).
+  #   :rtype: torch.Tensor
+  #   """
+  #   return torch.clip(ze, const.XMIN, 1.0) if self.clipping else ze
 
   def _compose_state_vector(
     self,

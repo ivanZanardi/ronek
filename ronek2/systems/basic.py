@@ -57,9 +57,8 @@ class Basic(object):
     # Equilibrium
     # -------------
     self.equil = Equilibrium(
-      solve=self.solve_fom,
       mixture=self.mix,
-      clipping=False
+      clipping=True
     )
     # ROM
     # -------------
@@ -159,7 +158,8 @@ class Basic(object):
     self,
     y: np.ndarray,
     species: str = "Ar",
-    index: int = -2
+    index: int = -2,
+    smallest: bool = False
   ) -> float:
     """
     Compute the characteristic timescale of a given species.
@@ -181,19 +181,27 @@ class Basic(object):
     """
     # Compute linearized operators
     self.compute_lin_fom_ops(y)
-    # Extract sub-Jacobian for the specified species
-    s = self.mix.species[species]
-    A = self.A[np.ix_(s.indices, s.indices)]
-    # Compute eigenvalues of the sub-Jacobian
-    l = sp.linalg.eigvals(A)
-    # Compute and return the desired timescale
-    t = np.sort(np.abs(1.0/l))[index]
-    return t
+    if smallest:
+      # Compute eigenvalues of the Jacobian
+      l = sp.linalg.eigvals(self.A)
+      # Compute and return the smallest timescale
+      t = np.amin(np.abs(1.0/l.real))
+      return float(t)
+    else:
+      # Extract sub-Jacobian for the specified species
+      s = self.mix.species[species]
+      A = self.A[np.ix_(s.indices, s.indices)]
+      # Compute eigenvalues of the sub-Jacobian
+      l = sp.linalg.eigvals(A)
+      # Compute and return the desired timescale
+      t = np.sort(np.abs(1.0/l.real))[index]
+      return float(t)
 
-  def compute_lin_tmax(
+  def compute_lin_tlim(
     self,
     t: np.ndarray,
     y: np.ndarray,
+    rho: float,
     use_eig: bool = True,
     err_max: float = 30.0
   ) -> float:
@@ -223,11 +231,14 @@ class Basic(object):
     """
     if (len(t.reshape(-1)) != len(y)):
       y = y.T
+    # Minimum timescale to be resolved
+    tmin = self.compute_lin_tscale(y[0], smallest=True)
     if use_eig:
       # Compute the timescale using eigenvalues of the Jacobian
-      return self.compute_lin_tscale(y[0])
+      tmax = self.compute_lin_tscale(y[0])
     else:
-      ylin = self.solve_fom(t, y[0], linear=True).T
+      # Compute the linearized solution
+      ylin = self.solve_fom(t, y[0], rho, linear=True)[0].T
       # Compute the error between nonlinear and linear solutions
       err = utils.absolute_percentage_error(y, ylin, eps=0.0)
       # Average the error across the state dimension
@@ -235,7 +246,8 @@ class Basic(object):
       # Find the last index where the error is within the threshold
       idx = np.where(err <= err_max)[0][-1]
       # Return the corresponding time value
-      return t[idx]
+      tmax = t[idx]
+    return tmin, tmax
 
   # ROM Model
   # ===================================
@@ -281,7 +293,7 @@ class Basic(object):
         self.C[si:ei,sk.indices] = sk.compute_mom_basis(mm)
         si = ei
       # Remove zero rows from the C matrix
-      self.C = self.C[:ei+1]
+      self.C = self.C[:ei]
 
   # Solving
   # ===================================
@@ -297,7 +309,7 @@ class Basic(object):
   ) -> Tuple[np.ndarray]:
     # Linear model
     if linear:
-      self.compute_lin_fom_ops(0.0, y0)
+      self.compute_lin_fom_ops(y0)
     # Solving
     runtime = time.time()
     y = sp.integrate.solve_ivp(
@@ -322,11 +334,12 @@ class Basic(object):
     self,
     t: np.ndarray,
     y0: np.ndarray,
+    rho: float,
     linear: bool = False
   ) -> Tuple[np.ndarray]:
     """Solve FOM."""
     # Setting up
-    y0 = self.set_up(y0)
+    y0 = self.set_up(y0, rho)
     self.use_rom = False
     # Solving
     return self._solve(t, y0, linear)
@@ -335,11 +348,12 @@ class Basic(object):
     self,
     t: np.ndarray,
     y0: np.ndarray,
+    rho: float,
     linear: bool = False
   ) -> Tuple[np.ndarray]:
     """Solve ROM."""
     # Setting up
-    y0 = self.set_up(y0)
+    y0 = self.set_up(y0, rho)
     self.use_rom = True
     # Encode initial conditions
     z0 = self._encode(y0)

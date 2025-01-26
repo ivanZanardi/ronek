@@ -139,6 +139,10 @@ class Mixture(object):
   def get_pe(self, Te, ne):
     return ne * const.UKB * Te
 
+  def get_x_from_w(self, w):
+    n = self.get_n(w)
+    return n / torch.sum(n)
+
   # Mixture properties
   # ===================================
   def set_rho(self, rho):
@@ -159,12 +163,6 @@ class Mixture(object):
     self.R = torch.zeros(1)
     for s in self.species.values():
       self.R += torch.sum(s.w) * s.R
-
-  def _convert_mass_mole(self, qoi_used="w"):
-    if (qoi_used == "w"):
-      self._set_xs()
-    elif (qoi_used == "x"):
-      self._set_ws()
 
   def _set_xs(self):
     for s in self.species.values():

@@ -150,6 +150,8 @@ class Mixture(object):
     # Set molar fractions
     s = self.species["em"]
     s.x = x
+
+    
     s = self.species["Arp"]
     s.x = x * s.q / s.Q
     s = self.species["Ar"]
