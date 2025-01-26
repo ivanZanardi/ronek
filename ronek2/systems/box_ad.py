@@ -27,7 +27,6 @@ class BoxAd(Basic):
       use_factorial=use_factorial,
       use_coll_int_fit=use_coll_int_fit
     )
-    self.nb_eqs = self.nb_temp + self.nb_comp
 
   # Function/Jacobian
   # ===================================
