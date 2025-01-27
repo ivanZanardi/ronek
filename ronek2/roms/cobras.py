@@ -77,6 +77,8 @@ class CoBRAS(object):
   # ===================================
   def __call__(
     self,
+    X: Optional[np.ndarray] = None,
+    Y: Optional[np.ndarray] = None,
     nb_meas: int = 10,
     xnot: Optional[list] = None,
     modes: bool = True,
@@ -108,7 +110,8 @@ class CoBRAS(object):
              values.
     :rtype: Union[None, Tuple[np.ndarray, np.ndarray]]
     """
-    X, Y = self.compute_cov_mats(nb_meas)
+    if ((X is None) or (Y is None)):
+      X, Y = self.compute_cov_mats(nb_meas)
     if (xnot is not None):
       mask = self.make_mask(xnot)
       X, Y = X[mask], Y[mask]

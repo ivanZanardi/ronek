@@ -263,7 +263,8 @@ class Basic(object):
   # ===================================
   def compute_c_mat(
     self,
-    max_mom: int
+    max_mom: int = 1,
+    state_specs: bool = False
   ) -> None:
     """
     Compute the observation matrix for a linear output model.
@@ -275,25 +276,24 @@ class Basic(object):
     :param max_mom: The maximum number of moments to include for each species.
     :type max_mom: int
     """
+    max_mom = max(int(max_mom), 1)
     # Compose C matrix for a linear output
-    self.C = np.eye(self.nb_eqs)
-    if (max_mom > 0):
-      # Reset the C matrix to all zeros
-      self.C[::] = 0.0
-      # Variables to track row indices in C
-      si, ei = 0, 0
-      # Loop over species in the defined order
-      for k in self.species_order:
+    self.C = np.zeros((self.nb_comp*max_mom, self.nb_eqs))
+    # Variables to track row indices in C
+    si, ei = 0, 0
+    # Loop over species in the defined order
+    for k in self.species_order:
+      if (k != "em"):
         # Get species object
-        sk = self.mix.species[k]
-        # Determine the number of moments to compute
-        mm = max_mom if (sk.nb_comp > 1) else 1
+        s = self.mix.species[k]
         # Compute the moment basis for the species and populate C
-        ei += mm
-        self.C[si:ei,sk.indices] = sk.compute_mom_basis(mm)
-        si = ei
-      # Remove zero rows from the C matrix
-      self.C = self.C[:ei]
+        basis = s.compute_mom_basis(max_mom)
+        for b in basis:
+          ei += s.nb_comp if state_specs else 1
+          self.C[np.arange(si,ei),s.indices] = b
+          si = ei
+    # Remove not used rows from the C matrix
+    self.C = self.C[:ei]
 
   # Solving
   # ===================================
