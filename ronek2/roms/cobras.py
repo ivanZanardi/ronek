@@ -10,17 +10,23 @@ from .. import backend as bkd
 from ..systems import BoxAd, BoxIso
 
 from tqdm import tqdm
-from silx.io.dictdump import dicttoh5
 from typing import Dict, Tuple, Optional, Union
 
 
 class CoBRAS(object):
-  """
-  Model Reduction for Nonlinear Systems by Balanced
-  Truncation of State and Gradient Covariance (CoBRAS)
 
-  See:
-    https://doi.org/10.1137/22M1513228
+  """
+  CoBRAS: Model Reduction for Nonlinear Systems by Balanced Truncation of State
+  and Gradient Covariance.
+
+  This module implements the CoBRAS method, a model reduction technique
+  designed for nonlinear systems by leveraging the balanced truncation of
+  covariance matrices for states and gradients. The approach is particularly
+  useful for reducing the computational complexity of high-dimensional
+  nonlinear systems while preserving key dynamics.
+
+  For further details, refer to the publication:
+  https://doi.org/10.1137/22M1513228
   """
 
   # Initialization
