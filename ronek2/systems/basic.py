@@ -198,7 +198,7 @@ class Basic(object):
       t = np.sort(np.abs(1.0/l.real))[index]
       return float(t)
 
-  def compute_lin_tlim(
+  def compute_lin_tmax(
     self,
     t: np.ndarray,
     y: np.ndarray,
@@ -232,11 +232,9 @@ class Basic(object):
     """
     if (len(t.reshape(-1)) != len(y)):
       y = y.T
-    # Minimum timescale to be resolved
-    tmin = self.compute_lin_tscale(y[0], smallest=True)
     if use_eig:
       # Compute the timescale using eigenvalues of the Jacobian
-      tmax = self.compute_lin_tscale(y[0])
+      return self.compute_lin_tscale(y[0])
     else:
       # Compute the linearized solution
       ylin = self.solve_fom(t, y[0], rho, linear=True)[0].T
@@ -245,10 +243,9 @@ class Basic(object):
       # Average the error across the state dimension
       err = np.mean(err, axis=-1)
       # Find the last index where the error is within the threshold
-      idx = np.where(err <= err_max)[0][-1]
+      idx = np.argmin(np.abs(err - err_max))
       # Return the corresponding time value
-      tmax = t[idx]
-    return tmin, tmax
+      return t[idx]
 
   # ROM Model
   # ===================================
