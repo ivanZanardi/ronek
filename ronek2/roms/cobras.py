@@ -71,6 +71,7 @@ class CoBRAS(object):
     self.saving = saving
     self.path_to_saving = path_to_saving
     os.makedirs(self.path_to_saving, exist_ok=True)
+    self.sol_interp = None
 
   # Calling
   # ===================================
@@ -135,9 +136,10 @@ class CoBRAS(object):
   # -----------------------------------
   def compute_cov_mats(
     self,
-    nb_meas: int = 10,
+    nb_meas: int = 5,
     use_eig: bool = False,
-    err_max: float = 30.0
+    err_max: float = 25.0,
+    noise: bool = False
   ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Compute state and gradient covariance matrices based on quadrature
@@ -170,28 +172,34 @@ class CoBRAS(object):
     X, Y = [], []
     # Loop over initial conditions to solve the forward problem
     iterable = tqdm(
-      enumerate(mu),
+      iterable=mu,
       ncols=80,
       desc="Trajectories",
       file=sys.stdout
     )
-    for (i, mui) in iterable:
+    for (i, mui) in enumerate(iterable):
       # Compute the initial solution for the system
-      y0, rho = self.system.equil.get_init_sol(mui, noise=True, sigma=1e-1)
+      y0, rho = self.system.equil.get_init_sol(mui, noise=noise, sigma=1e-1)
       # Determine the smallest time scale for resolving system dynamics
-      tmin = self.system.compute_lin_tscale(y0, smallest=True)
+      tmin = self.system.compute_lin_tscale(y0, rho, smallest=True)
       # Generate a time quadrature grid and associated weights
       t, w_t = self.get_tquad(tmin)
       # Solve the nonlinear forward problem to compute the state evolution
       y = self.system.solve_fom(t, y0, rho, linear=False)[0].T
-      # Determine the maximum valid time for linear model approximation
-      tmax = self.system.compute_lin_tmax(t, y, rho, use_eig, err_max)
-      # Generate a time grid for the linear adjoint simulation
-      tadj = self.system.get_tgrid(tmin, tmax, nb_meas)
+      # Build an interpolator for the solution
+      self.build_sol_interp(t, y)
       # Loop over each initial time for adjoint simulations
-      for j in range(len(t)):
-        # Solve the linear adjoint equation for the current time point
-        Yij = w_meas * self.solve_lin_adjoint(tadj, y[j]).T
+      for j in range(len(t)-1):
+        # Generate a time grid for the j-th linear model
+        tj = np.geomspace(t[j], t[-1], num=100)
+        yj = self.sol_interp(tj)
+        tj -= tj[0]
+        # Determine the maximum valid time for linear model approximation
+        tmax = self.system.compute_lin_tmax(tj, yj, rho, use_eig, err_max)
+        # Generate a time grid for the j-th linear adjoint simulation
+        tadj = np.geomspace(tmin, tmax, num=nb_meas)
+        # Solve the j-th linear adjoint model
+        Yij = w_meas * self.solve_lin_adjoint(tadj, y[j], rho).T
         # Compute the combined quadrature weight (mu and t)
         wij = w_mu[i] * w_t[j]
         # Store weighted samples for state and gradient covariance matrices
@@ -227,12 +235,21 @@ class CoBRAS(object):
     )
     return x, np.sqrt(w)
 
+  def build_sol_interp(
+    self,
+    t: np.ndarray,
+    x: np.ndarray
+  ) -> None:
+    axis = 0 if (x.shape[0] == len(t)) else 1
+    self.sol_interp = sp.interpolate.interp1d(t, x, kind="cubic", axis=axis)
+
   # Linear adjoint model
   # -----------------------------------
   def solve_lin_adjoint(
     self,
     t: np.ndarray,
-    y0: np.ndarray
+    y0: np.ndarray,
+    rho: float
   ) -> np.ndarray:
     """
     Solve the linear adjoint system for given time grid and initial condition.
@@ -245,6 +262,9 @@ class CoBRAS(object):
     :return: Solution of the linear adjoint system.
     :rtype: np.ndarray
     """
+    # Setting up
+    self.system.use_rom = False
+    y0 = self.system.set_up(y0, rho)
     # Compute linear operators
     self.system.compute_lin_fom_ops(y0)
     A, C = [getattr(self.system, k) for k in ("A", "C")]
@@ -303,10 +323,9 @@ class CoBRAS(object):
     psi = Y @ U @ sqrt_s
     # Save balancing modes
     s, phi, psi = [bkd.to_numpy(z) for z in (s, phi, psi)]
-    pickle.dump(
-      obj={"s": s, "phi": phi, "psi": psi},
-      file=self.path_to_saving+"/cobras_bases.p"
-    )
+    data = {"s": s, "phi": phi, "psi": psi}
+    filename = self.path_to_saving+"/cobras_bases.p"
+    pickle.dump(data, open(filename, "wb"))
     if pod:
       print("Computing POD modes ...")
       U, s, _ = torch.svd_lowrank(
@@ -315,7 +334,6 @@ class CoBRAS(object):
         niter=niter
       )
       s, phi = [bkd.to_numpy(z) for z in (s, U)]
-      pickle.dump(
-        obj={"s": s, "phi": phi, "psi": phi},
-        file=self.path_to_saving+"/pod_bases.p"
-      )
+      data = {"s": s, "phi": phi}
+      filename = self.path_to_saving+"/pod_bases.p"
+      pickle.dump(data, open(filename, "wb"))

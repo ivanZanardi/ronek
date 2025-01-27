@@ -148,8 +148,6 @@ class Basic(object):
     :param y: The state vector at which the Jacobian and residual are computed.
     :type y: np.ndarray
     """
-    # Disable ROM usage
-    self.use_rom = False
     # Compute Jacobian matrix
     self.A = self.jac(0.0, y)
     # Compute residual vector
@@ -158,6 +156,7 @@ class Basic(object):
   def compute_lin_tscale(
     self,
     y: np.ndarray,
+    rho: float,
     species: str = "Ar",
     index: int = -2,
     smallest: bool = False
@@ -180,6 +179,9 @@ class Basic(object):
     :return: The computed timescale for the given species.
     :rtype: float
     """
+    # Setting up
+    self.use_rom = False
+    y = self.set_up(y, rho)
     # Compute linearized operators
     self.compute_lin_fom_ops(y)
     if smallest:
@@ -234,18 +236,18 @@ class Basic(object):
       y = y.T
     if use_eig:
       # Compute the timescale using eigenvalues of the Jacobian
-      return self.compute_lin_tscale(y[0])
+      return self.compute_lin_tscale(y[0], rho)
     else:
       # Compute the linearized solution
       ylin = self.solve_fom(t, y[0], rho, linear=True)[0].T
+      # Number of time instants actually solved
+      nt = len(ylin)
       # Compute the error between nonlinear and linear solutions
-      err = utils.absolute_percentage_error(y, ylin, eps=0.0)
-      # Average the error across the state dimension
-      err = np.mean(err, axis=-1)
+      err = utils.mape(y[:nt], ylin, eps=0.0, axis=-1)
       # Find the last index where the error is within the threshold
       idx = np.argmin(np.abs(err - err_max))
       # Return the corresponding time value
-      return t[idx]
+      return t[:nt][idx]
 
   # ROM Model
   # ===================================
@@ -314,7 +316,7 @@ class Basic(object):
       fun=self.fun_lin if linear else self.fun,
       t_span=[0.0,t[-1]],
       y0=np.zeros_like(y0) if linear else y0,
-      method="LSODA",
+      method="BDF",
       t_eval=t,
       first_step=1e-14,
       rtol=1e-6,
@@ -337,8 +339,8 @@ class Basic(object):
   ) -> Tuple[np.ndarray]:
     """Solve FOM."""
     # Setting up
-    y0 = self.set_up(y0, rho)
     self.use_rom = False
+    y0 = self.set_up(y0, rho)
     # Solving
     return self._solve(t, y0, linear)
 
@@ -351,8 +353,8 @@ class Basic(object):
   ) -> Tuple[np.ndarray]:
     """Solve ROM."""
     # Setting up
-    y0 = self.set_up(y0, rho)
     self.use_rom = True
+    y0 = self.set_up(y0, rho)
     # Encode initial conditions
     z0 = self._encode(y0)
     # Solving
