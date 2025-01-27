@@ -81,6 +81,8 @@ class Basic(object):
     self.nb_eqs = self.nb_temp + self.nb_comp
     # Class methods
     # -------------
+    self.encode = bkd.make_fun_np(self._encode)
+    self.decode = bkd.make_fun_np(self._decode)
     self.set_up = bkd.make_fun_np(self._set_up)
     self.get_init_sol = self.equil.get_init_sol
 
@@ -320,7 +322,7 @@ class Basic(object):
       t_eval=t,
       first_step=1e-14,
       rtol=1e-6,
-      atol=1e-20,
+      atol=1e-15,
       jac=self.jac_lin if linear else self.jac,
     ).y
     # Linear model
@@ -356,11 +358,11 @@ class Basic(object):
     self.use_rom = True
     y0 = self.set_up(y0, rho)
     # Encode initial conditions
-    z0 = self._encode(y0)
+    z0 = self.encode(y0)
     # Solving
     z, runtime = self._solve(t, z0, linear)
     # Decode solution
-    y = self._decode(z.T).T
+    y = self.decode(z.T).T
     return y, runtime
 
   @abc.abstractmethod

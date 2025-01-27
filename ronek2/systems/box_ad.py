@@ -31,6 +31,7 @@ class BoxAd(Basic):
   # Function/Jacobian
   # ===================================
   def _fun(self, t, y):
+    print(float(t))
     # ROM activated
     y = self._decode(y) if self.use_rom else y
     # Extract primitive variables
@@ -85,16 +86,16 @@ class BoxAd(Basic):
 
   def _encode(self, y):
     # Split variables
-    w, e = y[...,:-2], y[...,-2:]
+    w_0, w_i, e = y[...,:1], y[...,1:-3], y[...,-3:]
     # Encode
-    z = w @ self.P.T if self.use_proj else w @ self.psi
+    z = w_i @ self.P.T if self.use_proj else w_i @ self.psi
     # Concatenate
-    return torch.cat([z, e], dim=-1)
+    return torch.cat([w_0, z, e], dim=-1)
 
   def _decode(self, y):
     # Split variables
-    z, e = y[...,:-2], y[...,-2:]
+    w_0, z, e = y[...,:1], y[...,1:-3], y[...,-3:]
     # Decode
     w = z @ self.P.T if self.use_proj else z @ self.phi.T
     # Concatenate
-    return torch.cat([w, e], dim=-1)
+    return torch.cat([w_0, w, e], dim=-1)
