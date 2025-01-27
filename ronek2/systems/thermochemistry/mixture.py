@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 
 from ... import const
 from .species import Species
@@ -31,7 +30,7 @@ class Mixture(object):
     si = 0
     for k in self.species_order:
       ei = si + self.species[k].nb_comp
-      self.species[k].indices = np.arange(si, ei)
+      self.species[k].indices = torch.arange(si, ei).tolist()
       si = ei
     self.nb_comp = ei
 
