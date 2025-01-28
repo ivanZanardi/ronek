@@ -43,10 +43,14 @@ conda activate ronek
 If you use this code or find this work useful in your research, please cite us:
 
 ```bibtex
-@article{Zanardi_Ronek_2024,
-  author    = {Zanardi, Ivan and Padovan, Alberto and Bodony, Daniel Joseph and Panesi, Marco},
-  title     = {Petrov-Galerkin model reduction for thermochemical nonequilibrium gas mixtures},
-  year      = {2024}
+@misc{Zanardi_2024_RONEK,
+  title={Petrov-Galerkin model reduction for thermochemical nonequilibrium gas mixtures}, 
+  author={Ivan Zanardi and Alberto Padovan and Daniel J. Bodony and Marco Panesi},
+  year={2024},
+  eprint={2411.01673},
+  archivePrefix={arXiv},
+  primaryClass={physics.comp-ph},
+  url={https://arxiv.org/abs/2411.01673}, 
 }
 ```
 
