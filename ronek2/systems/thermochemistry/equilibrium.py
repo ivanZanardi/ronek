@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import scipy as sp
 
+from ... import const
 from .mixture import Mixture
 from .species import Species
 from ... import backend as bkd
@@ -84,7 +85,7 @@ class Equilibrium(object):
     self,
     mu: np.ndarray,
     noise: bool = False,
-    sigma: float = 1e-1
+    sigma: float = 1e-1,
   ) -> Tuple[np.ndarray, float]:
     """
     Generates an initial solution for heat bath simulations based on the input
@@ -275,12 +276,43 @@ class Equilibrium(object):
 
   # Utils
   # ===================================
+  def _compose_state_vector(
+    self,
+    T: torch.Tensor,
+    ze: torch.Tensor,
+    by_mass: bool = False
+  ) -> torch.Tensor:
+    """
+    Composes the state vector for the system's equilibrium state.
+
+    This method combines partial densities, translational temperature,
+    and electron pressure into a single vector. It updates the species
+    composition based on the electron molar fraction and computes
+    electron pressure and other quantities.
+
+    :param rho: Density of the system.
+    :type rho: torch.Tensor
+    :param T: Translational temperature of the system.
+    :type T: torch.Tensor
+    :param xe: Electron molar fraction of the species.
+    :type xe: torch.Tensor
+
+    :return: Equilibrium state vector, including partial densities,
+             translational temperature, and electron pressure.
+    :rtype: torch.Tensor
+    """
+    self._update_composition(ze, by_mass=by_mass)
+    pe = self.mix.get_pe(Te=T, ne=self.mix.species["em"].n)
+    w = self.mix.get_qoi_vec("w")
+    return torch.cat([w, T, pe])
+
   def _update_composition(
     self,
     ze: torch.Tensor,
     noise: bool = False,
     sigma: float = 1e-2,
-    by_mass: bool = False
+    by_mass: bool = False,
+    clipping: bool = True
   ) -> None:
     """
     Updates the species composition based on the electron molar fraction
@@ -315,10 +347,16 @@ class Equilibrium(object):
       sk = self.mix.species[k]
       xk = r*ze if (k == "Arp") else 1.0-(1.0+r)*ze
       fk = self._add_norm_noise(sk, sigma) if noise else sk.q / sk.Q
+      fk = (fk+const.XMIN) / torch.sum(fk+const.XMIN)
       z[sk.indices] = xk * fk
-    # Update composition
+    # Get molar fractions
     x = self.mix.get_x_from_w(z) if by_mass else z
+    # Update composition
     self.mix.update_composition_x(x)
+    if clipping:
+      xe = self.mix.species["em"].x
+      xe = torch.clip(xe, const.XMIN, 0.5)
+      self._update_composition(xe, clipping=False)
 
   def _add_norm_noise(
     self,
@@ -383,33 +421,3 @@ class Equilibrium(object):
     :rtype: Dict[str, torch.Tensor]
     """
     return {k: getattr(s, attr) for (k, s) in self.mix.species.items()}
-
-  def _compose_state_vector(
-    self,
-    T: torch.Tensor,
-    ze: torch.Tensor,
-    by_mass: bool = False
-  ) -> torch.Tensor:
-    """
-    Composes the state vector for the system's equilibrium state.
-
-    This method combines partial densities, translational temperature,
-    and electron pressure into a single vector. It updates the species
-    composition based on the electron molar fraction and computes
-    electron pressure and other quantities.
-
-    :param rho: Density of the system.
-    :type rho: torch.Tensor
-    :param T: Translational temperature of the system.
-    :type T: torch.Tensor
-    :param xe: Electron molar fraction of the species.
-    :type xe: torch.Tensor
-
-    :return: Equilibrium state vector, including partial densities,
-             translational temperature, and electron pressure.
-    :rtype: torch.Tensor
-    """
-    self._update_composition(ze, by_mass=by_mass)
-    pe = self.mix.get_pe(Te=T, ne=self.mix.species["em"].n)
-    w = self.mix.get_qoi_vec("w")
-    return torch.cat([w, T, pe])

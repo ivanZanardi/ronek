@@ -154,11 +154,13 @@ class Basic(object):
     # Compute residual vector
     self.b = self.fun(0.0, y)
 
-  def compute_timescale(
+  def compute_lin_tscale(
     self,
     y: np.ndarray,
     rho: float,
-    use_rom: bool = False
+    species: str = "Ar",
+    index: int = -2,
+    smallest: bool = False
   ) -> float:
     """
     Compute the characteristic timescale of a given species.
@@ -179,21 +181,32 @@ class Basic(object):
     :rtype: float
     """
     # Setting up
-    self.use_rom = bool(use_rom)
+    self.use_rom = False
     y = self.set_up(y, rho)
     # Compute linearized operators
     self.compute_lin_fom_ops(y)
-    # Compute eigenvalues of the Jacobian
-    l = sp.linalg.eigvals(self.A)
-    # Compute and return the smallest timescale
-    t = np.amin(np.abs(1.0/l.real))
-    return float(t)
+    if smallest:
+      # Compute eigenvalues of the Jacobian
+      l = sp.linalg.eigvals(self.A)
+      # Compute and return the smallest timescale
+      t = np.amin(np.abs(1.0/l.real))
+      return float(t)
+    else:
+      # Extract sub-Jacobian for the specified species
+      s = self.mix.species[species]
+      A = self.A[np.ix_(s.indices, s.indices)]
+      # Compute eigenvalues of the sub-Jacobian
+      l = sp.linalg.eigvals(A)
+      # Compute and return the desired timescale
+      t = np.sort(np.abs(1.0/l.real))[index]
+      return float(t)
 
   def compute_lin_tmax(
     self,
     t: np.ndarray,
     y: np.ndarray,
     rho: float,
+    use_eig: bool = True,
     err_max: float = 30.0
   ) -> float:
     """
@@ -220,29 +233,32 @@ class Basic(object):
              remains valid.
     :rtype: float
     """
-    # Check solution matrix shape
     if (len(t.reshape(-1)) != len(y)):
       y = y.T
-    # Compute the linearized solution
-    ylin = self.solve_fom(t, y[0], rho, linear=True)[0].T
-    # Number of time instants actually solved
-    nt = len(ylin)
-    # Compute the error between nonlinear and linear solutions
-    err = utils.mape(y[:nt], ylin, eps=0.0, axis=-1)
-    # Find the last index where the error is within the threshold
-    idx = np.argmin(np.abs(err - err_max))
-    # Return the corresponding time value
-    return t[:nt][idx]
+    if use_eig:
+      # Compute the timescale using eigenvalues of the Jacobian
+      return self.compute_lin_tscale(y[0], rho)
+    else:
+      # Compute the linearized solution
+      ylin = self.solve_fom(t, y[0], rho, linear=True)[0].T
+      # Number of time instants actually solved
+      nt = len(ylin)
+      # Compute the error between nonlinear and linear solutions
+      err = utils.mape(y[:nt], ylin, eps=0.0, axis=-1)
+      # Find the last index where the error is within the threshold
+      idx = np.argmin(np.abs(err - err_max))
+      # Return the corresponding time value
+      return t[:nt][idx]
 
   # ROM Model
   # ===================================
   def set_basis(self, phi, psi):
+    self.phi = bkd.to_torch(phi)
+    self.psi = bkd.to_torch(psi)
     # Biorthogonalize
-    phi = phi @ sp.linalg.inv(psi.T @ phi)
+    self.phi = self.phi @ torch.linalg.inv(self.psi.T @ self.phi)
     # Projector
-    P = phi @ psi.T
-    # Convert
-    self.phi, self.psi, self.P = [bkd.to_torch(z) for z in (phi, psi, P)]
+    self.P = self.phi @ self.psi.T
 
   # Output
   # ===================================

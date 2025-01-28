@@ -140,7 +140,6 @@ class CoBRAS(object):
   def compute_cov_mats(
     self,
     nb_meas: int = 5,
-    use_eig: bool = False,
     err_max: float = 25.0,
     noise: bool = False
   ) -> Tuple[np.ndarray, np.ndarray]:
@@ -184,7 +183,7 @@ class CoBRAS(object):
       # Compute the initial solution for the system
       y0, rho = self.system.equil.get_init_sol(mui, noise=noise, sigma=1e-1)
       # Determine the smallest time scale for resolving system dynamics
-      tmin = self.system.compute_lin_tscale(y0, rho, smallest=True)
+      tmin = self.system.compute_timescale(y0, rho)
       # Generate a time quadrature grid and associated weights
       t, w_t = self.get_tquad(tmin)
       # Solve the nonlinear forward problem to compute the state evolution
@@ -198,7 +197,7 @@ class CoBRAS(object):
         yj = self.sol_interp(tj)
         tj -= tj[0]
         # Determine the maximum valid time for linear model approximation
-        tmax = self.system.compute_lin_tmax(tj, yj, rho, use_eig, err_max)
+        tmax = self.system.compute_lin_tmax(tj, yj, rho, err_max)
         # Generate a time grid for the j-th linear adjoint simulation
         tadj = np.geomspace(tmin, tmax, num=nb_meas)
         # Solve the j-th linear adjoint model
