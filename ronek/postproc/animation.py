@@ -35,16 +35,16 @@ def _init_lines(
     else:
       colors.append(COLORS[i])
       i += 1
-  # Lines
-  lines = []
-  for c in colors:
-    lines.append(ax.semilogy([], [], c=c, markersize=markersize, **style)[0])
   # Legend
   ax.legend(
     [ax.semilogy([], [], c=c, markersize=6, **style)[0] for c in colors],
     labels=labels,
     loc="lower left"
   )
+  # Lines
+  lines = []
+  for c in colors:
+    lines.append(ax.semilogy([], [], c=c, markersize=markersize, **style)[0])
   return ax, lines
 
 # Create animation
@@ -60,7 +60,7 @@ def _create_animation(
   # Initialize levels distribution lines objects
   ax, lines = _init_lines(list(y.keys()), ax, markersize)
   # Initialize text in ax
-  txt = ax.text(0.7, 0.92, "", transform=ax.transAxes, fontsize=25)
+  txt = ax.text(0.66, 0.92, "", transform=ax.transAxes, fontsize=25)
   # Tight layout
   plt.tight_layout()
 
@@ -121,7 +121,7 @@ def animate_dist(
     x=molecule.lev['e'] / const.eV_to_J,
     y=n_m,
     markersize=markersize,
-    frames=100,
+    frames=min(len(t),100),
     fps=10,
     filename=path + "/dist.mp4",
     dpi=600,

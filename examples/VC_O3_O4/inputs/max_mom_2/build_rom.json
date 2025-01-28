@@ -39,7 +39,7 @@
     "xnot": [0],
     "read": false,
     "save": false,
-    "nb_workers": 10,
+    "nb_workers": 4,
     "path_x": "./../../test/max_mom_2/X.npy",
     "path_y": "./../../test/max_mom_2/Y.npy"
   },
