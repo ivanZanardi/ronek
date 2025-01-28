@@ -16,10 +16,10 @@
     },
     "theta": {
       "T": [1e4],
-    "rho": {
-      "start": 1e-4,
-      "stop": 1e0,
-      "num": 6
+      "rho": {
+        "start": 1e-4,
+        "stop": 1e0,
+        "num": 6
       }
     },
     "mu": {
@@ -36,9 +36,12 @@
     }
   },
   "cov_mats": {
+    "xnot": [0],
     "read": false,
-    "path_x": "./../../test/max_mom_2/X.npy",
-    "path_y": "./../../test/max_mom_2/Y.npy"
+    "save": false,
+    "nb_workers": 10,
+    "path_x": "./../../test/max_mom_10/X.npy",
+    "path_y": "./../../test/max_mom_10/Y.npy"
   },
   "system": {
     "name": "TAFASystem",

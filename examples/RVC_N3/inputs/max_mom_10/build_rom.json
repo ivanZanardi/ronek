@@ -44,8 +44,8 @@
     "read": false,
     "save": false,
     "nb_workers": 10,
-    "path_x": "./../../test/max_mom_2/X.npy",
-    "path_y": "./../../test/max_mom_2/Y.npy"
+    "path_x": "./../../test/max_mom_10/X.npy",
+    "path_y": "./../../test/max_mom_10/Y.npy"
   },
   "system": {
     "name": "TASystem",

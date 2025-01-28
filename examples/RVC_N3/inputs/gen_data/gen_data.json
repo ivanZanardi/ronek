@@ -43,7 +43,7 @@
       },
       "T": {
         "limits": [1e4, 2e4],
-        "nb_samples": 0
+        "nb_samples": 10
       }
     },
     "nb_workers": 10
