@@ -71,7 +71,7 @@ def plot_evolution(
   if isinstance(y, dict):
     i = 0
     for (k, yk) in y.items():
-      if (k.upper() == "FOM"):
+      if (k.upper() in ("FOM", "QCT")):
         _c = "k"
         _ls = "-" if (ls is None) else ls
       else:
@@ -161,12 +161,12 @@ def plot_mom_evolution(
     )
     # > Moment error
     for (k, momk) in moms[m].items():
-      if (k.upper() == "FOM"):
+      if (k.upper() in ("FOM", "QCT")):
         mom_fom = momk
         break
     moms_err = {}
     for (k, momk) in moms[m].items():
-      if (k.upper() != "FOM"):
+      if (k.upper() not in ("FOM", "QCT")):
         moms_err[k] = utils.absolute_percentage_error(mom_fom, momk)
     plot_evolution(
       x=t,
@@ -343,7 +343,7 @@ def plot_dist_2d(
     i = 0
     lines = []
     for (k, yk) in y.items():
-      if (k.upper() == "FOM"):
+      if (k.upper() in ("FOM", "QCT")):
         c = "k"
         ymin = yk.min()
       elif ("MT" in k.upper()):
