@@ -53,7 +53,7 @@ If you use this code or find this work useful in your research, please cite us:
   url={https://arxiv.org/abs/2411.01673}, 
 }
 @inbook{Zanardi_2024_RONEK_N3,
-  title={Petrov-Galerkin Model Reduction for Thermochemical Nonequilibrium Gas Mixtures: Application to the N<sub>2</sub>+N System},
+  title={Petrov-Galerkin Model Reduction for Thermochemical Nonequilibrium Gas Mixtures: Application to the N$_2$+N System},
   author={Ivan Zanardi and Alberto Padovan and Daniel J. Bodony and Marco Panesi},
   booktitle={AIAA SCITECH 2025 Forum},
   chapter={},
