@@ -8,7 +8,7 @@ RONEK is a Python library designed to perform model reduction for non-equilibriu
 
 It leverages PyTorch for GPU acceleration. This implementation excels in performance, making it well-suited for high-dimensional problems.
 
-## Installation
+## Installation and Usage
 
 To install RONEK, follow these steps:
 
@@ -29,10 +29,10 @@ conda activate ronek
 3. Install the package:
 
 ```bash
-pip install ronek
+pip install .
 ```
 
-4. Activate the Conda environment whenever using RONEK:
+Activate the Conda environment whenever using RONEK:
 
 ```bash
 conda activate ronek
@@ -51,6 +51,15 @@ If you use this code or find this work useful in your research, please cite us:
   archivePrefix={arXiv},
   primaryClass={physics.comp-ph},
   url={https://arxiv.org/abs/2411.01673}, 
+}
+@inbook{Zanardi_2025_RONEK_N3,
+  title={Petrov-Galerkin Model Reduction for Thermochemical Nonequilibrium Gas Mixtures: Application to the N$_2$+N System},
+  author={Ivan Zanardi and Alberto Padovan and Daniel J. Bodony and Marco Panesi},
+  booktitle={AIAA SCITECH 2025 Forum},
+  chapter={},
+  pages={},
+  doi={10.2514/6.2025-2524},
+  url={https://arc.aiaa.org/doi/abs/10.2514/6.2025-2524}
 }
 ```
 
