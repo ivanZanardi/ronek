@@ -17,7 +17,6 @@ The repository includes the following example cases:
 1. **Navigate** to the `inputs` folder of the desired example (`<example>/inputs`).
 
 2. **Edit Input Files**:
-
   Each subfolder contains a `.json` input file for a specific model setup:
     - `gen_data`: Generates data for testing.
     - `max_mom_2`: Builds a Petrov-Galerkin model using the first 2 moments of the O$_2$ distribution function.
@@ -25,11 +24,10 @@ The repository includes the following example cases:
   Make sure to update the file paths within each `.json` input and the `allrun.sh` scripts.
 
 3. **Run the Model**:
-
   After activating the appropriate Conda environment, run:
-    ```bash
-    bash allrun.sh
-    ```
+  ```bash
+  bash allrun.sh
+  ```
   from the main directory of the selected example.
 
 ### Data Availability
