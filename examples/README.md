@@ -6,17 +6,30 @@
 
 ### Examples
 
-The available examples include:
-- `RVC_O3`: Rovibrational collisional model for the O2 + O system.
-- `VC_O3_O4`: Vibrational collisional model for the O2 + O and O2 + O2 systems at T = 10,000 K.
+The repository includes the following example cases:
 
-Running the examples:
+- **`RVC_N3`**: Rovibrational collisional model for the N$_2$ + N system.
+- **`RVC_O3`**: Rovibrational collisional model for the O$_2$ + O system.
+- **`VC_O3_O4`**: Vibrational collisional model for the O$_2$ + O and O$_2$ + O$_2$ systems at T = 10\,000 K.
 
-1. Navigate to the inputs folder of the corresponding example (e.g., `RVC_O3/inputs`).
-2. Modify the input files (.json) in each subfolder as needed:
-   - `gen_data`: Generates the data for testing.
-   - `max_mom_2`: Constructs the Petrov-Galerkin model considering only the first 2 moments of the O$_2$ distribution function.
-   - `max_mom_10`: Constructs the Petrov-Galerkin model considering the first 10 moments of the O$_2$ distribution function.
-   
-   Ensure that you update the paths in each input file and in the `allrun.sh` scripts located in each subfolder.
-3. Once the appropriate Conda environment is activated, run the command `bash allrun.sh` in the main folder.
+#### Running the Examples
+
+1. **Navigate** to the `inputs` folder of the desired example (e.g., `RVC_O3/inputs`).
+
+2. **Edit Input Files**:
+  Each subfolder contains a `.json` input file for a specific model setup:
+  - `gen_data`: Generates data for testing.
+  - `max_mom_2`: Builds a Petrov-Galerkin model using the first 2 moments of the O$_2$ distribution function.
+  - `max_mom_10`: Builds a Petrov-Galerkin model using the first 10 moments of the O$_2$ distribution function.
+  Make sure to update the file paths within each `.json` input and the `allrun.sh` scripts.
+
+3. **Run the Model**:
+  After activating the appropriate Conda environment, run:
+  ```bash
+  bash allrun.sh
+  ```
+  from the main directory of the selected example.
+
+### Data Availability
+
+The kinetic database required to run these examples will be made available upon reasonable request.
