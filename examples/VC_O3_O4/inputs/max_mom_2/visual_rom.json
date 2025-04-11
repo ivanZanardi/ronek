@@ -20,12 +20,12 @@
     "cobras": {
       "active": true,
       "name": "CoBRAS",
-      "bases": "./../../test/max_mom_2/cobras_bases.hdf5"
+      "bases": "./../../run01/max_mom_2/cobras_bases.hdf5"
     },
     "pod": {
       "active": true,
       "name": "POD",
-      "bases": "./../../test/max_mom_2/pod_bases.hdf5"
+      "bases": "./../../run01/max_mom_2/pod_bases.hdf5"
     },
     "cg": {
       "active": false,
@@ -38,7 +38,7 @@
   },
   "paths": {
     "dtb": "/home/zanardi/Codes/ML/RONEK/ronek/examples/VC_O3_O4/database/",
-    "saving": "./../../test/max_mom_2/"
+    "saving": "./../../run01/max_mom_2/"
   },
   "data": {
     "cases": ["cold", "hot"],
@@ -50,7 +50,7 @@
       "cold": {"m0": [1e-7, 2e-5], "m1": [5e-9, 2e-5]},
       "hot":  {"m0": [1e-9, 1e-3], "m1": [1e-9, 1e-3]}
     },
-    "path": "./../../test/data/"
+    "path": "./../../run01/data/"
   },
   "plot": {
     "style": "/home/zanardi/Workspace/Research/styles/matplotlib/paper_1column.mplstyle",

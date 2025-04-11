@@ -75,35 +75,6 @@ class TAFASystem(TASystem):
     k = rates + np.transpose(rates)
     return np.sum(k, axis=-1)
 
-  # Linearized FOM
-  # -----------------------------------
-  def _compute_lin_fom_ops_a(
-    self,
-    n_a_eq: np.ndarray
-  ) -> np.ndarray:
-    A1 = self.fom_ops["m-m"]["ed"]
-    A1 = (A1 + np.transpose(A1, axes=(0,2,1))) @ self.mix.gamma
-    A2 = self.fom_ops["m-m"]["er"]
-    A3 = self.fom_ops["m-a"]["ed"]
-    if (n_a_eq == np.inf):
-      A = A1 + A2
-    elif (n_a_eq == 0.0):
-      A = A3
-    else:
-      A = A1 + A2 + A3/n_a_eq
-    return A * n_a_eq**2
-
-  def _compute_lin_fom_ops_b(
-    self,
-    n_a_eq: np.ndarray
-  ) -> np.ndarray:
-    return (
-      2 * (self.fom_ops["m-m"]["er"] @ self.mix.gamma) * n_a_eq \
-      + self.fom_ops["m-a"]["ed"] @ self.mix.gamma \
-      + 4 * self.fom_ops["m-m"]["r"] * n_a_eq \
-      + 3 * self.fom_ops["m-a"]["r"]
-    ) * n_a_eq**2
-
   # ROM
   # -----------------------------------
   def _update_rom_ops(self):

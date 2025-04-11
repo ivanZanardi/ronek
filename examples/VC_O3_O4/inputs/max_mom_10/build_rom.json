@@ -38,10 +38,10 @@
   "cov_mats": {
     "xnot": [0],
     "read": false,
-    "save": false,
+    "save": true,
     "nb_workers": 10,
-    "path_x": "./../../test/max_mom_10/X.npy",
-    "path_y": "./../../test/max_mom_10/Y.npy"
+    "path_x": "./../../run01/max_mom_2/X.npy",
+    "path_y": "./../../run01/max_mom_2/Y.npy"
   },
   "system": {
     "name": "TAFASystem",
@@ -53,7 +53,7 @@
   },
   "paths": {
     "dtb": "/home/zanardi/Codes/ML/RONEK/ronek/examples/VC_O3_O4/database/",
-    "saving": "./../../test/max_mom_10/"
+    "saving": "./../../run01/max_mom_10/"
   },
   "max_mom": 10
 }

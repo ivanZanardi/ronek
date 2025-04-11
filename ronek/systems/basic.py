@@ -42,6 +42,7 @@ class BasicSystem(object):
     # ROM
     # -------------
     self.rom_ops = None
+    self.rom_dim = self.nb_eqs
     # Bases
     self.phi = None
     self.psi = None
@@ -92,50 +93,25 @@ class BasicSystem(object):
     n_eq = self.mix.compute_eq_comp(rho)
     w_eq = self.mix.get_w(n_eq, rho)
     # A operator
-    A = self._compute_lin_fom_ops_a_full(n_eq[0])
+    A = self.compute_lin_fom_ops_a(n_eq)
     # C operator
-    C = self._compute_lin_fom_ops_c(max_mom)
+    C = self.compute_lin_fom_ops_c(max_mom)
     # Initial solutions
-    M = self._compute_lin_init_sols(mu, w_eq)
+    M = self.compute_lin_init_sols(mu, w_eq)
     # Return data
     return {"A": A, "C": C, "M": M, "x_eq": w_eq}
 
-  def _compute_lin_fom_ops_a_full(
+  def compute_lin_fom_ops_a(
     self,
-    n_a_eq: np.ndarray,
-    phi: Optional[np.ndarray] = None,
-    psi: Optional[np.ndarray] = None,
+    n_eq: np.ndarray,
     by_mass: bool = True
   ) -> np.ndarray:
-    A = self._compute_lin_fom_ops_a(n_a_eq)
-    b = self._compute_lin_fom_ops_b(n_a_eq)
-    m = self.mix.m_ratio
-    if (phi is not None):
-      A = psi.T @ A @ phi
-      b = psi.T @ b
-      m = self.mix.m_ratio @ phi
-    A = np.hstack([b.reshape(-1,1), A])
-    a = - m @ A
-    A = np.vstack([a.reshape(1,-1), A])
+    A = self.jac(t=0.0, c=n_eq/const.UNA, ops=self.fom_ops)
     if by_mass:
       A = self.mix.M @ A @ self.mix.Minv
     return A
 
-  @abc.abstractmethod
-  def _compute_lin_fom_ops_a(
-    self,
-    n_a_eq: np.ndarray
-  ) -> np.ndarray:
-    pass
-
-  @abc.abstractmethod
-  def _compute_lin_fom_ops_b(
-    self,
-    n_a_eq: np.ndarray
-  ) -> np.ndarray:
-    pass
-
-  def _compute_lin_fom_ops_c(
+  def compute_lin_fom_ops_c(
     self,
     max_mom: int
   ) -> np.ndarray:
@@ -147,7 +123,7 @@ class BasicSystem(object):
       C[0,0] = 0.0
     return C
 
-  def _compute_lin_init_sols(
+  def compute_lin_init_sols(
     self,
     mu: np.ndarray,
     w_eq: np.ndarray,
@@ -182,12 +158,32 @@ class BasicSystem(object):
     psi: np.ndarray
   ) -> None:
     self.phi, self.psi = phi, psi
+    self.rom_dim = self.phi.shape[1]
     # Biorthogonalize
     self.phi = self.phi @ sp.linalg.inv(self.psi.T @ self.phi)
+    # Full basis (including atom)
+    self.phif = self._compose_full_basis(self.phi)
+    self.psif = self._compose_full_basis(self.psi)
+
+  def _compose_full_basis(self, pxi):
+    pxif = np.zeros((self.nb_eqs, self.rom_dim+1))
+    pxif[0,0] = 1.0
+    pxif[1:,1:] = pxi
+    return pxif
 
   @abc.abstractmethod
   def _update_rom_ops(self) -> None:
     pass
+
+  def compute_lin_rom_ops_a(
+    self,
+    n_eq: np.ndarray,
+    by_mass: bool = True
+  ) -> np.ndarray:
+    A = self.jac(t=0.0, c=n_eq/const.UNA, ops=self.fom_ops)
+    if by_mass:
+      A = self.mix.M @ A @ self.mix.Minv
+    return self.psif.T @ A @ self.phif
 
   # Solving
   # ===================================
@@ -239,7 +235,7 @@ class BasicSystem(object):
     n_eq = self.mix.compute_eq_comp(rho)
     # Linear operator
     if (A is None):
-      A = self._compute_lin_fom_ops_a_full(n_eq[0], by_mass=False)
+      A = self.compute_lin_fom_ops_a(n_eq, by_mass=False)
     # Eigendecomposition
     l, v = [x.real for x in sp.linalg.eig(A)]
     # Solution

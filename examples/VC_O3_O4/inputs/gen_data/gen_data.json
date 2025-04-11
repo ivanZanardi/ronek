@@ -42,12 +42,15 @@
         "log_vars": ["T0", "rho"],
         "eps": 1e-7
       },
-      "T": [1e4]
+      "T": {
+        "limits": [1e4, 1e4],
+        "nb_samples": 1
+      }
     },
     "nb_workers": 10
   },
   "paths": {
     "dtb": "/home/zanardi/Codes/ML/RONEK/ronek/examples/VC_O3_O4/database/",
-    "saving": "./../../test/data/"
+    "saving": "./../../run01/data/"
   }
 }

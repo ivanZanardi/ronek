@@ -40,23 +40,6 @@ class TASystem(BasicSystem):
       "r": rates["m-a"]["d"]["bwd"]
     }
 
-  # Linearized FOM
-  # -----------------------------------
-  def _compute_lin_fom_ops_a(
-    self,
-    n_a_eq: np.ndarray
-  ) -> np.ndarray:
-    return self.fom_ops["ed"] * n_a_eq
-
-  def _compute_lin_fom_ops_b(
-    self,
-    n_a_eq: np.ndarray
-  ) -> np.ndarray:
-    return (
-      self.fom_ops["ed"] @ self.mix.gamma \
-      + 3 * self.fom_ops["r"]
-    ) * n_a_eq**2
-
   # ROM
   # -----------------------------------
   def _update_rom_ops(self):
