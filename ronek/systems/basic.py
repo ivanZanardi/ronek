@@ -192,12 +192,14 @@ class BasicSystem(object):
     t: np.ndarray,
     n0: np.ndarray,
     ops: dict
-  ) -> np.ndarray:
+  ) -> Tuple[Optional[np.ndarray]]:
+    # Solving
+    runtime = time.time()
     sol = sp.integrate.solve_ivp(
       fun=self.fun,
       t_span=[0.0,t[-1]],
       y0=n0/const.UNA,
-      method="LSODA",
+      method="BDF",
       t_eval=t,
       args=(ops,),
       first_step=1e-14,
@@ -205,12 +207,11 @@ class BasicSystem(object):
       atol=0.0,
       jac=self.jac
     )
-    n = sol.y * const.UNA
-    nb_n = n.shape[1]
-    nb_t = len(t.reshape(-1))
-    if (nb_n != nb_t):
-      raise ValueError("Solution not converged!")
-    return n
+    runtime = time.time()-runtime
+    runtime = np.array(runtime).reshape(1)
+    # Check convergence
+    n = sol.y*const.UNA if sol.success else None
+    return n, runtime
 
   def solve_fom(
     self,
@@ -218,11 +219,11 @@ class BasicSystem(object):
     n0: np.ndarray
   ) -> Tuple[np.ndarray]:
     """Solve FOM."""
-    runtime = time.time()
-    n = self._solve(t=t, n0=n0, ops=self.fom_ops)
-    runtime = time.time()-runtime
-    runtime = np.array(runtime).reshape(1)
-    return n[:1], n[1:], runtime
+    n, runtime = self._solve(t=t, n0=n0, ops=self.fom_ops)
+    if (n is None):
+      return None, None, runtime
+    else:
+      return n[:1], n[1:], runtime
 
   def solve_lin_fom(
     self,
@@ -256,13 +257,13 @@ class BasicSystem(object):
     z_m = self._encode(n0[1:])
     z0 = np.concatenate([n0[:1], z_m])
     # Solve
-    runtime = time.time()
-    z = self._solve(t=t, n0=z0, ops=self.rom_ops)
-    runtime = time.time()-runtime
-    runtime = np.array(runtime).reshape(1)
+    z, runtime = self._solve(t=t, n0=z0, ops=self.rom_ops)
     # Decode solution
-    n_m = self._decode(z[1:].T).T
-    return z[:1], n_m, runtime
+    if (z is None):
+      return None, None, runtime
+    else:
+      n_m = self._decode(z[1:].T).T
+      return z[:1], n_m, runtime
 
   def _encode(self, x: np.ndarray) -> np.ndarray:
     return x @ self.psi
@@ -333,19 +334,19 @@ class BasicSystem(object):
     shift: int = 0,
     filename: Optional[str] = None
   ) -> np.ndarray:
-    try:
-      if update:
-        self.update_fom_ops(T)
-      mui = mu[index] if (index is not None) else mu
-      n0 = self.mix.get_init_sol(*mui, mu_type=mu_type)
-      *n, runtime = self.solve_fom(t, n0)
+    if update:
+      self.update_fom_ops(T)
+    mui = mu if (index is None) else mu[index]
+    n0 = self.mix.get_init_sol(*mui, mu_type=mu_type)
+    *n, runtime = self.solve_fom(t, n0)
+    if (n[0] is None):
+      return None
+    else:
       data = {"index": index, "mu": mui, "T": T, "t": t, "n0": n0, "n": n}
       if (index is not None):
         index += shift
       utils.save_case(path=path, index=index, data=data, filename=filename)
-    except:
-      runtime = None
-    return runtime
+      return runtime
 
   def compute_rom_sol(
     self,
@@ -356,15 +357,18 @@ class BasicSystem(object):
     eval_err: Optional[str] = None,
     eps: float = 1e-7
   ) -> Tuple[np.ndarray]:
-    try:
-      # Load test case
-      icase = utils.load_case(path=path, index=index, filename=filename)
-      T, t, n0, n_fom = [icase[k] for k in ("T", "t", "n0", "n")]
-      if update:
-        self.update_fom_ops(T)
-        self.update_rom_ops()
-      # Solve ROM
-      *n_rom, runtime = self.solve_rom(t, n0)
+    # Load test case
+    icase = utils.load_case(path=path, index=index, filename=filename)
+    T, t, n0, n_fom = [icase[k] for k in ("T", "t", "n0", "n")]
+    if update:
+      self.update_fom_ops(T)
+      self.update_rom_ops()
+    # Solve ROM
+    *n_rom, runtime = self.solve_rom(t, n0)
+    if (n_rom[0] is None):
+      nb_none = 4 if (eval_err is None) else 2
+      return [None for _ in range(nb_none)]
+    else:
       # Evaluate error
       if (eval_err == "mom"):
         # > Moments
@@ -376,9 +380,6 @@ class BasicSystem(object):
       else:
         # > None: return the solution
         return t, n_fom, n_rom, runtime
-    except:
-      nb_none = 2 if (eval_err is not None) else 4
-      return [None for _ in range(nb_none)]
 
   def compute_mom_err(
     self,
