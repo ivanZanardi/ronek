@@ -19,8 +19,8 @@ The repository includes the following example cases:
 2. **Edit Input Files**:
   Each subfolder contains a `.json` input file for a specific model setup:
     - `gen_data`: Generates data for testing.
-    - `max_mom_2`: Builds a Petrov-Galerkin model using the first 2 moments of the O<sub>2</sub> distribution function.
-    - `max_mom_10`: Builds a Petrov-Galerkin model using the first 10 moments of the O<sub>2</sub> distribution function.
+    - `max_mom_2`: Builds a Petrov-Galerkin model using the first 2 moments of the molecule internal distribution function.
+    - `max_mom_10`: Builds a Petrov-Galerkin model using the first 10 moments of the molecule internal distribution function.
   Make sure to update the file paths within each `.json` input and the `allrun.sh` scripts.
 
 3. **Run the Model**:
