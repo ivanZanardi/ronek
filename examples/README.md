@@ -14,7 +14,7 @@ The repository includes the following example cases:
 
 #### Running the Examples
 
-1. **Navigate** to the `inputs` folder of the desired example (e.g., `RVC_O3/inputs`).
+1. **Navigate** to the `inputs` folder of the desired example (`<example>/inputs`).
 
 2. **Edit Input Files**:
   Each subfolder contains a `.json` input file for a specific model setup:
@@ -23,7 +23,7 @@ The repository includes the following example cases:
   - `max_mom_10`: Builds a Petrov-Galerkin model using the first 10 moments of the O$_2$ distribution function.
   Make sure to update the file paths within each `.json` input and the `allrun.sh` scripts.
 
-3. **Run the Model**:
+1. **Run the Model**:
   After activating the appropriate Conda environment, run:
   ```bash
   bash allrun.sh
@@ -32,4 +32,4 @@ The repository includes the following example cases:
 
 ### Data Availability
 
-The kinetic database required to run these examples will be made available upon reasonable request.
+The kinetic database (`<example>/database/kinetics.hdf5`) required to run these examples will be made available upon reasonable request.
