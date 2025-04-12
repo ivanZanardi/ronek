@@ -199,11 +199,11 @@ class BasicSystem(object):
       fun=self.fun,
       t_span=[0.0,t[-1]],
       y0=n0/const.UNA,
-      method="BDF",
+      method="LSODA",
       t_eval=t,
       args=(ops,),
       first_step=1e-14,
-      rtol=1e-6,
+      rtol=1e-4,
       atol=0.0,
       jac=self.jac
     )

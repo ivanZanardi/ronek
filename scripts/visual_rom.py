@@ -116,7 +116,9 @@ if (__name__ == '__main__'):
             phi=model["bases"]["phi"][:,:r],
             psi=model["bases"]["psi"][:,:r]
           )
-          sols[model["name"]] = system.solve_rom(t, n0)[1]
+          n_m = system.solve_rom(t, n0)[1]
+          if (n_m is not None):
+            sols[model["name"]] = n_m
         # elif ((name == "cg") and (2*int(model["nb_bins"]) == r)):
         elif (name == "cg"):
           if (model["cases"].get(icase, None) is not None):
