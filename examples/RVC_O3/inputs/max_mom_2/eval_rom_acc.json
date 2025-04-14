@@ -20,21 +20,21 @@
     "cobras": {
       "active": true,
       "name": "CoBRAS",
-      "bases": "./../../test/max_mom_2/cobras_bases.hdf5"
+      "bases": "./../../run01/max_mom_2/cobras_bases.hdf5"
     },
     "pod": {
-      "active": false,
+      "active": true,
       "name": "POD",
-      "bases": "./../../test/max_mom_2/pod_bases.hdf5"
+      "bases": "./../../run01/max_mom_2/pod_bases.hdf5"
     }
   },
   "paths": {
     "dtb": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/",
-    "saving": "./../../test/max_mom_2/"
+    "saving": "./../../run01/max_mom_2/"
   },
   "data": {
     "range": [0,1000],
-    "nb_workers": 32,
+    "nb_workers": 20,
     "path": "./../../test/data/"
   },
   "plot": {

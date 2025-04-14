@@ -1,7 +1,7 @@
 {
   "path_to_lib": "/home/zanardi/Codes/ML/RONEK/ronek/",
   "env": {
-    "backend": "torch",
+    "backend": "numpy",
     "device": "cpu",
     "device_idx": 0,
     "nb_threads": 8,
@@ -12,7 +12,7 @@
     "t": {
       "start": 1e-12,
       "stop": 1e-2,
-      "num": 51
+      "num": 31
     },
     "theta": {
       "T":  {
@@ -44,8 +44,8 @@
     "read": false,
     "save": false,
     "nb_workers": 10,
-    "path_x": "./../../test/max_mom_2/X.npy",
-    "path_y": "./../../test/max_mom_2/Y.npy"
+    "path_x": "./../../run01/max_mom_2/X.npy",
+    "path_y": "./../../run01/max_mom_2/Y.npy"
   },
   "system": {
     "name": "TASystem",
@@ -57,7 +57,7 @@
   },
   "paths": {
     "dtb": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/",
-    "saving": "./../../test/max_mom_2/"
+    "saving": "./../../run01/max_mom_2/"
   },
   "max_mom": 2
 }

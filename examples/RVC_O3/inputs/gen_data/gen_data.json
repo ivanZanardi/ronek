@@ -54,6 +54,6 @@
   },
   "paths": {
     "dtb": "/home/zanardi/Codes/ML/RONEK/ronek/examples/RVC_O3/database/",
-    "saving": "./../../test/data/"
+    "saving": "./../../run01/data/"
   }
 }
