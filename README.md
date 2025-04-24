@@ -73,4 +73,4 @@ Check out the [examples](https://github.com/ivanZanardi/ronek/tree/main/examples
 
 ## License
 
-RONEK is distributed under the [Apache-2.0 license](https://github.com/ivanZanardi/ronek/blob/main/LICENSE). You are welcome to utilize, modify, and contribute to this project in accordance with the terms outlined in the license.
+RONEK is distributed under the [NCSA Open Source License](https://github.com/ivanZanardi/ronek/blob/main/LICENSE). You are welcome to utilize, modify, and contribute to this project in accordance with the terms outlined in the license.
