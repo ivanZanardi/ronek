@@ -8,7 +8,7 @@ version = "0.0.1"
 dynamic = ["dependencies"]
 description = "Reduced Order modeling for Non-Equilibrium Kinetics"
 readme = "README.md"
-license = {text = "MIT"}
+license = {text = "MIT License"}
 authors = [
   {name = "Ivan Zanardi", email = "zanardi3@illinois.edu"}
 ]
