@@ -8,7 +8,7 @@ RONEK is a Python library designed to perform model reduction for non-equilibriu
 
 It leverages PyTorch for GPU acceleration. This implementation excels in performance, making it well-suited for high-dimensional problems.
 
-## Installation and Usage
+## Installation
 
 To install RONEK, follow these steps:
 
