@@ -32,4 +32,5 @@ The repository includes the following example cases:
 
 ### Data Availability
 
-The kinetic database (`<example>/database/kinetics.hdf5`) required to run these examples will be made available upon reasonable request.
+The thermochemical databases can be accessed using the provided DOI: [10.5281/zenodo.15875376](https://doi.org/10.5281/zenodo.15875376).
+For each example, please unzip the data into `<example>/` to load and run the test cases.
